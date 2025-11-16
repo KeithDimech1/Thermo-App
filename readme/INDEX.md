@@ -69,22 +69,28 @@
   - `SampleFilters` - Query filters
   - `PaginatedResponse<T>` - API responses
 
-### 🌐 API Routes (3 files)
+### 🌐 API Routes (4 files)
 
-**`app/api/samples/route.ts`**
+**[`app/api/samples/route.ts`](app/api/samples/route.md)** (documented)
 - GET `/api/samples` - List samples with filtering
 - Supports: dataset_id, mineral_type, lithology filters
 - Pagination: limit, offset
 
-**`app/api/samples/[id]/route.ts`**
+**[`app/api/samples/[id]/route.ts`](app/api/samples/[id]/route.md)** (documented)
 - GET `/api/samples/[id]` - Get single sample with all data
 - Returns: sample + ft_ages + ft_counts + ft_track_lengths + ahe_grain_data
+
+**[`app/api/tables/[name]/route.ts`](app/api/tables/[name]/route.md)** ⭐ **NEW**
+- GET `/api/tables/[name]` - Generic paginated table data endpoint
+- Supports: samples, ft-ages, ft-counts, track-lengths, ahe-grains
+- Features: Sorting, pagination, column filtering
+- Used by: Interactive table viewer
 
 **`app/api/stats/route.ts`**
 - GET `/api/stats?dataset_id=1` - Dataset statistics
 - Returns: total samples, AFT count, AHe count, age ranges
 
-### 🖥️ Pages (3 files)
+### 🖥️ Pages (4 files)
 
 **`app/page.tsx`**
 - Homepage - Sample list
@@ -101,13 +107,35 @@
 - Shows all FT and (U-Th)/He data for one sample
 - Dynamic route
 
+**`app/tables/page.tsx`** ⭐ **NEW**
+- Interactive table viewer page
+- Table selector + sortable/paginated table
+- Uses: InteractiveTable component
+
+### 🧩 Components (2 files)
+
+**[`components/tables/InteractiveTable.tsx`](components/tables/InteractiveTable.md)** ⭐ **NEW**
+- Reusable sortable, paginated table component
+- Features: Server-side pagination, client-side sort UI
+- Uses: TanStack Table (React Table v8)
+- Consumes: `/api/tables/[name]` endpoint
+
+**`components/tables/TableSelector.tsx`** ⭐ **NEW**
+- Dropdown selector for choosing which table to view
+- Options: Samples, FT Ages, FT Counts, Track Lengths, AHe Grains
+
 ### 🔧 Utilities (1 file)
 
 **`lib/utils/cn.ts`**
 - CSS class merging utility
 - Uses `clsx` and `tailwind-merge`
 
-### 🛠️ Scripts (5 files)
+### 🛠️ Scripts (6 files)
+
+**[`scripts/query-mcmillan-data.js`](scripts/query-mcmillan-data.md)** ⭐ **NEW**
+- Query and display McMillan 2024 Malawi Rift dataset
+- CLI utility for data exploration
+- Shows: Dataset metadata, sample ages, summary statistics
 
 **`scripts/db/import-thermo-data.ts`**
 - Import CSV data into database
@@ -134,15 +162,17 @@
 
 ## 📊 Documentation Statistics
 
-**Code Files:** 15 TypeScript files
-**Scripts:** 5 database utilities
-**Documentation:** 3 markdown files
+**Code Files:** 22 TypeScript/JavaScript files
+**Scripts:** 6 database utilities
+**Documentation:** 6 markdown files (code docs) + 6 table docs + 3 meta docs
 **Database Tables:** 6 tables + 2 views
 
 **Lines of Code:**
 - `lib/db/queries.ts`: ~400 lines (database queries)
 - `lib/types/thermo-data.ts`: ~240 lines (type definitions)
 - `lib/db/connection.ts`: ~208 lines (connection pool)
+- `components/tables/InteractiveTable.tsx`: ~208 lines (table component)
+- `app/api/tables/[name]/route.ts`: ~134 lines (generic table API)
 
 ---
 
@@ -150,10 +180,24 @@
 
 ```
 readme/
-├── INDEX.md                    ← You are here
-├── CHANGES.md                  ← What's new (changelog)
+├── INDEX.md                           ← You are here
+├── CHANGES.md                         ← What's new (changelog)
+├── app/api/                           ← API route documentation
+│   ├── samples/
+│   └── tables/[name]/route.md        ⭐ NEW
+├── components/tables/                 ⭐ NEW
+│   └── InteractiveTable.md
+├── scripts/                           ⭐ NEW
+│   └── query-mcmillan-data.md
 └── database/
-    └── SCHEMA_CHANGES.md       ← Schema migration log
+    ├── SCHEMA_CHANGES.md              ← Schema migration log
+    └── tables/                        ← Table documentation (6 files)
+        ├── samples.md
+        ├── ft_ages.md
+        ├── ft_counts.md
+        ├── ft_track_lengths.md
+        ├── ahe_grain_data.md
+        └── datasets.md
 ```
 
 **Reference Documentation:**
@@ -193,17 +237,21 @@ readme/
 ## 🚀 Next Steps
 
 **Documentation To Do:**
-- [x] Create table docs for 6 tables (samples, ft_ages, ft_counts, ft_track_lengths, ahe_grain_data, datasets) ✅
-- [ ] Document each API route in detail
-- [ ] Create code → table cross-reference map
+- [x] Create table docs for 6 tables ✅ (2025-11-16)
+- [x] Document API routes (3 of 4 documented) ✅
+- [x] Document key components (InteractiveTable) ✅
+- [x] Document utility scripts (query-mcmillan-data) ✅
+- [ ] Create code → table cross-reference map (partial - in table docs)
+- [ ] Document remaining pages and components
 
 **Feature Development:**
-- [ ] Build advanced filtering UI
-- [ ] Add data visualization (age plots, histograms)
-- [ ] Implement CSV export
-- [ ] Create map view (sample locations)
+- [x] Interactive table viewer with sorting/pagination ✅
+- [ ] Advanced filtering UI
+- [ ] Data visualization (age plots, histograms)
+- [ ] CSV export functionality
+- [ ] Map view (sample locations)
 
 ---
 
-**Last Updated:** 2025-11-16
-**Next Review:** After table documentation created
+**Last Updated:** 2025-11-16 (BigTidy documentation run)
+**Next Review:** After adding data visualization features

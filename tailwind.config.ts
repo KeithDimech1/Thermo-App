@@ -17,7 +17,16 @@ const config: Config = {
           poor: '#ef4444',        // red-500 - CV >20%
           unknown: '#6b7280',     // gray-500 - No data
         },
-        // Brand Colors
+        // Thermo Brand Colors (from logo)
+        thermo: {
+          'forest': '#0F3730',    // Dark forest green (background)
+          'forest-light': '#1a4d44', // Lighter forest green (hover)
+          'gold': '#E8B923',      // Gold (accents, flame)
+          'gold-light': '#F4C430', // Light gold (hover)
+          'cream': '#F5F1E3',     // Cream (text)
+          'cream-dark': '#E8E4D8', // Darker cream (muted text)
+        },
+        // Brand Colors (legacy)
         brand: {
           primary: '#2563eb',     // blue-600
           secondary: '#7c3aed',   // violet-600

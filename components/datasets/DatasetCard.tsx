@@ -14,9 +14,27 @@ export default function DatasetCard({
   aftGrainCount = 0,
   aheGrainCount = 0
 }: DatasetCardProps) {
+  // Parse authors if it's a PostgreSQL array string
+  const parsePostgresArray = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+      // Remove { and }, then split by comma and clean quotes
+      return val
+        .replace(/^\{/, '')
+        .replace(/\}$/, '')
+        .split(',')
+        .map(s => s.replace(/^"/, '').replace(/"$/, '').trim());
+    }
+    return [];
+  };
+
+  const authors = parsePostgresArray(dataset.authors);
+  const analysisMethods = parsePostgresArray(dataset.analysis_methods);
+
   return (
     <Link
-      href={`/papers/${dataset.id}`}
+      href={`/datasets/${dataset.id}`}
       className="block bg-white shadow-md hover:shadow-xl transition-shadow rounded-lg p-6 border border-gray-200 hover:border-amber-400"
     >
       {/* Header */}
@@ -26,10 +44,10 @@ export default function DatasetCard({
         </h3>
 
         {/* Authors */}
-        {dataset.authors && dataset.authors.length > 0 && (
+        {authors.length > 0 && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">👤 Authors:</span>{' '}
-            {dataset.authors.join(', ')}
+            {authors.join(', ')}
           </p>
         )}
 
@@ -88,11 +106,11 @@ export default function DatasetCard({
       </div>
 
       {/* Analysis Methods */}
-      {dataset.analysis_methods && dataset.analysis_methods.length > 0 && (
+      {analysisMethods.length > 0 && (
         <div className="mb-4">
           <p className="text-xs text-gray-500 mb-2">Analysis Methods:</p>
           <div className="flex flex-wrap gap-2">
-            {dataset.analysis_methods.map((method, idx) => (
+            {analysisMethods.map((method, idx) => (
               <span
                 key={idx}
                 className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded"

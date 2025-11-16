@@ -140,16 +140,26 @@ This is a thermochronology database application for geological dating. The syste
 
 **Critical Configuration:**
 ```bash
-# .env.local (REQUIRED for migrations)
-DIRECT_URL="postgresql://user:pass@host:5432/dbname"  # Direct connection
-DATABASE_URL="postgresql://..."                        # Pooled connection (Neon)
+# .env.local (REQUIRED for migrations and scripts)
+DATABASE_URL="postgresql://user:pass@host:port/db?sslmode=require"  # Pooled (Neon)
+DIRECT_URL="postgresql://user:pass@host:port/db?sslmode=require"    # Direct connection
 ```
 
 **Connection Pattern:**
 - Use `lib/db/connection.ts` for all database access
+- **Auto-loads `.env.local`** - Works in both Next.js and standalone scripts
 - Connection pool with SSL for Neon
 - Query helpers: `query()`, `queryOne()`, `transaction()`
 - Slow query detection (>1000ms logged)
+
+**Why both URLs?**
+- `DATABASE_URL` - Pooled connection for app (faster for serverless)
+- `DIRECT_URL` - Direct connection for migrations (required by Prisma/schema changes)
+
+**Environment Loading Fix (2025-11-16):**
+- `lib/db/connection.ts` now auto-loads `.env.local` when environment vars missing
+- This fixes TypeScript scripts run with `npx tsx` (they bypass Next.js env loading)
+- Pattern: Check if env vars exist → if not, load from `.env.local`
 
 ---
 

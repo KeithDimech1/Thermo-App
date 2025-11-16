@@ -8,11 +8,36 @@
  */
 
 import { Pool, PoolClient, QueryResult, QueryResultRow, types } from 'pg';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load environment variables from .env.local if not already loaded
+// This is needed when running scripts directly (not through Next.js)
+if (!process.env.DATABASE_URL && !process.env.DIRECT_URL) {
+  const envPath = resolve(process.cwd(), '.env.local');
+  config({ path: envPath });
+}
 
 // Configure PostgreSQL type parsing
 // Parse DECIMAL/NUMERIC (OID 1700) as JavaScript number instead of string
 // This prevents ".toFixed() is not a function" errors throughout the app
 types.setTypeParser(1700, (val: string) => parseFloat(val));
+
+// Parse TEXT[] (OID 1009) as JavaScript array
+types.setTypeParser(1009 as any, (val: string) => {
+  if (!val) return null;
+  // Parse PostgreSQL array format: {elem1,elem2,"elem with spaces"}
+  return val
+    .slice(1, -1) // Remove { and }
+    .split(',')
+    .map((item: string) => {
+      // Remove quotes if present
+      if (item.startsWith('"') && item.endsWith('"')) {
+        return item.slice(1, -1);
+      }
+      return item;
+    });
+});
 
 // Global pool instance (singleton pattern for serverless)
 let pool: Pool | null = null;

@@ -25,14 +25,14 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
 
 --
--- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
 --
 
 COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
 
 
 --
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: neondb_owner
 --
 
 CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
@@ -45,12 +45,14 @@ END;
 $$;
 
 
+ALTER FUNCTION public.update_updated_at_column() OWNER TO neondb_owner;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: ahe_grain_data; Type: TABLE; Schema: public; Owner: -
+-- Name: ahe_grain_data; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.ahe_grain_data (
@@ -77,36 +79,38 @@ CREATE TABLE public.ahe_grain_data (
 );
 
 
+ALTER TABLE public.ahe_grain_data OWNER TO neondb_owner;
+
 --
--- Name: TABLE ahe_grain_data; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE ahe_grain_data; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.ahe_grain_data IS '(U-Th)/He grain-level results';
 
 
 --
--- Name: COLUMN ahe_grain_data.terminations; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ahe_grain_data.terminations; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ahe_grain_data.terminations IS 'Grain termination count (e.g., 0T, 1T, 2T)';
 
 
 --
--- Name: COLUMN ahe_grain_data.eu_ppm; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ahe_grain_data.eu_ppm; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ahe_grain_data.eu_ppm IS 'Effective uranium (U + 0.235*Th)';
 
 
 --
--- Name: COLUMN ahe_grain_data.ft; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ahe_grain_data.ft; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ahe_grain_data.ft IS 'Alpha ejection correction factor (Ft)';
 
 
 --
--- Name: ahe_grain_data_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ahe_grain_data_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
 --
 
 CREATE SEQUENCE public.ahe_grain_data_id_seq
@@ -118,15 +122,17 @@ CREATE SEQUENCE public.ahe_grain_data_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ahe_grain_data_id_seq OWNER TO neondb_owner;
+
 --
--- Name: ahe_grain_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: ahe_grain_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
 ALTER SEQUENCE public.ahe_grain_data_id_seq OWNED BY public.ahe_grain_data.id;
 
 
 --
--- Name: datasets; Type: TABLE; Schema: public; Owner: -
+-- Name: datasets; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.datasets (
@@ -142,15 +148,17 @@ CREATE TABLE public.datasets (
 );
 
 
+ALTER TABLE public.datasets OWNER TO neondb_owner;
+
 --
--- Name: TABLE datasets; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE datasets; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.datasets IS 'Dataset-level metadata for data organization';
 
 
 --
--- Name: datasets_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: datasets_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
 --
 
 CREATE SEQUENCE public.datasets_id_seq
@@ -162,15 +170,17 @@ CREATE SEQUENCE public.datasets_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.datasets_id_seq OWNER TO neondb_owner;
+
 --
--- Name: datasets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: datasets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
 ALTER SEQUENCE public.datasets_id_seq OWNED BY public.datasets.id;
 
 
 --
--- Name: ft_ages; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_ages; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.ft_ages (
@@ -202,22 +212,24 @@ CREATE TABLE public.ft_ages (
 );
 
 
+ALTER TABLE public.ft_ages OWNER TO neondb_owner;
+
 --
--- Name: TABLE ft_ages; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE ft_ages; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.ft_ages IS 'Fission-track age results (FAIR Table 10)';
 
 
 --
--- Name: COLUMN ft_ages.ft_age_type; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ft_ages.ft_age_type; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ft_ages.ft_age_type IS 'Age calculation method: pooled, central, or mixed (mixture modeling)';
 
 
 --
--- Name: ft_ages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ft_ages_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
 --
 
 CREATE SEQUENCE public.ft_ages_id_seq
@@ -229,15 +241,17 @@ CREATE SEQUENCE public.ft_ages_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_ages_id_seq OWNER TO neondb_owner;
+
 --
--- Name: ft_ages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: ft_ages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
 ALTER SEQUENCE public.ft_ages_id_seq OWNED BY public.ft_ages.id;
 
 
 --
--- Name: ft_counts; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_counts; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.ft_counts (
@@ -283,22 +297,24 @@ CREATE TABLE public.ft_counts (
 );
 
 
+ALTER TABLE public.ft_counts OWNER TO neondb_owner;
+
 --
--- Name: TABLE ft_counts; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE ft_counts; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.ft_counts IS 'Fission-track count data (FAIR Table 5)';
 
 
 --
--- Name: COLUMN ft_counts.grain_id; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ft_counts.grain_id; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ft_counts.grain_id IS 'Grain identifier (sample_id_aggregate for sample-level data)';
 
 
 --
--- Name: ft_counts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ft_counts_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
 --
 
 CREATE SEQUENCE public.ft_counts_id_seq
@@ -310,15 +326,17 @@ CREATE SEQUENCE public.ft_counts_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_counts_id_seq OWNER TO neondb_owner;
+
 --
--- Name: ft_counts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: ft_counts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
 ALTER SEQUENCE public.ft_counts_id_seq OWNED BY public.ft_counts.id;
 
 
 --
--- Name: ft_track_lengths; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_track_lengths; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.ft_track_lengths (
@@ -355,22 +373,24 @@ CREATE TABLE public.ft_track_lengths (
 );
 
 
+ALTER TABLE public.ft_track_lengths OWNER TO neondb_owner;
+
 --
--- Name: TABLE ft_track_lengths; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE ft_track_lengths; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.ft_track_lengths IS 'Fission-track length measurements (FAIR Table 6)';
 
 
 --
--- Name: COLUMN ft_track_lengths.ft_track_type; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN ft_track_lengths.ft_track_type; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.ft_track_lengths.ft_track_type IS 'Track type: TINT (track-in-track) or TINCLE (track-in-cleavage)';
 
 
 --
--- Name: ft_track_lengths_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ft_track_lengths_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
 --
 
 CREATE SEQUENCE public.ft_track_lengths_id_seq
@@ -382,15 +402,17 @@ CREATE SEQUENCE public.ft_track_lengths_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_track_lengths_id_seq OWNER TO neondb_owner;
+
 --
--- Name: ft_track_lengths_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: ft_track_lengths_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
 ALTER SEQUENCE public.ft_track_lengths_id_seq OWNED BY public.ft_track_lengths.id;
 
 
 --
--- Name: samples; Type: TABLE; Schema: public; Owner: -
+-- Name: samples; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
 CREATE TABLE public.samples (
@@ -425,36 +447,38 @@ CREATE TABLE public.samples (
 );
 
 
+ALTER TABLE public.samples OWNER TO neondb_owner;
+
 --
--- Name: TABLE samples; Type: COMMENT; Schema: public; Owner: -
+-- Name: TABLE samples; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON TABLE public.samples IS 'Geological sample metadata (FAIR Table 4)';
 
 
 --
--- Name: COLUMN samples.igsn; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN samples.igsn; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.samples.igsn IS 'International Geo Sample Number - global unique identifier';
 
 
 --
--- Name: COLUMN samples.n_aft_grains; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN samples.n_aft_grains; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.samples.n_aft_grains IS 'Number of grains with AFT data';
 
 
 --
--- Name: COLUMN samples.n_ahe_grains; Type: COMMENT; Schema: public; Owner: -
+-- Name: COLUMN samples.n_ahe_grains; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON COLUMN public.samples.n_ahe_grains IS 'Number of grains with (U-Th)/He data';
 
 
 --
--- Name: vw_aft_complete; Type: VIEW; Schema: public; Owner: -
+-- Name: vw_aft_complete; Type: VIEW; Schema: public; Owner: neondb_owner
 --
 
 CREATE VIEW public.vw_aft_complete AS
@@ -486,15 +510,17 @@ CREATE VIEW public.vw_aft_complete AS
      LEFT JOIN public.ft_counts fc ON ((((s.sample_id)::text = (fc.sample_id)::text) AND ((fc.grain_id)::text ~~ '%_aggregate'::text))));
 
 
+ALTER VIEW public.vw_aft_complete OWNER TO neondb_owner;
+
 --
--- Name: VIEW vw_aft_complete; Type: COMMENT; Schema: public; Owner: -
+-- Name: VIEW vw_aft_complete; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON VIEW public.vw_aft_complete IS 'Complete AFT data combining ages, lengths, and counts';
 
 
 --
--- Name: vw_sample_summary; Type: VIEW; Schema: public; Owner: -
+-- Name: vw_sample_summary; Type: VIEW; Schema: public; Owner: neondb_owner
 --
 
 CREATE VIEW public.vw_sample_summary AS
@@ -531,50 +557,52 @@ CREATE VIEW public.vw_sample_summary AS
   GROUP BY s.sample_id, s.igsn, s.latitude, s.longitude, s.elevation_m, s.lithology, s.mineral_type, s.sampling_location_information, s.analyst, s.analysis_method, s.n_aft_grains, s.n_ahe_grains, fa.central_age_ma, fa.central_age_error_ma, fa.dispersion_pct, fa.p_chi2, ftl.mean_track_length_um, ftl.mean_track_length_sd_um, ftl.n_confined_tracks, d.dataset_name, d.study_area;
 
 
+ALTER VIEW public.vw_sample_summary OWNER TO neondb_owner;
+
 --
--- Name: VIEW vw_sample_summary; Type: COMMENT; Schema: public; Owner: -
+-- Name: VIEW vw_sample_summary; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
 COMMENT ON VIEW public.vw_sample_summary IS 'Complete sample summary with AFT and AHe data';
 
 
 --
--- Name: ahe_grain_data id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: ahe_grain_data id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ahe_grain_data ALTER COLUMN id SET DEFAULT nextval('public.ahe_grain_data_id_seq'::regclass);
 
 
 --
--- Name: datasets id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: datasets id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.datasets ALTER COLUMN id SET DEFAULT nextval('public.datasets_id_seq'::regclass);
 
 
 --
--- Name: ft_ages id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: ft_ages id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_ages ALTER COLUMN id SET DEFAULT nextval('public.ft_ages_id_seq'::regclass);
 
 
 --
--- Name: ft_counts id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: ft_counts id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_counts ALTER COLUMN id SET DEFAULT nextval('public.ft_counts_id_seq'::regclass);
 
 
 --
--- Name: ft_track_lengths id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: ft_track_lengths id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_track_lengths ALTER COLUMN id SET DEFAULT nextval('public.ft_track_lengths_id_seq'::regclass);
 
 
 --
--- Name: ahe_grain_data ahe_grain_data_lab_no_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_lab_no_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ahe_grain_data
@@ -582,7 +610,7 @@ ALTER TABLE ONLY public.ahe_grain_data
 
 
 --
--- Name: ahe_grain_data ahe_grain_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ahe_grain_data
@@ -590,7 +618,7 @@ ALTER TABLE ONLY public.ahe_grain_data
 
 
 --
--- Name: datasets datasets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: datasets datasets_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.datasets
@@ -598,7 +626,7 @@ ALTER TABLE ONLY public.datasets
 
 
 --
--- Name: ft_ages ft_ages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_ages
@@ -606,7 +634,7 @@ ALTER TABLE ONLY public.ft_ages
 
 
 --
--- Name: ft_ages ft_ages_sample_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_sample_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_ages
@@ -614,7 +642,7 @@ ALTER TABLE ONLY public.ft_ages
 
 
 --
--- Name: ft_counts ft_counts_grain_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_grain_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_counts
@@ -622,7 +650,7 @@ ALTER TABLE ONLY public.ft_counts
 
 
 --
--- Name: ft_counts ft_counts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_counts
@@ -630,7 +658,7 @@ ALTER TABLE ONLY public.ft_counts
 
 
 --
--- Name: ft_track_lengths ft_track_lengths_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_track_lengths ft_track_lengths_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_track_lengths
@@ -638,7 +666,7 @@ ALTER TABLE ONLY public.ft_track_lengths
 
 
 --
--- Name: samples samples_igsn_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: samples samples_igsn_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.samples
@@ -646,7 +674,7 @@ ALTER TABLE ONLY public.samples
 
 
 --
--- Name: samples samples_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: samples samples_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.samples
@@ -654,126 +682,126 @@ ALTER TABLE ONLY public.samples
 
 
 --
--- Name: idx_ahe_age; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_age; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ahe_age ON public.ahe_grain_data USING btree (corr_age_ma);
 
 
 --
--- Name: idx_ahe_lab_no; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_lab_no; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ahe_lab_no ON public.ahe_grain_data USING btree (lab_no);
 
 
 --
--- Name: idx_ahe_sample; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ahe_sample ON public.ahe_grain_data USING btree (sample_id);
 
 
 --
--- Name: idx_ft_ages_central; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_central; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_ages_central ON public.ft_ages USING btree (central_age_ma);
 
 
 --
--- Name: idx_ft_ages_dispersion; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_dispersion; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_ages_dispersion ON public.ft_ages USING btree (dispersion_pct);
 
 
 --
--- Name: idx_ft_ages_sample; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_ages_sample ON public.ft_ages USING btree (sample_id);
 
 
 --
--- Name: idx_ft_counts_dispersion; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_dispersion; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_counts_dispersion ON public.ft_counts USING btree (disp_pct);
 
 
 --
--- Name: idx_ft_counts_grain; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_grain; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_counts_grain ON public.ft_counts USING btree (grain_id);
 
 
 --
--- Name: idx_ft_counts_sample; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_counts_sample ON public.ft_counts USING btree (sample_id);
 
 
 --
--- Name: idx_ft_lengths_grain; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_grain; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_lengths_grain ON public.ft_track_lengths USING btree (grain_id);
 
 
 --
--- Name: idx_ft_lengths_mtl; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_mtl; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_lengths_mtl ON public.ft_track_lengths USING btree (mean_track_length_um);
 
 
 --
--- Name: idx_ft_lengths_sample; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_ft_lengths_sample ON public.ft_track_lengths USING btree (sample_id);
 
 
 --
--- Name: idx_samples_dataset; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_dataset; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_samples_dataset ON public.samples USING btree (dataset_id);
 
 
 --
--- Name: idx_samples_igsn; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_igsn; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_samples_igsn ON public.samples USING btree (igsn) WHERE (igsn IS NOT NULL);
 
 
 --
--- Name: idx_samples_location; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_location; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_samples_location ON public.samples USING btree (latitude, longitude);
 
 
 --
--- Name: idx_samples_mineral; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_mineral; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
 CREATE INDEX idx_samples_mineral ON public.samples USING btree (mineral_type);
 
 
 --
--- Name: samples update_samples_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: samples update_samples_updated_at; Type: TRIGGER; Schema: public; Owner: neondb_owner
 --
 
 CREATE TRIGGER update_samples_updated_at BEFORE UPDATE ON public.samples FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: ahe_grain_data ahe_grain_data_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ahe_grain_data
@@ -781,7 +809,7 @@ ALTER TABLE ONLY public.ahe_grain_data
 
 
 --
--- Name: ft_ages ft_ages_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_ages
@@ -789,7 +817,7 @@ ALTER TABLE ONLY public.ft_ages
 
 
 --
--- Name: ft_counts ft_counts_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_counts
@@ -797,7 +825,7 @@ ALTER TABLE ONLY public.ft_counts
 
 
 --
--- Name: ft_track_lengths ft_track_lengths_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_track_lengths ft_track_lengths_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.ft_track_lengths
@@ -805,11 +833,25 @@ ALTER TABLE ONLY public.ft_track_lengths
 
 
 --
--- Name: samples samples_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: samples samples_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
 ALTER TABLE ONLY public.samples
     ADD CONSTRAINT samples_dataset_id_fkey FOREIGN KEY (dataset_id) REFERENCES public.datasets(id);
+
+
+--
+-- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
+--
+
+ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO neon_superuser WITH GRANT OPTION;
+
+
+--
+-- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
+--
+
+ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON TABLES TO neon_superuser WITH GRANT OPTION;
 
 
 --

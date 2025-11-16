@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/queries';
 import { query } from '@/lib/db/connection';
 import DownloadSection from '@/components/datasets/DownloadSection';
+import Breadcrumb from '@/components/ui/Breadcrumb';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,21 @@ interface DatasetStats {
   sample_count: number;
   aft_grain_count: number;
   ahe_grain_count: number;
+}
+
+// Helper to parse PostgreSQL array strings
+function parsePostgresArray(val: any): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    // Remove { and }, then split by comma and clean quotes
+    return val
+      .replace(/^\{/, '')
+      .replace(/\}$/, '')
+      .split(',')
+      .map(s => s.replace(/^"/, '').replace(/"$/, '').trim());
+  }
+  return [];
 }
 
 async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
@@ -86,14 +102,17 @@ export default async function PaperDetailPage({ params }: PageProps) {
     getDatasetStats(datasetId)
   ]);
 
+  // Parse PostgreSQL array fields
+  const authors = parsePostgresArray(dataset.authors);
+  const analysisMethods = parsePostgresArray(dataset.analysis_methods);
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 text-sm text-gray-600">
-        <Link href="/datasets" className="hover:text-amber-700">
-          ← Back to Datasets
-        </Link>
-      </nav>
+      <Breadcrumb items={[
+        { label: 'Datasets', href: '/datasets' },
+        { label: dataset.dataset_name }
+      ]} />
 
       {/* Header */}
       <div className="mb-8">
@@ -104,10 +123,10 @@ export default async function PaperDetailPage({ params }: PageProps) {
         {/* Metadata Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Authors */}
-          {dataset.authors && dataset.authors.length > 0 && (
+          {authors.length > 0 && (
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-1">👤 Authors</p>
-              <p className="text-sm text-gray-900">{dataset.authors.join(', ')}</p>
+              <p className="text-sm text-gray-900">{authors.join(', ')}</p>
             </div>
           )}
 
@@ -189,11 +208,11 @@ export default async function PaperDetailPage({ params }: PageProps) {
         </div>
 
         {/* Analysis Methods */}
-        {dataset.analysis_methods && dataset.analysis_methods.length > 0 && (
+        {analysisMethods.length > 0 && (
           <div className="mb-6">
             <p className="text-sm font-semibold text-gray-700 mb-2">Analysis Methods</p>
             <div className="flex flex-wrap gap-2">
-              {dataset.analysis_methods.map((method, idx) => (
+              {analysisMethods.map((method, idx) => (
                 <span
                   key={idx}
                   className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full"

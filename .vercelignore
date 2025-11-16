@@ -1,0 +1,26 @@
+# Build data and documentation (not needed for deployment)
+build-data/
+readme/
+output/
+
+# Development artifacts
+.claude/
+.vscode/
+.idea/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Scripts (not needed at runtime)
+scripts/
+
+# Large files
+*.pdf
+*.zip
+*.tar.gz
+
+# System files
+.DS_Store
+*.log

@@ -105,6 +105,7 @@ export default async function PaperDetailPage({ params }: PageProps) {
   // Parse PostgreSQL array fields
   const authors = parsePostgresArray(dataset.authors);
   const analysisMethods = parsePostgresArray(dataset.analysis_methods);
+  const keyFindings = parsePostgresArray(dataset.key_findings);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -116,9 +117,58 @@ export default async function PaperDetailPage({ params }: PageProps) {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          {dataset.dataset_name}
-        </h1>
+        <div className="flex items-start justify-between mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 flex-1">
+            {dataset.dataset_name}
+          </h1>
+
+          {/* FAIR Score Badge */}
+          {dataset.fair_score !== null && dataset.fair_score !== undefined && (
+            <div className="ml-4 flex flex-col items-center">
+              <div className={`
+                text-5xl font-bold px-6 py-3 rounded-lg
+                ${dataset.fair_score >= 90 ? 'bg-green-100 text-green-800' :
+                  dataset.fair_score >= 75 ? 'bg-yellow-100 text-yellow-800' :
+                  dataset.fair_score >= 60 ? 'bg-orange-100 text-orange-800' :
+                  'bg-red-100 text-red-800'}
+              `}>
+                {dataset.fair_score}
+              </div>
+              <p className="text-xs text-gray-600 mt-1 font-semibold">FAIR Score</p>
+            </div>
+          )}
+        </div>
+
+        {/* Paper Summary */}
+        {dataset.paper_summary && (
+          <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+            <p className="text-sm font-semibold text-blue-900 mb-2">Paper Summary</p>
+            <p className="text-sm text-gray-800 leading-relaxed">{dataset.paper_summary}</p>
+          </div>
+        )}
+
+        {/* Key Findings */}
+        {keyFindings.length > 0 && (
+          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
+            <p className="text-sm font-semibold text-green-900 mb-3">Key Findings</p>
+            <ul className="space-y-2">
+              {keyFindings.map((finding, idx) => (
+                <li key={idx} className="text-sm text-gray-800 flex items-start">
+                  <span className="text-green-600 mr-2 font-bold">•</span>
+                  <span className="flex-1">{finding}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* FAIR Reasoning */}
+        {dataset.fair_reasoning && (
+          <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
+            <p className="text-sm font-semibold text-amber-900 mb-2">FAIR Compliance Analysis</p>
+            <p className="text-sm text-gray-800 leading-relaxed">{dataset.fair_reasoning}</p>
+          </div>
+        )}
 
         {/* Metadata Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">

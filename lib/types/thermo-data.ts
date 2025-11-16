@@ -23,6 +23,14 @@ export interface Dataset {
   authors: string[] | null; // Added for Papers view (IDEA-004)
   collection_date: Date | null; // Added for Papers view (IDEA-004)
   analysis_methods: string[] | null; // Added for Papers view (IDEA-004)
+
+  // Extraction metadata (added 2025-11-16)
+  paper_summary: string | null;
+  fair_score: number | null;
+  fair_reasoning: string | null;
+  key_findings: string[] | null;
+  extraction_report_url: string | null;
+
   created_at: Date;
 }
 

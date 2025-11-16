@@ -490,4 +490,85 @@ python scripts/db/import-dataset.py
 
 ---
 
+## 💾 Database Metadata Import (For Dataset Page Display)
+
+After successful data import, add metadata to make it visible on the dataset page:
+
+### Required Metadata Fields
+
+```sql
+-- Update datasets table with extraction metadata
+UPDATE datasets SET
+  paper_summary = '<One-paragraph summary of paper findings>',
+  fair_score = <0-100>,
+  fair_reasoning = '<Detailed explanation of FAIR score>',
+  key_findings = ARRAY[
+    '<Finding 1>',
+    '<Finding 2>',
+    '<Finding 3>',
+    ...
+  ],
+  extraction_report_url = '/data/datasets/<id>/<dataset>-extraction-report.md'
+WHERE id = <dataset_id>;
+```
+
+### Register Data Files for Download
+
+```sql
+-- Insert file records into data_files table
+INSERT INTO data_files (
+  dataset_id, file_name, file_path, file_type,
+  display_name, row_count, description,
+  created_at, updated_at
+) VALUES
+  -- FAIR schema files
+  (<id>, '<dataset>-samples.csv', '/data/datasets/<id>/<dataset>-samples.csv',
+   'fair_schema', 'Samples', <rows>, 'FAIR-compliant samples data', NOW(), NOW()),
+  (<id>, '<dataset>-ft_ages.csv', '/data/datasets/<id>/<dataset>-ft_ages.csv',
+   'fair_schema', 'FT Ages', <rows>, 'FAIR-compliant ft_ages data', NOW(), NOW()),
+  (<id>, '<dataset>-ft_counts.csv', '/data/datasets/<id>/<dataset>-ft_counts.csv',
+   'fair_schema', 'FT Counts', <rows>, 'FAIR-compliant ft_counts data', NOW(), NOW()),
+  (<id>, '<dataset>-ft_track_lengths.csv', '/data/datasets/<id>/<dataset>-ft_track_lengths.csv',
+   'fair_schema', 'FT Track Lengths', <rows>, 'FAIR-compliant ft_track_lengths data', NOW(), NOW()),
+
+  -- Original table (if extracted)
+  (<id>, '<dataset>-original.csv', '/data/datasets/<id>/<dataset>-original.csv',
+   'original_table', 'Original Table', <rows>, 'Original extracted data from Table X', NOW(), NOW()),
+
+  -- Extraction report
+  (<id>, '<dataset>-extraction-report.md', '/data/datasets/<id>/<dataset>-extraction-report.md',
+   'report', 'Extraction Report', NULL, 'Data extraction report', NOW(), NOW());
+```
+
+### Copy Files to Public Directory
+
+```bash
+# Create dataset directory
+mkdir -p public/data/datasets/<dataset_id>
+
+# Copy all extracted files
+cp build-data/learning/thermo-papers/data/<dataset>-*.csv \
+   public/data/datasets/<dataset_id>/
+
+# Copy extraction report
+cp build-data/learning/thermo-papers/reports/<dataset>-extraction-report.md \
+   public/data/datasets/<dataset_id>/
+```
+
+### What This Enables
+
+After completing the metadata import:
+
+**Dataset Page** (`/datasets/<id>`) will display:
+- ✅ **FAIR Score Badge** - Color-coded 0-100 rating (green ≥90, yellow ≥75, orange ≥60, red <60)
+- ✅ **Paper Summary** - One-paragraph research overview (blue highlight)
+- ✅ **Key Findings** - Bullet list of major results (green highlight)
+- ✅ **FAIR Compliance Analysis** - Detailed reasoning (amber highlight)
+- ✅ **Downloadable Files** - All FAIR schema CSVs + original tables + report
+- ✅ **Download All as ZIP** - Single-click archive download
+
+**Example:** https://thermo-app.vercel.app/datasets/4
+
+---
+
 **Ready to extract!** Run this workflow with your PDF path to generate validated, import-ready CSV files.

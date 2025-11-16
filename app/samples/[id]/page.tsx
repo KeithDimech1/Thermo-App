@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getSampleDetail } from '@/lib/db/queries';
 import { notFound } from 'next/navigation';
+import { AHeGrainData } from '@/lib/types/thermo-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export default async function SampleDetailPage({
   const sampleDetail = await getSampleDetail(params.id);
 
   if (!sampleDetail) {
-    notFound();
+    return notFound();
   }
 
   const { sample, ft_ages, ft_track_lengths, ft_counts, ahe_grains } = sampleDetail;
@@ -127,7 +128,7 @@ export default async function SampleDetailPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {ahe_grains.map((grain, index) => (
+                      {ahe_grains.map((grain: AHeGrainData, index: number) => (
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-4 py-2 text-sm text-gray-900">{grain.lab_no}</td>
                           <td className="px-4 py-2 text-sm font-semibold text-blue-600">

@@ -93,7 +93,7 @@ export default async function PaperDetailPage({ params }: PageProps) {
   const dataset = await getDatasetById(datasetId);
 
   if (!dataset) {
-    notFound();
+    return notFound();
   }
 
   const [files, totalSize, stats] = await Promise.all([

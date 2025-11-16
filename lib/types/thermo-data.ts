@@ -20,7 +20,24 @@ export interface Dataset {
   study_area: string | null;
   analyst: string | null;
   laboratory: string | null;
+  authors: string[] | null; // Added for Papers view (IDEA-004)
+  collection_date: Date | null; // Added for Papers view (IDEA-004)
+  analysis_methods: string[] | null; // Added for Papers view (IDEA-004)
   created_at: Date;
+}
+
+export interface DataFile {
+  id: number;
+  dataset_id: number;
+  file_name: string;
+  file_path: string;
+  file_type: string;
+  display_name: string | null;
+  file_size_bytes: number | null;
+  row_count: number | null;
+  description: string | null;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface Sample {

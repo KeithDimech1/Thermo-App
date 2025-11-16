@@ -22,6 +22,8 @@ import {
   PaginatedResponse,
   SampleDetailResponse,
   DatasetStatsResponse,
+  Dataset,
+  DataFile,
 } from '@/lib/types/thermo-data';
 
 // =============================================================================
@@ -418,4 +420,108 @@ export async function searchSamplesByLocation(
   `;
 
   return await query<Sample>(sql, [minLat, maxLat, minLon, maxLon]);
+}
+
+// =============================================================================
+// DATASETS (PAPERS)
+// =============================================================================
+
+/**
+ * Get all datasets/papers with optional filtering
+ * For Papers view (IDEA-004)
+ */
+export async function getAllDatasets(): Promise<Dataset[]> {
+  const sql = `
+    SELECT * FROM datasets
+    ORDER BY id ASC
+  `;
+
+  return await query<Dataset>(sql);
+}
+
+/**
+ * Get single dataset by ID
+ * For Paper detail view (IDEA-004)
+ */
+export async function getDatasetById(id: number): Promise<Dataset | null> {
+  const sql = `
+    SELECT * FROM datasets
+    WHERE id = $1
+  `;
+
+  return await queryOne<Dataset>(sql, [id]);
+}
+
+/**
+ * Get datasets by author
+ * For Papers view author filter (IDEA-004)
+ */
+export async function getDatasetsByAuthor(author: string): Promise<Dataset[]> {
+  const sql = `
+    SELECT * FROM datasets
+    WHERE $1 = ANY(authors)
+    ORDER BY id ASC
+  `;
+
+  return await query<Dataset>(sql, [author]);
+}
+
+/**
+ * Get all unique authors across all datasets
+ * For author filter dropdown (IDEA-004)
+ */
+export async function getAllAuthors(): Promise<string[]> {
+  const sql = `
+    SELECT DISTINCT UNNEST(authors) as author
+    FROM datasets
+    WHERE authors IS NOT NULL
+    ORDER BY author ASC
+  `;
+
+  const rows = await query<{ author: string }>(sql);
+  return rows.map(row => row.author);
+}
+
+// =============================================================================
+// DATA FILES
+// =============================================================================
+
+/**
+ * Get all data files for a specific dataset
+ * For Paper detail page downloads (IDEA-004)
+ */
+export async function getDataFilesByDataset(datasetId: number): Promise<DataFile[]> {
+  const sql = `
+    SELECT * FROM data_files
+    WHERE dataset_id = $1
+    ORDER BY file_type, file_name
+  `;
+
+  return await query<DataFile>(sql, [datasetId]);
+}
+
+/**
+ * Get single data file by ID
+ */
+export async function getDataFileById(id: number): Promise<DataFile | null> {
+  const sql = `
+    SELECT * FROM data_files
+    WHERE id = $1
+  `;
+
+  return await queryOne<DataFile>(sql, [id]);
+}
+
+/**
+ * Get total file size for a dataset (for ZIP download estimate)
+ */
+export async function getDatasetTotalFileSize(datasetId: number): Promise<number> {
+  const sql = `
+    SELECT COALESCE(SUM(file_size_bytes), 0) as total_size
+    FROM data_files
+    WHERE dataset_id = $1
+  `;
+
+  const row = await queryOne<{ total_size: string }>(sql, [datasetId]);
+  return parseInt(row?.total_size || '0', 10);
 }

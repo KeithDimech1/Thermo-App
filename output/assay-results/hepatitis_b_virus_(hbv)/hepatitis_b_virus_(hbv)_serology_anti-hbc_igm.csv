@@ -1,9 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Abbott,Abbott ARCHITECT Anti-HBc IgM,ARCHITECT,CLIA,Optitrol HEPA2,100.0,,,,,excellent,13,212
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Abbott,Abbott ARCHITECT Anti-HBc IgM,ARCHITECT,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,13,28
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Abbott,Abbott Alinity i Anti-HBc IgM,Alinity i,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,11,27
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Abbott,Abbott Alinity i Anti-HBc IgM,Alinity i,CLIA,Optitrol HEPA2,100.0,,,,,excellent,11,211
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON HBc IgM,LIAISON,ELISA,Optitrol HEPA1,100.0,,,,,excellent,1,213
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON HBc IgM,LIAISON,ELISA,Optitrol HEPA-1,100.0,,,,,excellent,1,29
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Roche,Roche Elecsys Anti-HBc IgM,Elecsys,CLIA,Optitrol HEPA-2,80.0,20.0,,,,good,5,30
-Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgM,Antibody,IgM,Roche,Roche Elecsys Anti-HBc IgM,Elecsys,CLIA,Optitrol HEPA2,80.0,20.0,,,,acceptable,5,214

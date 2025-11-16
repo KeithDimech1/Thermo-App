@@ -1,4 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Toxoplasma gondii,Toxoplasma,serology,anti-Toxo IgM,Antibody,IgM,Abbott,Abbott ARCHITECT Toxo IgM,ARCHITECT,CLIA,Optitrol ToRCHM,100.0,,,,,excellent,29,101
-Toxoplasma gondii,Toxoplasma,serology,anti-Toxo IgM,Antibody,IgM,Abbott,Abbott Alinity i Toxo IgM,Alinity i,CLIA,Optitrol ToRCHM,100.0,,,,,excellent,14,100
-Toxoplasma gondii,Toxoplasma,serology,anti-Toxo IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON Toxo IgM,LIAISON,ELISA,Optitrol ToRCHM,71.4,28.6,,,,acceptable,14,102

@@ -1,7 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,Abbott,Abbott ARCHITECT rHTLV-I/II,ARCHITECT,CLIA,Optitrol Blue,95.6,4.4,,,,excellent,136,61
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,Abbott,Abbott Alinity i rHTLV-I/II,Alinity i,CLIA,Optitrol Blue,89.2,10.8,,,,good,37,59
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,Abbott,Abbott Alinity s Anti-HTLV I/II,Alinity s,CLIA,Optitrol Blue,90.0,10.0,0.9,,,good,110,60
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,DiaSorin,DiaSorin LIAISON XL MUREX recHTLV-I/II,LIAISON,ELISA,Optitrol Blue,100.0,,,,,excellent,19,62
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,DiaSorin,DiaSorin Murex HTLV I+II,,ELISA,Optitrol Blue,25.0,75.0,,,,acceptable,4,63
-Human T-cell Lymphotropic Virus (HTLV),HTLV,serology,anti-HTLV-I,Antibody,Other,Roche,Roche Elecsys HTLV I/II,Elecsys,CLIA,Optitrol Red,100.0,,,,,excellent,15,64

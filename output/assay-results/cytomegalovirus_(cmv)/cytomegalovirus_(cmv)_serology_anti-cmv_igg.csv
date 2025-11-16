@@ -1,7 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,Abbott,Abbott ARCHITECT CMV IgG,ARCHITECT,CLIA,Optitrol ToRCHG,92.9,7.1,4.3,1.4,,good,70,2
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,Abbott,Abbott Alinity i CMV IgG,Alinity i,CLIA,Optitrol ToRCHG,100.0,,,,,excellent,24,1
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON CMV IgG II,LIAISON,ELISA,Optitrol ToRCHG,61.1,38.9,,,,acceptable,18,4
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,Ortho,Ortho VITROS CMV IgG,VITROS,ELISA,Optitrol ToRCHG,100.0,,,,,excellent,1,5
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,Ortho Clinical Diagnostics,ortho VITROS CMV IgG,,,Optitrol ToRCHG,100.0,,,,,excellent,1,176
-Cytomegalovirus (CMV),CMV,serology,anti-CMV IgG,Antibody,IgG,bioMerieux,bioMerieux VIDAS CMV IgG,VIDAS,ELISA,Optitrol ToRCHG,100.0,,,,,excellent,5,3

@@ -1,3 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Varicella-Zoster Virus (VZV),VZV,serology,anti-VZV IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON VZV IgG,LIAISON,ELISA,Optitrol Paediatric G ,42.4,57.6,33.3,6.1,,acceptable,33,115
-Varicella-Zoster Virus (VZV),VZV,serology,anti-VZV IgG,Antibody,IgG,bioMerieux,bioMerieux VIDAS VZV IgG,VIDAS,ELISA,Optitrol Paediatric G ,20.0,80.0,20.0,20.0,,acceptable,5,114

@@ -1,7 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,Abbott,Abbott ARCHITECT EBV VCA IgM,ARCHITECT,CLIA,Optitrol ToRCHM,85.7,14.3,4.8,,,good,21,109
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,Abbott,Abbott Alinity i EBV VCA IgM,Alinity i,CLIA,Optitrol ToRCHM,100.0,,,,,excellent,3,108
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON EBV IgM,LIAISON,ELISA,Optitrol ToRCHM,51.9,48.1,11.1,3.7,,acceptable,27,111
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,Siemens,Siemens Novagnost EBV-VCA IgM,,CLIA,Optitrol ToRCHM,57.1,42.9,0.0,,,acceptable,7,112
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,Virion,Virion Serion EBV VCA IgM,Serion,ELISA,Optitrol ToRCHM,0.0,100.0,100.0,100.0,,poor,1,113
-Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgM,Antibody,IgM,bioMerieux,bioMerieux VIDAS EBV VCA IgM,VIDAS,ELISA,Optitrol ToRCHM,100.0,,,,,excellent,4,110

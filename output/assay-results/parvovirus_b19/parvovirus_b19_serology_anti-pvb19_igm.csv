@@ -1,3 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Parvovirus B19,Parvo B19,serology,anti-PVB19 IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON Biotrin Parvovirus B19 IgM,LIAISON,ELISA,Optitrol Parvo M,27.6,72.4,41.4,24.1,,poor,29,74
-Parvovirus B19,Parvo B19,serology,anti-PVB19 IgM,Antibody,IgM,Virion,Virion Serion Parvovirus B19 IgM,Serion,ELISA,Optitrol Parvo M,16.7,83.3,50.0,50.0,,poor,6,75

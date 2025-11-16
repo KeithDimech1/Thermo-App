@@ -1,6 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Hepatitis A Virus (HAV),HAV,serology,Anti-HAV IgM,Antibody,IgM,Abbott,Abbott ARCHITECT HAVAb - IgM,ARCHITECT,CLIA,Optitrol HEPA-2,91.4,8.6,2.9,,,good,35,19
-Hepatitis A Virus (HAV),HAV,serology,Anti-HAV IgM,Antibody,IgM,Abbott,Abbott Alinity i HAV Ab - IgM,Alinity i,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,19,18
-Hepatitis A Virus (HAV),HAV,serology,Anti-HAV IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON HAV IgM,LIAISON,ELISA,Optitrol HEPA-1,100.0,,,,,excellent,7,20
-Hepatitis A Virus (HAV),HAV,serology,Anti-HAV IgM,Antibody,IgM,Roche,Roche Elecsys Anti-HAV IgM,Elecsys,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,6,21
-Hepatitis A Virus (HAV),HAV,serology,Anti-HAV IgM,Antibody,IgM,Siemens,Siemens ATELLICA IM Hepatitis A IgM (aHAVM),ATELLICA,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,2,22

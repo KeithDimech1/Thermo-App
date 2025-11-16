@@ -1,2 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Measles virus,Measles,serology,anti-measles IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON Measles IgM,LIAISON,ELISA,Optitrol Measles M,15.4,84.6,61.5,23.1,,poor,13,67

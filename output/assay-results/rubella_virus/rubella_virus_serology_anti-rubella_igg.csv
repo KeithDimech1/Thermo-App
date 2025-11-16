@@ -1,7 +1,0 @@
-Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,Abbott,Abbott ARCHITECT Rubella IgG,ARCHITECT,CLIA,Optitrol ToRCHG,98.5,1.5,,,,excellent,197,77
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,Abbott,Abbott Alinity i Rubella IgG,Alinity i,CLIA,Optitrol ToRCHG,100.0,,,,,excellent,28,76
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON Rubella IgG II,LIAISON,ELISA,Optitrol ToRCHG,25.0,75.0,25.0,25.0,,poor,4,79
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,Roche,Roche Elecsys Rubella IgG,Elecsys,CLIA,Optitrol ToRCHG,100.0,,,,,excellent,1,80
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,Siemens,Siemens ATELLICA IM Rubella IgG (Rub G),ATELLICA,CLIA,Optitrol ToRCHG,100.0,,,,,excellent,5,81
-Rubella virus,Rubella,serology,anti-rubella IgG,Antibody,IgG,bioMerieux,bioMerieux VIDAS RUB IgG II,VIDAS,ELISA,Optitrol ToRCHG,100.0,,,,,excellent,3,78

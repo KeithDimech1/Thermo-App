@@ -28,10 +28,11 @@ import { join } from 'path';
 // CONFIGURATION
 // =============================================================================
 
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// Use DIRECT_URL for imports to avoid pooler transaction issues
+const DATABASE_URL = process.env.DIRECT_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 if (!DATABASE_URL) {
-  console.error('❌ Error: DATABASE_URL or POSTGRES_URL environment variable not set');
+  console.error('❌ Error: DIRECT_URL, DATABASE_URL or POSTGRES_URL environment variable not set');
   console.error('   Please create a .env.local file with your database connection string');
   process.exit(1);
 }

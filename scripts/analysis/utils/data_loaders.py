@@ -108,26 +108,25 @@ def load_sample_ages(
     """
     query = """
         SELECT
-            s.id as sample_id,
+            s.sample_id,
             s.igsn,
-            s.sample_name,
             s.latitude,
             s.longitude,
             s.elevation_m,
             s.lithology,
-            s.mineral_dated,
+            s.mineral_type,
             fa.pooled_age_ma as age,
             fa.pooled_age_error_ma as age_error,
             fa.central_age_ma,
-            fa.dispersion,
-            fa.p_chi_squared,
+            fa.dispersion_pct as dispersion,
+            fa.p_chi2 as p_chi_squared,
             fa.n_grains,
             d.dataset_name,
             d.id as dataset_id
         FROM samples s
-        JOIN ft_ages fa ON s.id = fa.sample_id
+        JOIN ft_ages fa ON s.sample_id = fa.sample_id
         JOIN datasets d ON s.dataset_id = d.id
-        WHERE s.mineral_dated = %s
+        WHERE s.mineral_type = %s
     """
 
     params = [method.lower()]
@@ -158,9 +157,8 @@ def load_ahe_sample_ages(
 
     query = f"""
         SELECT
-            s.id as sample_id,
+            s.sample_id,
             s.igsn,
-            s.sample_name,
             s.latitude,
             s.longitude,
             s.elevation_m,
@@ -170,7 +168,7 @@ def load_ahe_sample_ages(
             d.dataset_name,
             d.id as dataset_id
         FROM samples s
-        JOIN ahe_grain_data ahe ON s.id = ahe.sample_id
+        JOIN ahe_grain_data ahe ON s.sample_id = ahe.sample_id
         JOIN datasets d ON s.dataset_id = d.id
     """
 
@@ -180,7 +178,7 @@ def load_ahe_sample_ages(
         query += " WHERE d.id = %s"
         params.append(dataset_id)
 
-    query += " GROUP BY s.id, s.igsn, s.sample_name, s.latitude, s.longitude, s.elevation_m, d.dataset_name, d.id"
+    query += " GROUP BY s.sample_id, s.igsn, s.latitude, s.longitude, s.elevation_m, d.dataset_name, d.id"
     query += " ORDER BY s.elevation_m DESC"
 
     return query_to_dataframe(query, tuple(params) if params else None)
@@ -189,46 +187,46 @@ def load_ahe_sample_ages(
 # SINGLE-GRAIN DATA LOADERS (for radial plots, histograms)
 # ============================================================================
 
-def load_ft_grain_ages(sample_id: int) -> pd.DataFrame:
+def load_ft_grain_ages(sample_id: str) -> pd.DataFrame:
     """
     Load single-grain fission-track ages for radial plot analysis.
 
     Args:
-        sample_id: Sample ID
+        sample_id: Sample ID (string, e.g. 'MU19-05')
 
     Returns:
         DataFrame with columns: grain_id, age, age_error, ns, ni, etc.
     """
     query = """
         SELECT
-            fc.id as grain_id,
-            fc.grain_number,
-            fc.rho_s,
+            fc.id,
+            fc.grain_id,
+            fc.rho_s_cm2,
             fc.ns,
-            fc.rho_i,
             fc.ni,
+            fc.rho_i_cm2,
             fc.u_ppm,
             -- Calculate single-grain age from count data
             -- Age = (1 / lambda_f) * ln(1 + (lambda_f / lambda_d) * (rho_s / rho_i) * (rho_d / rho_std))
-            -- Simplified: Use ratio method for now
-            (fc.rho_s / NULLIF(fc.rho_i, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s) as grain_age_ma,
+            -- Simplified: Use ratio method for now (rho_s / rho_i) * pooled_age
+            (fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s) as grain_age_ma,
             -- Approximate error (Poisson statistics)
-            ((fc.rho_s / NULLIF(fc.rho_i, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s)) *
+            ((fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s)) *
                 SQRT(1.0 / NULLIF(fc.ns, 0) + 1.0 / NULLIF(fc.ni, 0)) as grain_age_error_ma
         FROM ft_counts fc
         WHERE fc.sample_id = %s
         AND fc.ns > 0 AND fc.ni > 0  -- Exclude grains with zero counts
-        ORDER BY fc.grain_number
+        ORDER BY fc.grain_id
     """
 
     return query_to_dataframe(query, (sample_id, sample_id, sample_id))
 
-def load_ahe_grain_ages(sample_id: int) -> pd.DataFrame:
+def load_ahe_grain_ages(sample_id: str) -> pd.DataFrame:
     """
     Load single-grain (U-Th)/He ages.
 
     Args:
-        sample_id: Sample ID
+        sample_id: Sample ID (string, e.g. 'MU19-05')
 
     Returns:
         DataFrame with columns: grain_id, raw_age, corrected_age, ft, u_ppm, etc.
@@ -256,12 +254,12 @@ def load_ahe_grain_ages(sample_id: int) -> pd.DataFrame:
 
     return query_to_dataframe(query, (sample_id,))
 
-def load_track_lengths(sample_id: int) -> pd.DataFrame:
+def load_track_lengths(sample_id: str) -> pd.DataFrame:
     """
     Load fission-track length measurements.
 
     Args:
-        sample_id: Sample ID
+        sample_id: Sample ID (string, e.g. 'MU19-05')
 
     Returns:
         DataFrame with columns: length_um, angle_to_c_axis, dpar, etc.
@@ -315,15 +313,15 @@ def load_spatial_transect(
                 s.longitude,
                 s.latitude,
                 s.elevation_m,
-                s.sample_name,
+                s.sample_id as sample_name,
                 fa.central_age_ma as age,
                 fa.central_age_error_ma as age_error,
-                fa.dispersion,
-                fa.p_chi_squared,
-                fa.mean_track_length_um as mtl,
+                fa.dispersion_pct as dispersion,
+                fa.p_chi2 as p_chi_squared,
+                NULL as mtl,
                 'AFT' as method
             FROM samples s
-            JOIN ft_ages fa ON s.id = fa.sample_id
+            JOIN ft_ages fa ON s.sample_id = fa.sample_id
             WHERE s.dataset_id = %s
             ORDER BY s.{axis}
         """
@@ -338,15 +336,15 @@ def load_spatial_transect(
                 s.longitude,
                 s.latitude,
                 s.elevation_m,
-                s.sample_name,
-                MEDIAN(ahe.corrected_age_ma) as age,
+                s.sample_id as sample_name,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ahe.corrected_age_ma) as age,
                 STDDEV(ahe.corrected_age_ma) / SQRT(COUNT(*)) as age_error,
                 COUNT(*) as n_grains,
                 'AHe' as method
             FROM samples s
-            JOIN ahe_grain_data ahe ON s.id = ahe.sample_id
+            JOIN ahe_grain_data ahe ON s.sample_id = ahe.sample_id
             WHERE s.dataset_id = %s
-            GROUP BY s.id, s.{axis}, s.longitude, s.latitude, s.elevation_m, s.sample_name
+            GROUP BY s.sample_id, s.{axis}, s.longitude, s.latitude, s.elevation_m
             ORDER BY s.{axis}
         """
         ahe_data = query_to_dataframe(query, (dataset_id,))
@@ -379,8 +377,7 @@ def load_age_elevation(
     if method.upper() == 'AFT':
         query = """
             SELECT
-                s.id as sample_id,
-                s.sample_name,
+                s.sample_id,
                 s.elevation_m,
                 s.latitude,
                 s.longitude,
@@ -388,24 +385,23 @@ def load_age_elevation(
                 fa.central_age_error_ma as age_error,
                 fa.n_grains
             FROM samples s
-            JOIN ft_ages fa ON s.id = fa.sample_id
+            JOIN ft_ages fa ON s.sample_id = fa.sample_id
             WHERE s.dataset_id = %s
         """
     else:  # AHe
         query = """
             SELECT
-                s.id as sample_id,
-                s.sample_name,
+                s.sample_id,
                 s.elevation_m,
                 s.latitude,
                 s.longitude,
-                MEDIAN(ahe.corrected_age_ma) as age,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ahe.corrected_age_ma) as age,
                 STDDEV(ahe.corrected_age_ma) / SQRT(COUNT(*)) as age_error,
                 COUNT(*) as n_grains
             FROM samples s
-            JOIN ahe_grain_data ahe ON s.id = ahe.sample_id
+            JOIN ahe_grain_data ahe ON s.sample_id = ahe.sample_id
             WHERE s.dataset_id = %s
-            GROUP BY s.id, s.sample_name, s.elevation_m, s.latitude, s.longitude
+            GROUP BY s.sample_id, s.elevation_m, s.latitude, s.longitude
         """
 
     params = [dataset_id]
@@ -438,21 +434,20 @@ def load_qa_statistics(dataset_id: Optional[int] = None) -> pd.DataFrame:
     """
     query = """
         SELECT
-            s.id as sample_id,
-            s.sample_name,
+            s.sample_id,
             s.igsn,
             fa.central_age_ma,
-            fa.dispersion,
-            fa.p_chi_squared,
+            fa.dispersion_pct as dispersion,
+            fa.p_chi2 as p_chi_squared,
             fa.n_grains,
             d.dataset_name,
             CASE
-                WHEN fa.p_chi_squared >= 0.05 THEN 'good'
-                WHEN fa.p_chi_squared >= 0.01 THEN 'marginal'
+                WHEN fa.p_chi2 >= 0.05 THEN 'good'
+                WHEN fa.p_chi2 >= 0.01 THEN 'marginal'
                 ELSE 'poor'
             END as quality
         FROM samples s
-        JOIN ft_ages fa ON s.id = fa.sample_id
+        JOIN ft_ages fa ON s.sample_id = fa.sample_id
         JOIN datasets d ON s.dataset_id = d.id
     """
 
@@ -497,12 +492,12 @@ def get_dataset_info(dataset_id: int) -> Dict[str, Any]:
     results = query_to_dict(query, (dataset_id,))
     return results[0] if results else {}
 
-def get_sample_info(sample_id: int) -> Dict[str, Any]:
+def get_sample_info(sample_id: str) -> Dict[str, Any]:
     """
     Get sample metadata.
 
     Args:
-        sample_id: Sample ID
+        sample_id: Sample ID (string, e.g. 'MU19-05')
 
     Returns:
         Dictionary with sample information
@@ -513,12 +508,12 @@ def get_sample_info(sample_id: int) -> Dict[str, Any]:
             d.dataset_name,
             fa.central_age_ma,
             fa.central_age_error_ma,
-            fa.dispersion,
-            fa.p_chi_squared
+            fa.dispersion_pct as dispersion,
+            fa.p_chi2 as p_chi_squared
         FROM samples s
         LEFT JOIN datasets d ON s.dataset_id = d.id
-        LEFT JOIN ft_ages fa ON s.id = fa.sample_id
-        WHERE s.id = %s
+        LEFT JOIN ft_ages fa ON s.sample_id = fa.sample_id
+        WHERE s.sample_id = %s
     """
 
     results = query_to_dict(query, (sample_id,))

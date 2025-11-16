@@ -22,37 +22,38 @@ type TableConfig = {
 const TABLE_CONFIGS: Record<string, TableConfig> = {
   'samples': {
     tableName: 'samples',
-    columns: ['sample_id', 'igsn', 'latitude', 'longitude', 'elevation_m', 'lithology', 'mineral_type'],
+    columns: ['sample_id', 'dataset_id', 'igsn', 'latitude', 'longitude', 'elevation_m', 'lithology', 'mineral_type', 'n_aft_grains', 'n_ahe_grains'],
     defaultSort: 'sample_id'
   },
   'ft-ages': {
     tableName: 'ft_ages',
-    columns: ['sample_id', 'pooled_age_ma', 'pooled_age_error_ma', 'central_age_ma', 'central_age_error_ma', 'n_grains', 'p_chi2', 'dispersion_pct'],
-    defaultSort: 'sample_id'
+    columns: ['id', 'sample_id', 'pooled_age_ma', 'pooled_age_error_ma', 'central_age_ma', 'central_age_error_ma', 'n_grains', 'p_chi2', 'dispersion_pct'],
+    defaultSort: 'id'
   },
   'ft-counts': {
     tableName: 'ft_counts',
-    columns: ['sample_id', 'grain_id', 'ns', 'ni', 'nd', 'rho_s_cm2', 'rho_i_cm2', 'rho_d_cm2'],
-    defaultSort: 'sample_id'
+    columns: ['id', 'sample_id', 'grain_id', 'ns', 'ni', 'nd', 'rho_s_cm2', 'rho_i_cm2', 'u_ppm', 'dpar_um'],
+    defaultSort: 'id'
   },
   'track-lengths': {
     tableName: 'ft_track_lengths',
-    columns: ['sample_id', 'grain_id', 'mean_track_length_um', 'mean_track_length_sd_um', 'dpar_um', 'angle_to_c_axis_deg'],
-    defaultSort: 'sample_id'
+    columns: ['id', 'sample_id', 'grain_id', 'n_confined_tracks', 'mean_track_length_um', 'mean_track_length_se_um', 'angle_to_c_axis_deg', 'dpar_um'],
+    defaultSort: 'id'
   },
   'ahe-grains': {
     tableName: 'ahe_grain_data',
-    columns: ['sample_id', 'lab_no', 'uncorr_age_ma', 'corr_age_ma', 'corr_age_1sigma_ma', 'ft', 'u_ppm', 'th_ppm'],
-    defaultSort: 'sample_id'
+    columns: ['id', 'sample_id', 'lab_no', 'uncorr_age_ma', 'corr_age_ma', 'corr_age_1sigma_ma', 'ft', 'u_ppm', 'th_ppm', 'sm_ppm'],
+    defaultSort: 'id'
   }
 };
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const tableName = params.name;
+    const resolvedParams = await params;
+    const tableName = resolvedParams.name;
     const config = TABLE_CONFIGS[tableName];
 
     if (!config) {

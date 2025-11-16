@@ -74,7 +74,7 @@ def calculate_radial_coordinates(
     return z, precision
 
 def create_radial_plot(
-    sample_id: int,
+    sample_id: str,
     method: str = 'AFT',
     output_path: Optional[str] = None,
     interactive: bool = True
@@ -83,7 +83,7 @@ def create_radial_plot(
     Create Galbraith radial plot for single-grain age distribution.
 
     Args:
-        sample_id: Sample ID from database
+        sample_id: Sample ID from database (string, e.g. 'MU19-05')
         method: Dating method ('AFT' or 'AHe')
         output_path: Path to save plot (optional)
         interactive: Use Plotly (True) or Matplotlib (False)
@@ -556,7 +556,7 @@ def main():
         help='Type of plot to create'
     )
 
-    parser.add_argument('--sample-id', type=int, help='Sample ID from database')
+    parser.add_argument('--sample-id', type=str, help='Sample ID from database (e.g. MU19-05)')
     parser.add_argument('--dataset-id', type=int, help='Dataset ID from database')
     parser.add_argument(
         '--method',

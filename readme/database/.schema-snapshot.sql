@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 17.5 (6bc9ef8)
+-- Dumped from database version 17.5 (aa1f746)
 -- Dumped by pg_dump version 17.5 (Homebrew)
 
 SET statement_timeout = 0;
@@ -25,7 +25,14 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
 
 --
--- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
+-- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: neondb_owner
 --
 
 CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
@@ -38,91 +45,75 @@ END;
 $$;
 
 
---
--- Name: assays_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
+ALTER FUNCTION public.update_updated_at_column() OWNER TO neondb_owner;
 
-CREATE SEQUENCE public.assays_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
+SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: assays; Type: TABLE; Schema: public; Owner: -
+-- Name: ahe_grain_data; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.assays (
-    id integer DEFAULT nextval('public.assays_id_seq'::regclass) NOT NULL,
-    name character varying(300) NOT NULL,
-    manufacturer_id integer,
-    platform character varying(100),
-    methodology character varying(50),
-    automation_level character varying(50),
-    throughput character varying(50),
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT check_automation CHECK (((automation_level)::text = ANY ((ARRAY['Fully Automated'::character varying, 'Semi-Automated'::character varying, 'Manual'::character varying, NULL::character varying])::text[]))),
-    CONSTRAINT check_methodology CHECK (((methodology)::text = ANY ((ARRAY['CLIA'::character varying, 'ELISA'::character varying, 'PCR'::character varying, 'ECLIA'::character varying, 'CMIA'::character varying, NULL::character varying])::text[])))
-);
-
-
---
--- Name: categories_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.categories_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: categories; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.categories (
-    id integer DEFAULT nextval('public.categories_id_seq'::regclass) NOT NULL,
-    name character varying(100) NOT NULL,
-    description text,
+CREATE TABLE public.ahe_grain_data (
+    id integer NOT NULL,
+    sample_id character varying(50) NOT NULL,
+    lab_no character varying(50),
+    length_um numeric(10,2),
+    half_width_um numeric(10,2),
+    rs_um numeric(10,2),
+    mass_mg numeric(10,6),
+    terminations character varying(10),
+    u_ppm numeric(10,3),
+    th_ppm numeric(10,3),
+    sm_ppm numeric(10,3),
+    eu_ppm numeric(10,3),
+    he_ncc numeric(12,6),
+    uncorr_age_ma numeric(10,2),
+    corr_age_ma numeric(10,2),
+    corr_age_1sigma_ma numeric(10,2),
+    ft numeric(6,4),
+    std_run character varying(10),
+    thermal_model character varying(10),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
+ALTER TABLE public.ahe_grain_data OWNER TO neondb_owner;
+
 --
--- Name: cv_measurements; Type: TABLE; Schema: public; Owner: -
+-- Name: TABLE ahe_grain_data; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.cv_measurements (
-    id integer NOT NULL,
-    test_config_id integer NOT NULL,
-    cv_lt_10_count integer,
-    cv_lt_10_percentage numeric(5,2),
-    cv_10_15_count integer,
-    cv_10_15_percentage numeric(5,2),
-    cv_15_20_count integer,
-    cv_15_20_percentage numeric(5,2),
-    cv_gt_20_count integer,
-    cv_gt_20_percentage numeric(5,2),
-    mean_cv numeric(5,2),
-    median_cv numeric(5,2),
-    std_dev_cv numeric(5,2),
-    measurement_date date,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT check_percentages CHECK ((((cv_lt_10_percentage IS NULL) OR ((cv_lt_10_percentage >= (0)::numeric) AND (cv_lt_10_percentage <= (100)::numeric))) AND ((cv_10_15_percentage IS NULL) OR ((cv_10_15_percentage >= (0)::numeric) AND (cv_10_15_percentage <= (100)::numeric))) AND ((cv_15_20_percentage IS NULL) OR ((cv_15_20_percentage >= (0)::numeric) AND (cv_15_20_percentage <= (100)::numeric))) AND ((cv_gt_20_percentage IS NULL) OR ((cv_gt_20_percentage >= (0)::numeric) AND (cv_gt_20_percentage <= (100)::numeric)))))
-);
+COMMENT ON TABLE public.ahe_grain_data IS '(U-Th)/He grain-level results';
 
 
 --
--- Name: cv_measurements_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: COLUMN ahe_grain_data.terminations; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.cv_measurements_id_seq
+COMMENT ON COLUMN public.ahe_grain_data.terminations IS 'Grain termination count (e.g., 0T, 1T, 2T)';
+
+
+--
+-- Name: COLUMN ahe_grain_data.eu_ppm; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.ahe_grain_data.eu_ppm IS 'Effective uranium (U + 0.235*Th)';
+
+
+--
+-- Name: COLUMN ahe_grain_data.ft; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.ahe_grain_data.ft IS 'Alpha ejection correction factor (Ft)';
+
+
+--
+-- Name: ahe_grain_data_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.ahe_grain_data_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -131,44 +122,47 @@ CREATE SEQUENCE public.cv_measurements_id_seq
     CACHE 1;
 
 
---
--- Name: cv_measurements_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.cv_measurements_id_seq OWNED BY public.cv_measurements.id;
-
+ALTER SEQUENCE public.ahe_grain_data_id_seq OWNER TO neondb_owner;
 
 --
--- Name: manufacturers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: ahe_grain_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.manufacturers_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+ALTER SEQUENCE public.ahe_grain_data_id_seq OWNED BY public.ahe_grain_data.id;
 
 
 --
--- Name: manufacturers; Type: TABLE; Schema: public; Owner: -
+-- Name: datasets; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.manufacturers (
-    id integer DEFAULT nextval('public.manufacturers_id_seq'::regclass) NOT NULL,
-    name character varying(100) NOT NULL,
-    country character varying(100),
-    website character varying(200),
-    total_assays integer DEFAULT 0,
+CREATE TABLE public.datasets (
+    id integer NOT NULL,
+    dataset_name character varying(200) NOT NULL,
+    description text,
+    publication_reference text,
+    doi character varying(100),
+    study_area character varying(200),
+    analyst character varying(100),
+    laboratory character varying(200),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
+ALTER TABLE public.datasets OWNER TO neondb_owner;
+
 --
--- Name: markers_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: TABLE datasets; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.markers_id_seq
+COMMENT ON TABLE public.datasets IS 'Dataset-level metadata for data organization';
+
+
+--
+-- Name: datasets_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.datasets_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -176,31 +170,70 @@ CREATE SEQUENCE public.markers_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.datasets_id_seq OWNER TO neondb_owner;
+
 --
--- Name: markers; Type: TABLE; Schema: public; Owner: -
+-- Name: datasets_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.markers (
-    id integer DEFAULT nextval('public.markers_id_seq'::regclass) NOT NULL,
-    name character varying(200) NOT NULL,
-    pathogen_id integer,
-    category_id integer,
-    antibody_type character varying(50),
-    marker_type character varying(50),
-    clinical_use text,
-    interpretation_positive text,
-    interpretation_negative text,
+ALTER SEQUENCE public.datasets_id_seq OWNED BY public.datasets.id;
+
+
+--
+-- Name: ft_ages; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.ft_ages (
+    id integer NOT NULL,
+    sample_id character varying(50) NOT NULL,
+    age_equation character varying(100),
+    ft_age_type character varying(50),
+    lambda_d character varying(20),
+    lambda_f character varying(20),
+    zeta_yr_cm2 numeric(12,6),
+    zeta_error_yr_cm2 numeric(12,6),
+    dosimeter character varying(50),
+    rs_um numeric(8,3),
+    q numeric(6,4),
+    irradiation_reactor character varying(100),
+    n_grains integer,
+    pooled_age_ma numeric(10,2),
+    pooled_age_error_ma numeric(10,2),
+    central_age_ma numeric(10,2),
+    central_age_error_ma numeric(10,2),
+    dispersion_pct numeric(6,3),
+    p_chi2 numeric(8,6),
+    age_peak_software character varying(100),
+    best_fit_peak_ages_ma numeric(10,2)[],
+    best_fit_peak_errors_ma numeric(10,2)[],
+    best_fit_peak_grain_pct numeric(6,2)[],
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT check_antibody_type CHECK (((antibody_type)::text = ANY ((ARRAY['IgG'::character varying, 'IgM'::character varying, 'Antigen'::character varying, 'Antibody (Total)'::character varying, 'Other'::character varying, NULL::character varying])::text[]))),
-    CONSTRAINT check_marker_type CHECK (((marker_type)::text = ANY ((ARRAY['Antibody'::character varying, 'Antigen'::character varying, 'Nucleic Acid'::character varying, NULL::character varying])::text[])))
+    CONSTRAINT check_age_type CHECK (((ft_age_type)::text = ANY ((ARRAY['pooled'::character varying, 'central'::character varying, 'mixed'::character varying, NULL::character varying])::text[])))
 );
 
 
+ALTER TABLE public.ft_ages OWNER TO neondb_owner;
+
 --
--- Name: pathogens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: TABLE ft_ages; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.pathogens_id_seq
+COMMENT ON TABLE public.ft_ages IS 'Fission-track age results (FAIR Table 10)';
+
+
+--
+-- Name: COLUMN ft_ages.ft_age_type; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.ft_ages.ft_age_type IS 'Age calculation method: pooled, central, or mixed (mixture modeling)';
+
+
+--
+-- Name: ft_ages_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.ft_ages_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -208,26 +241,84 @@ CREATE SEQUENCE public.pathogens_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_ages_id_seq OWNER TO neondb_owner;
+
 --
--- Name: pathogens; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_ages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.pathogens (
-    id integer DEFAULT nextval('public.pathogens_id_seq'::regclass) NOT NULL,
-    name character varying(200) NOT NULL,
-    category_id integer,
-    scientific_name character varying(200),
-    transmission_route character varying(100),
-    clinical_significance text,
+ALTER SEQUENCE public.ft_ages_id_seq OWNED BY public.ft_ages.id;
+
+
+--
+-- Name: ft_counts; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.ft_counts (
+    id integer NOT NULL,
+    sample_id character varying(50) NOT NULL,
+    grain_id character varying(100) NOT NULL,
+    ns integer,
+    rho_s_cm2 numeric(12,2),
+    u_ppm numeric(10,3),
+    u_1sigma numeric(10,3),
+    th_ppm numeric(10,3),
+    th_1sigma numeric(10,3),
+    eu_ppm numeric(10,3),
+    eu_1sigma numeric(10,3),
+    dpar_um numeric(6,3),
+    dpar_sd_um numeric(6,3),
+    dper_um numeric(6,3),
+    dper_sd_um numeric(6,3),
+    cl_wt_pct numeric(6,4),
+    ecl_apfu numeric(8,4),
+    rmr0 numeric(6,4),
+    rmr0d numeric(6,4),
+    p_chi2_pct numeric(6,3),
+    disp_pct numeric(6,3),
+    n_grains integer,
+    ft_counting_method character varying(50),
+    ft_software character varying(100),
+    ft_algorithm character varying(50),
+    microscope character varying(100),
+    objective character varying(50),
+    analyst character varying(100),
+    laboratory character varying(100),
+    analysis_date date,
+    sample_mount_id character varying(50),
+    etching_conditions character varying(200),
+    counting_area_cm2 numeric(10,6),
+    ni integer,
+    nd integer,
+    rho_i_cm2 numeric(12,2),
+    rho_d_cm2 numeric(12,2),
+    dosimeter character varying(50),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
+ALTER TABLE public.ft_counts OWNER TO neondb_owner;
+
 --
--- Name: qc_samples_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: TABLE ft_counts; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.qc_samples_id_seq
+COMMENT ON TABLE public.ft_counts IS 'Fission-track count data (FAIR Table 5)';
+
+
+--
+-- Name: COLUMN ft_counts.grain_id; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.ft_counts.grain_id IS 'Grain identifier (sample_id_aggregate for sample-level data)';
+
+
+--
+-- Name: ft_counts_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.ft_counts_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -235,31 +326,75 @@ CREATE SEQUENCE public.qc_samples_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_counts_id_seq OWNER TO neondb_owner;
+
 --
--- Name: qc_samples; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_counts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.qc_samples (
-    id integer DEFAULT nextval('public.qc_samples_id_seq'::regclass) NOT NULL,
-    name character varying(200) NOT NULL,
-    manufacturer character varying(100),
-    product_code character varying(50),
-    matrix_type character varying(100),
-    lot_number character varying(50),
-    expiration_date date,
-    target_markers text[],
-    concentration_level character varying(50),
-    certifications text[],
+ALTER SEQUENCE public.ft_counts_id_seq OWNED BY public.ft_counts.id;
+
+
+--
+-- Name: ft_track_lengths; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.ft_track_lengths (
+    id integer NOT NULL,
+    sample_id character varying(50) NOT NULL,
+    grain_id character varying(100) NOT NULL,
+    n_confined_tracks integer,
+    mean_track_length_um numeric(6,3),
+    mean_track_length_se_um numeric(6,3),
+    mean_track_length_sd_um numeric(6,3),
+    dpar_um numeric(6,3),
+    dpar_sd_um numeric(6,3),
+    dper_um numeric(6,3),
+    dper_sd_um numeric(6,3),
+    apparent_length_um numeric(6,3),
+    true_length_um numeric(6,3),
+    angle_to_c_axis_deg numeric(6,2),
+    azimuth_deg numeric(6,2),
+    dip_deg numeric(6,2),
+    corrected_z_depth_um numeric(8,2),
+    ft_length_method character varying(50),
+    ft_software character varying(100),
+    ft_track_type character varying(20),
+    microscope character varying(100),
+    objective character varying(50),
+    analyst character varying(100),
+    laboratory character varying(100),
+    analysis_date date,
+    sample_mount_id character varying(50),
+    etching_conditions character varying(200),
+    cf252_irradiation boolean DEFAULT false,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT check_matrix_type CHECK (((matrix_type)::text = ANY ((ARRAY['human plasma'::character varying, 'human serum'::character varying, 'synthetic'::character varying, NULL::character varying])::text[])))
+    CONSTRAINT check_track_type CHECK (((ft_track_type)::text = ANY ((ARRAY['TINT'::character varying, 'TINCLE'::character varying, NULL::character varying])::text[])))
 );
 
 
+ALTER TABLE public.ft_track_lengths OWNER TO neondb_owner;
+
 --
--- Name: test_configurations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: TABLE ft_track_lengths; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-CREATE SEQUENCE public.test_configurations_id_seq
+COMMENT ON TABLE public.ft_track_lengths IS 'Fission-track length measurements (FAIR Table 6)';
+
+
+--
+-- Name: COLUMN ft_track_lengths.ft_track_type; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.ft_track_lengths.ft_track_type IS 'Track type: TINT (track-in-track) or TINCLE (track-in-cleavage)';
+
+
+--
+-- Name: ft_track_lengths_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+--
+
+CREATE SEQUENCE public.ft_track_lengths_id_seq
+    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -267,422 +402,456 @@ CREATE SEQUENCE public.test_configurations_id_seq
     CACHE 1;
 
 
+ALTER SEQUENCE public.ft_track_lengths_id_seq OWNER TO neondb_owner;
+
 --
--- Name: test_configurations; Type: TABLE; Schema: public; Owner: -
+-- Name: ft_track_lengths_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.test_configurations (
-    id integer DEFAULT nextval('public.test_configurations_id_seq'::regclass) NOT NULL,
-    marker_id integer NOT NULL,
-    assay_id integer NOT NULL,
-    qc_sample_id integer NOT NULL,
-    test_type character varying(50) NOT NULL,
-    events_examined integer,
-    quality_rating character varying(50),
-    notes text,
+ALTER SEQUENCE public.ft_track_lengths_id_seq OWNED BY public.ft_track_lengths.id;
+
+
+--
+-- Name: samples; Type: TABLE; Schema: public; Owner: neondb_owner
+--
+
+CREATE TABLE public.samples (
+    sample_id character varying(50) NOT NULL,
+    dataset_id integer DEFAULT 1,
+    igsn character varying(20),
+    latitude numeric(10,7),
+    longitude numeric(10,7),
+    elevation_m numeric(8,2),
+    geodetic_datum character varying(20) DEFAULT 'WGS84'::character varying,
+    vertical_datum character varying(50) DEFAULT 'mean sea level'::character varying,
+    lat_long_precision_m integer,
+    lithology character varying(100),
+    mineral_type character varying(50),
+    sample_kind character varying(100),
+    sample_method character varying(100),
+    sample_depth_m numeric(8,2),
+    sampling_location_information text,
+    stratigraphic_unit character varying(200),
+    chronostratigraphic_unit_age character varying(100),
+    sample_age_ma numeric(10,2),
+    sample_collector character varying(200),
+    collection_date date,
+    analyst character varying(100),
+    analysis_method character varying(100),
+    last_known_sample_archive character varying(200),
+    associated_references text,
+    n_aft_grains integer,
+    n_ahe_grains integer,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    inclusion_group character varying(50) DEFAULT 'original_curated'::character varying,
-    CONSTRAINT check_quality_rating CHECK (((quality_rating)::text = ANY ((ARRAY['excellent'::character varying, 'good'::character varying, 'acceptable'::character varying, 'poor'::character varying, 'unknown'::character varying])::text[]))),
-    CONSTRAINT check_test_type CHECK (((test_type)::text = ANY ((ARRAY['serology'::character varying, 'nat'::character varying, 'both'::character varying])::text[])))
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 
+ALTER TABLE public.samples OWNER TO neondb_owner;
+
+--
+-- Name: TABLE samples; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON TABLE public.samples IS 'Geological sample metadata (FAIR Table 4)';
+
+
+--
+-- Name: COLUMN samples.igsn; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.samples.igsn IS 'International Geo Sample Number - global unique identifier';
+
+
+--
+-- Name: COLUMN samples.n_aft_grains; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
+
+COMMENT ON COLUMN public.samples.n_aft_grains IS 'Number of grains with AFT data';
+
+
 --
--- Name: vw_manufacturer_performance; Type: VIEW; Schema: public; Owner: -
---
+-- Name: COLUMN samples.n_ahe_grains; Type: COMMENT; Schema: public; Owner: neondb_owner
+--
 
-CREATE VIEW public.vw_manufacturer_performance AS
- SELECT mfr.id,
-    mfr.name,
-    count(tc.id) AS total_configs,
-    avg(cv.cv_lt_10_percentage) AS avg_cv_lt_10_pct,
-    sum(
-        CASE
-            WHEN ((tc.quality_rating)::text = 'excellent'::text) THEN 1
-            ELSE 0
-        END) AS excellent_count,
-    sum(
-        CASE
-            WHEN ((tc.quality_rating)::text = 'good'::text) THEN 1
-            ELSE 0
-        END) AS good_count,
-    sum(
-        CASE
-            WHEN ((tc.quality_rating)::text = 'acceptable'::text) THEN 1
-            ELSE 0
-        END) AS acceptable_count,
-    sum(
-        CASE
-            WHEN ((tc.quality_rating)::text = 'poor'::text) THEN 1
-            ELSE 0
-        END) AS poor_count
-   FROM (((public.manufacturers mfr
-     LEFT JOIN public.assays a ON ((mfr.id = a.manufacturer_id)))
-     LEFT JOIN public.test_configurations tc ON ((a.id = tc.assay_id)))
-     LEFT JOIN public.cv_measurements cv ON ((tc.id = cv.test_config_id)))
-  GROUP BY mfr.id, mfr.name;
+COMMENT ON COLUMN public.samples.n_ahe_grains IS 'Number of grains with (U-Th)/He data';
 
 
 --
--- Name: vw_test_config_details; Type: VIEW; Schema: public; Owner: -
+-- Name: vw_aft_complete; Type: VIEW; Schema: public; Owner: neondb_owner
 --
 
-CREATE VIEW public.vw_test_config_details AS
- SELECT tc.id AS config_id,
-    tc.test_type,
-    tc.events_examined,
-    tc.quality_rating,
-    m.id AS marker_id,
-    m.name AS marker_name,
-    m.antibody_type,
-    p.id AS pathogen_id,
-    p.name AS pathogen_name,
-    c.id AS category_id,
-    c.name AS category_name,
-    a.id AS assay_id,
-    a.name AS assay_name,
-    a.platform,
-    a.methodology,
-    mfr.id AS manufacturer_id,
-    mfr.name AS manufacturer_name,
-    qc.id AS qc_sample_id,
-    qc.name AS qc_sample_name,
-    cv.cv_lt_10_count,
-    cv.cv_lt_10_percentage,
-    cv.cv_10_15_count,
-    cv.cv_10_15_percentage,
-    cv.cv_15_20_count,
-    cv.cv_15_20_percentage,
-    cv.cv_gt_20_count,
-    cv.cv_gt_20_percentage,
-    cv.mean_cv
-   FROM (((((((public.test_configurations tc
-     JOIN public.markers m ON ((tc.marker_id = m.id)))
-     LEFT JOIN public.pathogens p ON ((m.pathogen_id = p.id)))
-     LEFT JOIN public.categories c ON ((m.category_id = c.id)))
-     JOIN public.assays a ON ((tc.assay_id = a.id)))
-     LEFT JOIN public.manufacturers mfr ON ((a.manufacturer_id = mfr.id)))
-     JOIN public.qc_samples qc ON ((tc.qc_sample_id = qc.id)))
-     LEFT JOIN public.cv_measurements cv ON ((tc.id = cv.test_config_id)));
+CREATE VIEW public.vw_aft_complete AS
+ SELECT s.sample_id,
+    s.sampling_location_information,
+    s.latitude,
+    s.longitude,
+    s.elevation_m,
+    fa.central_age_ma,
+    fa.central_age_error_ma,
+    fa.pooled_age_ma,
+    fa.pooled_age_error_ma,
+    fa.dispersion_pct,
+    fa.p_chi2,
+    fa.n_grains,
+    ftl.mean_track_length_um,
+    ftl.mean_track_length_sd_um,
+    ftl.n_confined_tracks,
+    fc.ns,
+    fc.rho_s_cm2,
+    fc.u_ppm,
+    fc.eu_ppm,
+    fc.dpar_um,
+    fc.cl_wt_pct,
+    fc.rmr0
+   FROM (((public.samples s
+     LEFT JOIN public.ft_ages fa ON (((s.sample_id)::text = (fa.sample_id)::text)))
+     LEFT JOIN public.ft_track_lengths ftl ON ((((s.sample_id)::text = (ftl.sample_id)::text) AND ((ftl.grain_id)::text ~~ '%_aggregate'::text))))
+     LEFT JOIN public.ft_counts fc ON ((((s.sample_id)::text = (fc.sample_id)::text) AND ((fc.grain_id)::text ~~ '%_aggregate'::text))));
 
 
+ALTER VIEW public.vw_aft_complete OWNER TO neondb_owner;
+
 --
--- Name: cv_measurements id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: VIEW vw_aft_complete; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cv_measurements ALTER COLUMN id SET DEFAULT nextval('public.cv_measurements_id_seq'::regclass);
+COMMENT ON VIEW public.vw_aft_complete IS 'Complete AFT data combining ages, lengths, and counts';
 
 
 --
--- Name: assays assays_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: vw_sample_summary; Type: VIEW; Schema: public; Owner: neondb_owner
 --
+
+CREATE VIEW public.vw_sample_summary AS
+ SELECT s.sample_id,
+    s.igsn,
+    s.latitude,
+    s.longitude,
+    s.elevation_m,
+    s.lithology,
+    s.mineral_type,
+    s.sampling_location_information,
+    s.analyst,
+    s.analysis_method,
+    s.n_aft_grains,
+    s.n_ahe_grains,
+    fa.central_age_ma AS aft_central_age_ma,
+    fa.central_age_error_ma AS aft_age_error_ma,
+    fa.dispersion_pct AS aft_dispersion_pct,
+    fa.p_chi2 AS aft_p_chi2,
+    ftl.mean_track_length_um AS aft_mtl_um,
+    ftl.mean_track_length_sd_um AS aft_mtl_sd_um,
+    ftl.n_confined_tracks AS aft_n_tracks,
+    avg(ahe.corr_age_ma) AS ahe_mean_age_ma,
+    stddev(ahe.corr_age_ma) AS ahe_age_sd_ma,
+    count(ahe.id) AS ahe_n_grains_measured,
+    avg(ahe.eu_ppm) AS ahe_mean_eu_ppm,
+    d.dataset_name,
+    d.study_area
+   FROM ((((public.samples s
+     LEFT JOIN public.ft_ages fa ON (((s.sample_id)::text = (fa.sample_id)::text)))
+     LEFT JOIN public.ft_track_lengths ftl ON ((((s.sample_id)::text = (ftl.sample_id)::text) AND ((ftl.grain_id)::text ~~ '%_aggregate'::text))))
+     LEFT JOIN public.ahe_grain_data ahe ON (((s.sample_id)::text = (ahe.sample_id)::text)))
+     LEFT JOIN public.datasets d ON ((s.dataset_id = d.id)))
+  GROUP BY s.sample_id, s.igsn, s.latitude, s.longitude, s.elevation_m, s.lithology, s.mineral_type, s.sampling_location_information, s.analyst, s.analysis_method, s.n_aft_grains, s.n_ahe_grains, fa.central_age_ma, fa.central_age_error_ma, fa.dispersion_pct, fa.p_chi2, ftl.mean_track_length_um, ftl.mean_track_length_sd_um, ftl.n_confined_tracks, d.dataset_name, d.study_area;
 
-ALTER TABLE ONLY public.assays
-    ADD CONSTRAINT assays_name_key UNIQUE (name);
 
+ALTER VIEW public.vw_sample_summary OWNER TO neondb_owner;
 
 --
--- Name: assays assays_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: VIEW vw_sample_summary; Type: COMMENT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.assays
-    ADD CONSTRAINT assays_pkey PRIMARY KEY (id);
+COMMENT ON VIEW public.vw_sample_summary IS 'Complete sample summary with AFT and AHe data';
 
 
 --
--- Name: categories categories_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.categories
-    ADD CONSTRAINT categories_name_key UNIQUE (name);
+ALTER TABLE ONLY public.ahe_grain_data ALTER COLUMN id SET DEFAULT nextval('public.ahe_grain_data_id_seq'::regclass);
 
 
 --
--- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: datasets id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.categories
-    ADD CONSTRAINT categories_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.datasets ALTER COLUMN id SET DEFAULT nextval('public.datasets_id_seq'::regclass);
 
 
 --
--- Name: cv_measurements cv_measurements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cv_measurements
-    ADD CONSTRAINT cv_measurements_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ft_ages ALTER COLUMN id SET DEFAULT nextval('public.ft_ages_id_seq'::regclass);
 
 
 --
--- Name: cv_measurements cv_measurements_test_config_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cv_measurements
-    ADD CONSTRAINT cv_measurements_test_config_id_key UNIQUE (test_config_id);
+ALTER TABLE ONLY public.ft_counts ALTER COLUMN id SET DEFAULT nextval('public.ft_counts_id_seq'::regclass);
 
 
 --
--- Name: manufacturers manufacturers_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_track_lengths id; Type: DEFAULT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.manufacturers
-    ADD CONSTRAINT manufacturers_name_key UNIQUE (name);
+ALTER TABLE ONLY public.ft_track_lengths ALTER COLUMN id SET DEFAULT nextval('public.ft_track_lengths_id_seq'::regclass);
 
 
 --
--- Name: manufacturers manufacturers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_lab_no_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.manufacturers
-    ADD CONSTRAINT manufacturers_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ahe_grain_data
+    ADD CONSTRAINT ahe_grain_data_lab_no_key UNIQUE (lab_no);
 
 
 --
--- Name: markers markers_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.markers
-    ADD CONSTRAINT markers_name_key UNIQUE (name);
+ALTER TABLE ONLY public.ahe_grain_data
+    ADD CONSTRAINT ahe_grain_data_pkey PRIMARY KEY (id);
 
 
 --
--- Name: markers markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: datasets datasets_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.markers
-    ADD CONSTRAINT markers_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.datasets
+    ADD CONSTRAINT datasets_pkey PRIMARY KEY (id);
 
 
 --
--- Name: pathogens pathogens_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.pathogens
-    ADD CONSTRAINT pathogens_name_key UNIQUE (name);
+ALTER TABLE ONLY public.ft_ages
+    ADD CONSTRAINT ft_ages_pkey PRIMARY KEY (id);
 
 
 --
--- Name: pathogens pathogens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_sample_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.pathogens
-    ADD CONSTRAINT pathogens_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ft_ages
+    ADD CONSTRAINT ft_ages_sample_id_key UNIQUE (sample_id);
 
 
 --
--- Name: qc_samples qc_samples_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_grain_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.qc_samples
-    ADD CONSTRAINT qc_samples_name_key UNIQUE (name);
+ALTER TABLE ONLY public.ft_counts
+    ADD CONSTRAINT ft_counts_grain_id_key UNIQUE (grain_id);
 
 
 --
--- Name: qc_samples qc_samples_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.qc_samples
-    ADD CONSTRAINT qc_samples_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ft_counts
+    ADD CONSTRAINT ft_counts_pkey PRIMARY KEY (id);
 
 
 --
--- Name: test_configurations test_configurations_marker_id_assay_id_qc_sample_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_track_lengths ft_track_lengths_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.test_configurations
-    ADD CONSTRAINT test_configurations_marker_id_assay_id_qc_sample_id_key UNIQUE (marker_id, assay_id, qc_sample_id);
+ALTER TABLE ONLY public.ft_track_lengths
+    ADD CONSTRAINT ft_track_lengths_pkey PRIMARY KEY (id);
 
 
 --
--- Name: test_configurations test_configurations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: samples samples_igsn_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.test_configurations
-    ADD CONSTRAINT test_configurations_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.samples
+    ADD CONSTRAINT samples_igsn_key UNIQUE (igsn);
 
 
 --
--- Name: idx_assays_manufacturer; Type: INDEX; Schema: public; Owner: -
+-- Name: samples samples_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_assays_manufacturer ON public.assays USING btree (manufacturer_id);
+ALTER TABLE ONLY public.samples
+    ADD CONSTRAINT samples_pkey PRIMARY KEY (sample_id);
 
 
 --
--- Name: idx_assays_name_trgm; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_age; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_assays_name_trgm ON public.assays USING gin (name public.gin_trgm_ops);
+CREATE INDEX idx_ahe_age ON public.ahe_grain_data USING btree (corr_age_ma);
 
 
 --
--- Name: idx_cv_gt_20_pct; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_lab_no; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_cv_gt_20_pct ON public.cv_measurements USING btree (cv_gt_20_percentage);
+CREATE INDEX idx_ahe_lab_no ON public.ahe_grain_data USING btree (lab_no);
 
 
 --
--- Name: idx_cv_lt_10_pct; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ahe_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_cv_lt_10_pct ON public.cv_measurements USING btree (cv_lt_10_percentage DESC);
+CREATE INDEX idx_ahe_sample ON public.ahe_grain_data USING btree (sample_id);
 
 
 --
--- Name: idx_cv_measurements_test_config; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_central; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_cv_measurements_test_config ON public.cv_measurements USING btree (test_config_id);
+CREATE INDEX idx_ft_ages_central ON public.ft_ages USING btree (central_age_ma);
 
 
 --
--- Name: idx_marker_assay_lookup; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_dispersion; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_marker_assay_lookup ON public.test_configurations USING btree (marker_id, assay_id);
+CREATE INDEX idx_ft_ages_dispersion ON public.ft_ages USING btree (dispersion_pct);
 
 
 --
--- Name: idx_markers_category; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_ages_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_markers_category ON public.markers USING btree (category_id);
+CREATE INDEX idx_ft_ages_sample ON public.ft_ages USING btree (sample_id);
 
 
 --
--- Name: idx_markers_name_trgm; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_dispersion; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_markers_name_trgm ON public.markers USING gin (name public.gin_trgm_ops);
+CREATE INDEX idx_ft_counts_dispersion ON public.ft_counts USING btree (disp_pct);
 
 
 --
--- Name: idx_markers_pathogen; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_grain; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_markers_pathogen ON public.markers USING btree (pathogen_id);
+CREATE INDEX idx_ft_counts_grain ON public.ft_counts USING btree (grain_id);
 
 
 --
--- Name: idx_pathogens_category; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_counts_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_pathogens_category ON public.pathogens USING btree (category_id);
+CREATE INDEX idx_ft_counts_sample ON public.ft_counts USING btree (sample_id);
 
 
 --
--- Name: idx_test_configs_assay; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_grain; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configs_assay ON public.test_configurations USING btree (assay_id);
+CREATE INDEX idx_ft_lengths_grain ON public.ft_track_lengths USING btree (grain_id);
 
 
 --
--- Name: idx_test_configs_marker; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_mtl; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configs_marker ON public.test_configurations USING btree (marker_id);
+CREATE INDEX idx_ft_lengths_mtl ON public.ft_track_lengths USING btree (mean_track_length_um);
 
 
 --
--- Name: idx_test_configs_qc_sample; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_ft_lengths_sample; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configs_qc_sample ON public.test_configurations USING btree (qc_sample_id);
+CREATE INDEX idx_ft_lengths_sample ON public.ft_track_lengths USING btree (sample_id);
 
 
 --
--- Name: idx_test_configs_quality_rating; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_dataset; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configs_quality_rating ON public.test_configurations USING btree (quality_rating);
+CREATE INDEX idx_samples_dataset ON public.samples USING btree (dataset_id);
 
 
 --
--- Name: idx_test_configs_test_type; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_igsn; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configs_test_type ON public.test_configurations USING btree (test_type);
+CREATE INDEX idx_samples_igsn ON public.samples USING btree (igsn) WHERE (igsn IS NOT NULL);
 
 
 --
--- Name: idx_test_configurations_inclusion_group; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_samples_location; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_test_configurations_inclusion_group ON public.test_configurations USING btree (inclusion_group);
+CREATE INDEX idx_samples_location ON public.samples USING btree (latitude, longitude);
 
 
 --
--- Name: test_configurations update_test_configs_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: idx_samples_mineral; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE TRIGGER update_test_configs_updated_at BEFORE UPDATE ON public.test_configurations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE INDEX idx_samples_mineral ON public.samples USING btree (mineral_type);
 
 
 --
--- Name: assays assays_manufacturer_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: samples update_samples_updated_at; Type: TRIGGER; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.assays
-    ADD CONSTRAINT assays_manufacturer_id_fkey FOREIGN KEY (manufacturer_id) REFERENCES public.manufacturers(id);
+CREATE TRIGGER update_samples_updated_at BEFORE UPDATE ON public.samples FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
--- Name: cv_measurements cv_measurements_test_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ahe_grain_data ahe_grain_data_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cv_measurements
-    ADD CONSTRAINT cv_measurements_test_config_id_fkey FOREIGN KEY (test_config_id) REFERENCES public.test_configurations(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.ahe_grain_data
+    ADD CONSTRAINT ahe_grain_data_sample_id_fkey FOREIGN KEY (sample_id) REFERENCES public.samples(sample_id) ON DELETE CASCADE;
 
 
 --
--- Name: markers markers_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_ages ft_ages_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.markers
-    ADD CONSTRAINT markers_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id);
+ALTER TABLE ONLY public.ft_ages
+    ADD CONSTRAINT ft_ages_sample_id_fkey FOREIGN KEY (sample_id) REFERENCES public.samples(sample_id) ON DELETE CASCADE;
 
 
 --
--- Name: markers markers_pathogen_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_counts ft_counts_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.markers
-    ADD CONSTRAINT markers_pathogen_id_fkey FOREIGN KEY (pathogen_id) REFERENCES public.pathogens(id);
+ALTER TABLE ONLY public.ft_counts
+    ADD CONSTRAINT ft_counts_sample_id_fkey FOREIGN KEY (sample_id) REFERENCES public.samples(sample_id) ON DELETE CASCADE;
 
 
 --
--- Name: pathogens pathogens_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: ft_track_lengths ft_track_lengths_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.pathogens
-    ADD CONSTRAINT pathogens_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id);
+ALTER TABLE ONLY public.ft_track_lengths
+    ADD CONSTRAINT ft_track_lengths_sample_id_fkey FOREIGN KEY (sample_id) REFERENCES public.samples(sample_id) ON DELETE CASCADE;
 
 
 --
--- Name: test_configurations test_configurations_assay_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: samples samples_dataset_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.test_configurations
-    ADD CONSTRAINT test_configurations_assay_id_fkey FOREIGN KEY (assay_id) REFERENCES public.assays(id);
+ALTER TABLE ONLY public.samples
+    ADD CONSTRAINT samples_dataset_id_fkey FOREIGN KEY (dataset_id) REFERENCES public.datasets(id);
 
 
 --
--- Name: test_configurations test_configurations_marker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: DEFAULT PRIVILEGES FOR SEQUENCES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
 --
 
-ALTER TABLE ONLY public.test_configurations
-    ADD CONSTRAINT test_configurations_marker_id_fkey FOREIGN KEY (marker_id) REFERENCES public.markers(id);
+ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON SEQUENCES TO neon_superuser WITH GRANT OPTION;
 
 
 --
--- Name: test_configurations test_configurations_qc_sample_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: DEFAULT PRIVILEGES FOR TABLES; Type: DEFAULT ACL; Schema: public; Owner: cloud_admin
 --
 
-ALTER TABLE ONLY public.test_configurations
-    ADD CONSTRAINT test_configurations_qc_sample_id_fkey FOREIGN KEY (qc_sample_id) REFERENCES public.qc_samples(id);
+ALTER DEFAULT PRIVILEGES FOR ROLE cloud_admin IN SCHEMA public GRANT ALL ON TABLES TO neon_superuser WITH GRANT OPTION;
 
 
 --

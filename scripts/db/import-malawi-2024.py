@@ -175,7 +175,7 @@ try:
             th_ppm, th_1sigma, eu_ppm, eu_1sigma, dpar_um, dpar_sd_um,
             rmr0, rmr0d, cl_wt_pct, ecl_apfu, n_grains
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (sample_id, grain_id) DO NOTHING;
+        ON CONFLICT (grain_id) DO NOTHING;
         """
 
         cur.execute(ft_count_sql, (
@@ -216,8 +216,7 @@ try:
         INSERT INTO ft_track_lengths (
             sample_id, grain_id, n_confined_tracks, mean_track_length_um,
             mean_track_length_se_um, mean_track_length_sd_um, dpar_um
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (sample_id, grain_id) DO NOTHING;
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s);
         """
 
         cur.execute(ft_length_sql, (

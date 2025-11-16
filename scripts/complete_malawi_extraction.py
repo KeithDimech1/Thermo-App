@@ -126,61 +126,90 @@ eu_ppm_errors = table1['eu_ppm'].apply(lambda x: parse_age_error(x)[1])
 dpar_values = table1['dpar_um'].apply(lambda x: parse_age_error(x)[0])
 dpar_errors = table1['dpar_um'].apply(lambda x: parse_age_error(x)[1])
 
-# 1. Samples table
+# CRITICAL: Filter to only valid sample IDs BEFORE creating dataframes
+# Sample IDs should match pattern: 2-4 letters + 2 digits + hyphen + 2-3 digits (e.g., MU19-05)
+valid_samples = table1['sample_id'].astype(str).str.match(r'^[A-Z]{2,4}\d{2}-\d{2,3}$', na=False)
+
+print(f'→ Filtering data: {valid_samples.sum()} valid samples out of {len(table1)} rows')
+table1_clean = table1[valid_samples].copy()
+coordinates_clean = coordinates_placeholder[valid_samples].copy()
+
+if len(table1_clean) == 0:
+    print('❌ ERROR: No valid samples found after filtering!')
+    sys.exit(1)
+
+# 1. Samples table (using cleaned data)
 samples_df = pd.DataFrame({
-    'sample_id': table1['sample_id'],
+    'sample_id': table1_clean['sample_id'],
     'dataset_id': 1,  # Will be updated after dataset insert
-    'latitude': coordinates_placeholder['latitude'],
-    'longitude': coordinates_placeholder['longitude'],
-    'elevation_m': coordinates_placeholder['elevation_m'],
+    'latitude': coordinates_clean['latitude'],
+    'longitude': coordinates_clean['longitude'],
+    'elevation_m': coordinates_clean['elevation_m'],
     'mineral_type': 'apatite',
     'analysis_method': 'LA-ICP-MS AFT',
-    'n_aft_grains': pd.to_numeric(table1['n_grains'], errors='coerce')
+    'n_aft_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
 })
 
-# 2. FT Ages table
+# 2. FT Ages table (using cleaned data)
+pooled_ages_clean = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[0])
+pooled_errors_clean = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[1])
+central_ages_clean = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[0])
+central_errors_clean = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[1])
+
 ft_ages_df = pd.DataFrame({
-    'sample_id': table1['sample_id'],
-    'n_grains': pd.to_numeric(table1['n_grains'], errors='coerce'),
-    'pooled_age_ma': pooled_ages,
-    'pooled_age_error_ma': pooled_errors,
-    'central_age_ma': central_ages,
-    'central_age_error_ma': central_errors,
-    'dispersion_pct': pd.to_numeric(table1['dispersion_pct'], errors='coerce'),
-    'p_chi2': pd.to_numeric(table1['p_chi2_pct'], errors='coerce') / 100,  # Convert % to fraction
+    'sample_id': table1_clean['sample_id'],
+    'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce'),
+    'pooled_age_ma': pooled_ages_clean,
+    'pooled_age_error_ma': pooled_errors_clean,
+    'central_age_ma': central_ages_clean,
+    'central_age_error_ma': central_errors_clean,
+    'dispersion_pct': pd.to_numeric(table1_clean['dispersion_pct'], errors='coerce'),
+    'p_chi2': pd.to_numeric(table1_clean['p_chi2_pct'], errors='coerce') / 100,  # Convert % to fraction
     'ft_age_type': 'central'
 })
 
-# 3. FT Counts table (pooled data)
+# 3. FT Counts table (pooled data - using cleaned data)
+u_ppm_values_clean = table1_clean['u_ppm'].apply(lambda x: parse_age_error(x)[0])
+u_ppm_errors_clean = table1_clean['u_ppm'].apply(lambda x: parse_age_error(x)[1])
+th_ppm_values_clean = table1_clean['th_ppm'].apply(lambda x: parse_age_error(x)[0])
+th_ppm_errors_clean = table1_clean['th_ppm'].apply(lambda x: parse_age_error(x)[1])
+eu_ppm_values_clean = table1_clean['eu_ppm'].apply(lambda x: parse_age_error(x)[0])
+eu_ppm_errors_clean = table1_clean['eu_ppm'].apply(lambda x: parse_age_error(x)[1])
+dpar_values_clean = table1_clean['dpar_um'].apply(lambda x: parse_age_error(x)[0])
+dpar_errors_clean = table1_clean['dpar_um'].apply(lambda x: parse_age_error(x)[1])
+
 ft_counts_df = pd.DataFrame({
-    'sample_id': table1['sample_id'],
-    'grain_id': table1['sample_id'] + '_pooled',
-    'ns': pd.to_numeric(table1['ns'], errors='coerce').astype('Int64'),
-    'rho_s_cm2': pd.to_numeric(table1['ps_cm2'], errors='coerce'),
-    'u_ppm': u_ppm_values,
-    'u_1sigma': u_ppm_errors,
-    'th_ppm': th_ppm_values,
-    'th_1sigma': th_ppm_errors,
-    'eu_ppm': eu_ppm_values,
-    'eu_1sigma': eu_ppm_errors,
-    'dpar_um': dpar_values,
-    'dpar_sd_um': dpar_errors,
-    'rmr0': pd.to_numeric(table1['rmr0'], errors='coerce'),
-    'rmr0d': pd.to_numeric(table1['rmr0d'], errors='coerce'),
-    'cl_wt_pct': pd.to_numeric(table1['cl_wt_pct'], errors='coerce'),
-    'ecl_apfu': pd.to_numeric(table1['ecl_apfu'], errors='coerce'),
-    'n_grains': pd.to_numeric(table1['n_grains'], errors='coerce')
+    'sample_id': table1_clean['sample_id'],
+    'grain_id': table1_clean['sample_id'] + '_pooled',
+    'ns': pd.to_numeric(table1_clean['ns'], errors='coerce').astype('Int64'),
+    'rho_s_cm2': pd.to_numeric(table1_clean['ps_cm2'], errors='coerce'),
+    'u_ppm': u_ppm_values_clean,
+    'u_1sigma': u_ppm_errors_clean,
+    'th_ppm': th_ppm_values_clean,
+    'th_1sigma': th_ppm_errors_clean,
+    'eu_ppm': eu_ppm_values_clean,
+    'eu_1sigma': eu_ppm_errors_clean,
+    'dpar_um': dpar_values_clean,
+    'dpar_sd_um': dpar_errors_clean,
+    'rmr0': pd.to_numeric(table1_clean['rmr0'], errors='coerce'),
+    'rmr0d': pd.to_numeric(table1_clean['rmr0d'], errors='coerce'),
+    'cl_wt_pct': pd.to_numeric(table1_clean['cl_wt_pct'], errors='coerce'),
+    'ecl_apfu': pd.to_numeric(table1_clean['ecl_apfu'], errors='coerce'),
+    'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
 })
 
-# 4. FT Track Lengths table
+# 4. FT Track Lengths table (using cleaned data)
+mtl_values_clean = table1_clean['mtl_um'].apply(lambda x: parse_age_error(x)[0])
+mtl_errors_clean = table1_clean['mtl_um'].apply(lambda x: parse_age_error(x)[1])
+
 ft_lengths_df = pd.DataFrame({
-    'sample_id': table1['sample_id'],
-    'grain_id': table1['sample_id'] + '_pooled',
-    'n_confined_tracks': pd.to_numeric(table1['n_tracks'], errors='coerce').astype('Int64'),
-    'mean_track_length_um': mtl_values,
-    'mean_track_length_se_um': mtl_errors,  # Using as SE
-    'mean_track_length_sd_um': pd.to_numeric(table1['mtl_sd_um'], errors='coerce'),
-    'dpar_um': dpar_values
+    'sample_id': table1_clean['sample_id'],
+    'grain_id': table1_clean['sample_id'] + '_pooled',
+    'n_confined_tracks': pd.to_numeric(table1_clean['n_tracks'], errors='coerce').astype('Int64'),
+    'mean_track_length_um': mtl_values_clean,
+    'mean_track_length_se_um': mtl_errors_clean,  # Using as SE
+    'mean_track_length_sd_um': pd.to_numeric(table1_clean['mtl_sd_um'], errors='coerce'),
+    'dpar_um': dpar_values_clean
 })
 
 print(f'✅ Transformed to FAIR schema')

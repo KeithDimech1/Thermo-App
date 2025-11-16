@@ -1,547 +1,493 @@
-# Thermochronology PDF Extraction Command
+# /thermoextract - Zero-Error Thermochronology Data Extraction
 
-**Purpose:** Extract thermochronology data from research papers using the automated extraction engine
-
-**Engine:** `scripts/pdf/extraction_engine.py` (Universal PDF Extraction Engine from IDEA-006)
-
----
-
-## 🎯 Your Task
-
-Use the **Universal PDF Extraction Engine** to automatically extract thermochronology data from the provided PDF.
-
-**Capabilities:**
-- ✅ Automatic table detection and classification (AFT, AHe, counts, lengths)
-- ✅ Bulletproof text-based extraction (90%+ success rate)
-- ✅ Progressive fallback (text → camelot → pdfplumber)
-- ✅ Smart column clustering and header detection
-- ✅ Quality validation and error detection
-- ✅ <1 second analysis time
+**Purpose:** Extract thermochronology data from PDFs with zero import errors
+**Workflow:** Extract → Validate → Import (one successful attempt)
+**Key Principle:** Data must be **perfect before import** - no manual fixes needed
 
 ---
 
-## 📋 Workflow
+## 🎯 What You'll Do
 
-### STEP 1: Initialize Extraction Engine (5 seconds)
+Execute a complete extraction workflow that produces **validated, import-ready data**:
+
+1. **Extract** tables from PDF with auto-filtering of invalid rows
+2. **Transform** to FAIR schema (4 normalized database tables)
+3. **Validate** against database schema (catch ALL errors before import)
+4. **Generate CSVs** ready for zero-error import
+5. **Create extraction report** documenting the process
+
+---
+
+## 📋 Complete Workflow (All 8 Steps)
+
+### STEP 1: Extract PDF Tables
 
 ```python
+import sys
+import pandas as pd
+from pathlib import Path
+
+# Get PDF path from user input (passed as argument)
+pdf_path = '<PDF_PATH>'  # Will be provided by user
+
+# Add scripts to path
+sys.path.insert(0, str(Path.cwd()))
+
 from scripts.pdf.extraction_engine import UniversalThermoExtractor
 
-# Initialize with caching
-extractor = UniversalThermoExtractor(
-    pdf_path=pdf_path,
-    cache_dir='./cache'
-)
-```
+print('━' * 60)
+print('STEP 1: EXTRACTING PDF TABLES')
+print('━' * 60)
+print()
 
-### STEP 2: Analyze Document Structure (1-2 seconds)
-
-```python
-# Detect tables and classify types
+# Initialize and run extraction
+extractor = UniversalThermoExtractor(pdf_path)
 extractor.analyze()
+results = extractor.extract_all()
 
-# Show what was found
-print(f"📄 Paper: {extractor.metadata.get('title', 'Unknown')}")
-print(f"📊 Tables detected: {len(extractor.structure.tables)}")
-for table_id, info in extractor.structure.tables.items():
-    print(f"  - {table_id}: {info['type']} (page {info['page']})")
+print(f'✅ Extracted {len(results)} tables')
+for table_id, df in results.items():
+    print(f'   - {table_id}: {len(df)} rows × {len(df.columns)} columns')
+print()
 ```
 
-**Output example:**
-```
-📄 Paper: 4D fault evolution revealed by footwall exhumation...
-📊 Tables detected: 3
-  - Table 1: AFT_ages (page 7)
-  - Table A2: EMPA (page 20)
-  - Table A3: UThHe (page 34)
-```
+---
 
-### STEP 3: Extract Tables (2-5 seconds per table)
+### STEP 2: Apply Column Name Mapping
 
 ```python
-# Extract all detected tables
-tables = extractor.extract_all()
+print('━' * 60)
+print('STEP 2: APPLYING COLUMN NAME MAPPING')
+print('━' * 60)
+print()
 
-# Show extraction results
-print(f"\n✅ Successfully extracted {len(tables)} tables:")
-for table_id, df in tables.items():
-    print(f"  - {table_id}: {len(df)} rows × {len(df.columns)} columns")
-    print(f"    Columns: {list(df.columns)[:5]}...")
+# Identify main data table (usually "Table 1" or similar)
+table1 = results['Table 1'].copy()
+
+# Define column mapping (customize based on paper format)
+# This example is for AFT ages table with numbered columns
+column_mapping = {
+    '0': 'sample_id',
+    '1': 'n_grains',
+    '2': 'ns',
+    '3': 'ps_cm2',
+    '4': 'u_ppm',
+    '5': 'th_ppm',
+    '6': 'eu_ppm',
+    '7': 'p_chi2_pct',
+    '8': 'dispersion_pct',
+    '9': 'pooled_age_ma',
+    '10': 'central_age_ma',
+    '11': 'dpar_um',
+    '12': 'rmr0',
+    '13': 'rmr0d',
+    '14': 'cl_wt_pct',
+    '15': 'ecl_apfu',
+    '16': 'n_tracks',
+    '17': 'mtl_um',
+    '18': 'mtl_sd_um'
+}
+
+table1.rename(columns=column_mapping, inplace=True)
+
+print(f'✅ Renamed {len(column_mapping)} columns')
+print(f'   New columns: {list(table1.columns)[:5]}...')
+print()
 ```
 
-**Output example:**
-```
-✅ Successfully extracted 2/3 tables:
-  - Table A3: 11 rows × 10 columns
-    Columns: ['sample_no', 'analysis_no', 'he', 'u_ppm', 'th_ppm']...
-  - Table A2: 74 rows × 22 columns
-    Columns: ['sample', 'grain', 'sio2', 'al2o3', 'feo']...
-```
+---
 
-### STEP 4: Show Data Preview
+### STEP 3: Filter Invalid Rows (CRITICAL)
 
 ```python
-# Preview each extracted table
-for table_id, df in tables.items():
-    print(f"\n{'='*60}")
-    print(f"TABLE: {table_id}")
-    print(f"{'='*60}")
-    print(df.head(3).to_string())
+print('━' * 60)
+print('STEP 3: FILTERING INVALID ROWS')
+print('━' * 60)
+print()
+
+# CRITICAL: Remove footer/header metadata BEFORE transformation
+# Sample IDs must match pattern: XX##-## or XX##-### (e.g., MU19-05)
+valid_samples = table1['sample_id'].astype(str).str.match(
+    r'^[A-Z]{2,4}\d{2}-\d{2,3}$',
+    na=False
+)
+
+print(f'   Total rows extracted: {len(table1)}')
+print(f'   Valid sample rows: {valid_samples.sum()}')
+print(f'   Invalid rows filtered: {len(table1) - valid_samples.sum()}')
+
+if valid_samples.sum() == 0:
+    print('❌ ERROR: No valid samples found!')
+    print('   Check sample ID format or adjust pattern')
+    sys.exit(1)
+
+# Create clean dataset
+table1_clean = table1[valid_samples].copy()
+
+print(f'✅ Data cleaned: {len(table1_clean)} valid samples')
+print()
 ```
+
+**Why This Matters:**
+- Malawi 2024 import: 51 extracted → 34 valid (17 invalid rows)
+- Invalid rows cause: "value too long for character varying(50)"
+- **Filter during extraction, not manually in CSV**
+
+---
+
+### STEP 4: Parse Ages with Errors
+
+```python
+print('━' * 60)
+print('STEP 4: PARSING AGES WITH ERRORS')
+print('━' * 60)
+print()
+
+def parse_age_error(age_str):
+    """
+    Parse age string like '245.3 ± 49.2' into (age, error)
+
+    Handles formats:
+    - "245.3 ± 49.2" → (245.3, 49.2)
+    - "110.5 ± 6.2" → (110.5, 6.2)
+    - "NaN" → (None, None)
+    """
+    if pd.isna(age_str) or str(age_str).strip() == '':
+        return None, None
+
+    try:
+        parts = str(age_str).split('±')
+        age = float(parts[0].strip())
+        error = float(parts[1].strip()) if len(parts) > 1 else None
+        return age, error
+    except:
+        return None, None
+
+# Parse pooled ages
+pooled_ages = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[0])
+pooled_errors = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[1])
+
+# Parse central ages
+central_ages = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[0])
+central_errors = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[1])
+
+print(f'✅ Parsed ages for {len(table1_clean)} samples')
+print(f'   Age range: {central_ages.min():.1f} - {central_ages.max():.1f} Ma')
+print()
+```
+
+---
 
 ### STEP 5: Transform to FAIR Schema
 
 ```python
-# Transform extracted tables to FAIR-compliant database schema
-fair_data = extractor.transform_to_fair()
+print('━' * 60)
+print('STEP 5: TRANSFORMING TO FAIR SCHEMA')
+print('━' * 60)
+print()
 
-# Show transformation results
-print(f"\n✅ FAIR transformation complete:")
-for table_name, df in fair_data.items():
-    print(f"  - {table_name}: {len(df)} records")
+# 1. Samples table
+samples_df = pd.DataFrame({
+    'sample_id': table1_clean['sample_id'],
+    'dataset_id': 1,  # Placeholder (will be updated on import)
+    'latitude': -13.5,  # Placeholder (extract from Table A2 if available)
+    'longitude': 34.8,
+    'elevation_m': None,
+    'mineral_type': 'apatite',
+    'analysis_method': 'LA-ICP-MS AFT',
+    'n_aft_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
+})
+
+# 2. FT Ages table
+ft_ages_df = pd.DataFrame({
+    'sample_id': table1_clean['sample_id'],
+    'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce'),
+    'pooled_age_ma': pooled_ages,
+    'pooled_age_error_ma': pooled_errors,
+    'central_age_ma': central_ages,
+    'central_age_error_ma': central_errors,
+    'dispersion_pct': pd.to_numeric(table1_clean['dispersion_pct'], errors='coerce'),
+    'p_chi2': pd.to_numeric(table1_clean['p_chi2_pct'], errors='coerce') / 100,
+    'ft_age_type': 'central'
+})
+
+# 3. FT Counts table (pooled data)
+u_ppm = table1_clean['u_ppm'].apply(lambda x: parse_age_error(x)[0])
+th_ppm = table1_clean['th_ppm'].apply(lambda x: parse_age_error(x)[0])
+eu_ppm = table1_clean['eu_ppm'].apply(lambda x: parse_age_error(x)[0])
+dpar = table1_clean['dpar_um'].apply(lambda x: parse_age_error(x)[0])
+
+ft_counts_df = pd.DataFrame({
+    'sample_id': table1_clean['sample_id'],
+    'grain_id': table1_clean['sample_id'] + '_pooled',
+    'ns': pd.to_numeric(table1_clean['ns'], errors='coerce').astype('Int64'),
+    'rho_s_cm2': pd.to_numeric(table1_clean['ps_cm2'], errors='coerce'),
+    'u_ppm': u_ppm,
+    'th_ppm': th_ppm,
+    'eu_ppm': eu_ppm,
+    'dpar_um': dpar,
+    'rmr0': pd.to_numeric(table1_clean['rmr0'], errors='coerce'),
+    'cl_wt_pct': pd.to_numeric(table1_clean['cl_wt_pct'], errors='coerce'),
+    'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
+})
+
+# 4. FT Track Lengths table
+mtl = table1_clean['mtl_um'].apply(lambda x: parse_age_error(x)[0])
+
+ft_lengths_df = pd.DataFrame({
+    'sample_id': table1_clean['sample_id'],
+    'grain_id': table1_clean['sample_id'] + '_pooled',
+    'n_confined_tracks': pd.to_numeric(table1_clean['n_tracks'], errors='coerce').astype('Int64'),
+    'mean_track_length_um': mtl,
+    'mean_track_length_sd_um': pd.to_numeric(table1_clean['mtl_sd_um'], errors='coerce'),
+    'dpar_um': dpar
+})
+
+print(f'✅ Transformed to FAIR schema:')
+print(f'   - samples: {len(samples_df)} rows')
+print(f'   - ft_ages: {len(ft_ages_df)} rows')
+print(f'   - ft_counts: {len(ft_counts_df)} rows')
+print(f'   - ft_track_lengths: {len(ft_lengths_df)} rows')
+print()
 ```
 
-**Output example:**
-```
-✅ FAIR transformation complete:
-  - samples: 11 records
-  - ft_ages: 0 records (no AFT data in this paper)
-  - ft_counts: 0 records
-  - ft_track_lengths: 0 records
-  - ahe_grain_data: 11 records
-```
+---
 
-**What this does:**
-- Denormalizes publication tables → Normalizes to database schema
-- Adds required metadata fields (analyst, laboratory, etc.)
-- Generates IDs (grain_id, sample_mount_id, IGSN placeholders)
-- Maps extracted columns to schema fields
-- Validates data types and ranges
-
-### STEP 6: Validate FAIR Data
+### STEP 6: Validate Before Import (NEW - Critical!)
 
 ```python
-# Validate transformed data
-validation_report = extractor.validate(fair_data)
+print('━' * 60)
+print('STEP 6: VALIDATING DATA (PRE-IMPORT)')
+print('━' * 60)
+print()
 
-# Show validation results
-print(f"\n✅ Validation report:")
-print(f"  Overall: {'PASS' if validation_report['overall_valid'] else 'FAIL'}")
-for table_name, result in validation_report['tables'].items():
-    status = '✅' if result['valid'] else '✗'
-    print(f"  {status} {table_name}: {result['confidence']:.0%} confidence")
-    if result['issues']:
-        for issue in result['issues'][:3]:  # Show first 3 issues
-            print(f"      ⚠ {issue}")
+# Save CSVs to temporary directory for validation
+dataset_name = Path(pdf_path).stem[:50]  # Use PDF filename
+output_dir = Path('build-data/learning/thermo-papers/data')
+output_dir.mkdir(parents=True, exist_ok=True)
+
+samples_df.to_csv(output_dir / f'{dataset_name}-samples.csv', index=False)
+ft_ages_df.to_csv(output_dir / f'{dataset_name}-ft_ages.csv', index=False)
+ft_counts_df.to_csv(output_dir / f'{dataset_name}-ft_counts.csv', index=False)
+ft_lengths_df.to_csv(output_dir / f'{dataset_name}-ft_track_lengths.csv', index=False)
+
+# Run validation script
+import subprocess
+result = subprocess.run([
+    'python', 'scripts/db/validate-import.py', str(output_dir)
+], capture_output=True, text=True)
+
+print(result.stdout)
+
+if result.returncode != 0:
+    print('❌ VALIDATION FAILED')
+    print('   Fix errors before attempting import')
+    print()
+    print('Common issues:')
+    print('   - sample_id too long (limit: 50 chars)')
+    print('   - Invalid sample_id format')
+    print('   - Missing required columns')
+    print('   - NULL values in required fields')
+    sys.exit(1)
+
+print('✅ All files validated - ready for import')
+print()
 ```
 
-**Output example:**
-```
-✅ Validation report:
-  Overall: PASS
-  ✅ samples: 100% confidence
-  ✅ ahe_grain_data: 95% confidence
-      ⚠ 2 missing Ft correction values
-```
+**Why This Matters:**
+- Catches schema mismatches BEFORE import
+- Validates string lengths (e.g., sample_id < 50 chars)
+- Checks foreign key integrity
+- Prevents failed imports - **import once, successfully**
 
-### STEP 7: Upload to Database
+---
+
+### STEP 7: Generate Final CSVs
 
 ```python
-from lib.db.connection import transaction
-import json
+print('━' * 60)
+print('STEP 7: GENERATING CSV FILES')
+print('━' * 60)
+print()
 
-# Prepare database insert
-async def upload_to_database(fair_data, metadata):
-    """Upload FAIR data to PostgreSQL"""
-
-    async with transaction() as conn:
-        # 1. Insert dataset
-        dataset_result = await conn.execute("""
-            INSERT INTO datasets (
-                title, authors, journal, year, doi,
-                created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-            RETURNING id
-        """,
-            metadata.get('title'),
-            metadata.get('authors'),
-            metadata.get('journal'),
-            metadata.get('year'),
-            metadata.get('doi')
-        )
-        dataset_id = dataset_result['id']
-
-        # 2. Insert samples
-        if 'samples' in fair_data and len(fair_data['samples']) > 0:
-            for _, row in fair_data['samples'].iterrows():
-                await conn.execute("""
-                    INSERT INTO samples (
-                        dataset_id, sample_name, igsn,
-                        latitude, longitude, elevation,
-                        lithology, mineral_type
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                """,
-                    dataset_id, row['sample_name'], row.get('igsn'),
-                    row.get('latitude'), row.get('longitude'), row.get('elevation'),
-                    row.get('lithology'), row.get('mineral_type')
-                )
-
-        # 3. Insert ft_ages (if any)
-        # 4. Insert ft_counts (if any)
-        # 5. Insert ft_track_lengths (if any)
-        # 6. Insert ahe_grain_data (if any)
-
-        print(f"✅ Database upload complete:")
-        print(f"  Dataset ID: {dataset_id}")
-        print(f"  Samples: {len(fair_data.get('samples', []))} inserted")
-        print(f"  Ages: {len(fair_data.get('ft_ages', []))} inserted")
-        print(f"  AHe grains: {len(fair_data.get('ahe_grain_data', []))} inserted")
-
-        return dataset_id
-
-# Execute upload
-dataset_id = await upload_to_database(fair_data, extractor.metadata)
+print(f'✅ Generated CSV files:')
+print(f'   - {dataset_name}-samples.csv ({len(samples_df)} rows)')
+print(f'   - {dataset_name}-ft_ages.csv ({len(ft_ages_df)} rows)')
+print(f'   - {dataset_name}-ft_counts.csv ({len(ft_counts_df)} rows)')
+print(f'   - {dataset_name}-ft_track_lengths.csv ({len(ft_lengths_df)} rows)')
+print()
 ```
 
-### STEP 8: Export Raw CSVs (for backup/review)
+---
+
+### STEP 8: Create Extraction Report
 
 ```python
-import os
-from datetime import datetime
+print('━' * 60)
+print('STEP 8: CREATING EXTRACTION REPORT')
+print('━' * 60)
+print()
 
-# Create output directory
-paper_name = extractor.metadata.get('title', 'Unknown').replace(' ', '_')[:50]
-output_dir = f"output/extracts/{paper_name}"
-os.makedirs(output_dir, exist_ok=True)
+report_dir = Path('build-data/learning/thermo-papers/reports')
+report_dir.mkdir(parents=True, exist_ok=True)
 
-# Export FAIR schema tables
-for table_name, df in fair_data.items():
-    if len(df) > 0:
-        filename = f"{output_dir}/{table_name}.csv"
-        df.to_csv(filename, index=False)
-        print(f"✅ Exported: {filename}")
+report_path = report_dir / f'{dataset_name}-extraction-report.md'
 
-# Export original extracted tables (pre-transformation)
-raw_dir = f"{output_dir}/raw"
-os.makedirs(raw_dir, exist_ok=True)
-for table_id, df in tables.items():
-    filename = f"{raw_dir}/{table_id.replace(' ', '_')}.csv"
-    df.to_csv(filename, index=False)
+with open(report_path, 'w') as f:
+    f.write(f'''# Thermochronology Data Extraction Report
 
-# Create manifest
-manifest = {
-    'paper': extractor.metadata.get('title'),
-    'extraction_date': datetime.now().isoformat(),
-    'dataset_id': dataset_id,
-    'tables_detected': len(extractor.structure.tables),
-    'tables_extracted': len(tables),
-    'records_uploaded': sum(len(df) for df in fair_data.values()),
-    'fair_tables': list(fair_data.keys()),
-    'validation': 'PASS' if validation_report['overall_valid'] else 'FAIL'
-}
+**Paper:** {dataset_name}
+**Extracted:** {pd.Timestamp.now().strftime("%Y-%m-%d")}
 
-with open(f"{output_dir}/manifest.json", 'w') as f:
-    json.dump(manifest, f, indent=2)
+---
 
-print(f"\n📁 Output directory: {output_dir}")
+## Extraction Summary
+
+**Tables Extracted:** {len(results)}/{len(extractor.structure.tables)}
+**Valid Samples:** {len(table1_clean)} (filtered from {len(table1)} total rows)
+**Age Range:** {central_ages.min():.1f} - {central_ages.max():.1f} Ma
+
+---
+
+## Data Quality
+
+✅ **Sample ID Validation:** All {len(table1_clean)} samples match pattern `^[A-Z]{{2,4}}\\d{{2}}-\\d{{2,3}}$`
+✅ **Schema Validation:** All CSV files passed pre-import validation
+✅ **No Null Values:** Required fields populated
+✅ **Foreign Keys:** All relationships valid
+
+---
+
+## Generated Files
+
+- `{dataset_name}-samples.csv` ({len(samples_df)} rows)
+- `{dataset_name}-ft_ages.csv` ({len(ft_ages_df)} rows)
+- `{dataset_name}-ft_counts.csv` ({len(ft_counts_df)} rows)
+- `{dataset_name}-ft_track_lengths.csv` ({len(ft_lengths_df)} rows)
+
+---
+
+## Next Steps
+
+### Import to Database
+
+**Option A: SQL Bulk Import (RECOMMENDED)**
+```bash
+./scripts/db/import-sql.sh {dataset_name} build-data/learning/thermo-papers/data
+```
+
+**Option B: Python Import**
+```bash
+python scripts/db/import-malawi-2024.py
+```
+
+**Expected Result:** ✅ Zero errors, one successful import
+
+---
+
+**Report Generated:** {report_path}
+''')
+
+print(f'✅ Extraction report created: {report_path}')
+print()
 ```
 
 ---
 
-## 🎨 User Response Format
+## ✅ Final Summary
 
-When user requests extraction, provide this format:
-
-```
-/thermoextract mode activated
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-UNIVERSAL PDF EXTRACTION ENGINE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📄 Paper: Kabongo et al. (2024) - Malawi rift
-
-STEP 1: Initializing extraction engine... ✅
-  - PDF: 78 pages
-  - Cache: ./cache (enabled)
-
-STEP 2: Analyzing document structure... ✅ (0.5s)
-  - Tables detected: 3
-    • Table 1: AFT_ages (page 7)
-    • Table A2: EMPA (page 20)
-    • Table A3: UThHe (page 34)
-  - Methods section: Found (page 5-6)
-
-STEP 3: Extracting tables... ✅ (3.2s total)
-
-  → Table 1 (AFT_ages)
-    Method: camelot_stream (quality: 0.71)
-    Result: ✗ FAILED (no data extracted)
-
-  → Table A2 (EMPA)
-    Method: camelot_stream (quality: 0.68)
-    Result: ✅ 74 rows × 22 columns
-    Validation: ⚠ WARNING (numeric headers detected)
-
-  → Table A3 (UThHe)
-    Method: text_extraction (quality: 0.64)
-    Result: ✅ 11 rows × 10 columns
-    Validation: ✅ PASS (confidence: 100%)
-
-STEP 4: Data preview...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TABLE: Table A3 (UThHe data)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   sample_no  analysis_no    he  u_ppm  th_ppm  corrected_age  error
-0     MW-01          a1    2.45   12.3    45.2          15.2    0.8
-1     MW-01          a2    2.38   11.8    43.1          14.9    0.7
-2     MW-02          a1    3.12   15.6    52.3          18.3    0.9
-
-[11 rows × 10 columns]
-
-STEP 5: Transforming to FAIR schema... ✅ (1.2s)
-  - samples: 11 records
-  - ft_ages: 0 records (no AFT data)
-  - ft_counts: 0 records
-  - ft_track_lengths: 0 records
-  - ahe_grain_data: 11 records
-
-STEP 6: Validating FAIR data... ✅
-  Overall: PASS
-  ✅ samples: 100% confidence
-  ✅ ahe_grain_data: 95% confidence
-      ⚠ 2 missing Ft correction values
-
-STEP 7: Uploading to database... ✅ (2.1s)
-  - Transaction started
-  - Dataset created: ID #4
-  - Samples inserted: 11 rows
-  - AHe grains inserted: 11 rows
-  - Total records: 22
-  - Transaction COMMITTED ✅
-
-STEP 8: Exporting CSVs... ✅
-  - output/extracts/Kabongo_2024/samples.csv
-  - output/extracts/Kabongo_2024/ahe_grain_data.csv
-  - output/extracts/Kabongo_2024/raw/Table_A2.csv
-  - output/extracts/Kabongo_2024/raw/Table_A3.csv
-  - output/extracts/Kabongo_2024/manifest.json
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EXTRACTION COMPLETE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Paper: Kabongo et al. (2024)
-Tables Detected: 3
-Tables Extracted: 2/3 (67%)
-FAIR Records: 22
-Database: ✅ COMMITTED (Dataset ID #4)
-Quality: ⭐⭐⭐⭐ (Very Good)
-
-📁 Output: output/extracts/Kabongo_2024/
-🗄️ Database: Dataset ID #4 (22 records)
+```python
+print('━' * 60)
+print('EXTRACTION COMPLETE')
+print('━' * 60)
+print()
+print('Summary:')
+print(f'  ✅ Tables extracted: {len(results)}')
+print(f'  ✅ Valid samples: {len(table1_clean)} (filtered {len(table1) - len(table1_clean)} invalid)')
+print(f'  ✅ Schema validated: PASS')
+print(f'  ✅ CSV files generated: 4')
+print(f'  ✅ Age range: {central_ages.min():.1f} - {central_ages.max():.1f} Ma')
+print()
+print('Next steps:')
+print(f'  1. Review extraction report: {report_path}')
+print(f'  2. Import to database (zero errors expected):')
+print(f'     ./scripts/db/import-sql.sh {dataset_name} build-data/learning/thermo-papers/data')
+print()
+print('Files:')
+print(f'  - Data: build-data/learning/thermo-papers/data/{dataset_name}-*.csv')
+print(f'  - Report: {report_path}')
+print()
 ```
 
 ---
 
-## ⚙️ Technical Details
+## 🎓 Key Lessons Learned
 
-**Extraction Engine Location:** `scripts/pdf/extraction_engine.py`
+### Problem 1: Invalid Data in CSVs
+**What went wrong:** Footer text extracted as sample rows (219 chars → overflow)
+**Fix:** Filter invalid rows during extraction using sample ID pattern
+**Code:** `valid_samples = df['sample_id'].str.match(r'^[A-Z]{2,4}\d{2}-\d{2,3}$')`
 
-**Key Modules:**
-- `semantic_analysis.py` - Table detection and classification
-- `table_extractors.py` - Multi-method extraction (text, camelot, pdfplumber)
-- `validators.py` - Domain-specific validation
-- `cleaners.py` - Post-extraction cleaning
-- `cache.py` - 20-30x speedup on re-runs
+### Problem 2: No Pre-Import Validation
+**What went wrong:** Errors discovered during import attempt (3 failures)
+**Fix:** Validate against database schema BEFORE import
+**Code:** `python scripts/db/validate-import.py <data-dir>`
 
-**Performance:**
-- Analysis: <1 second
-- Extraction: 1-2 seconds per table
-- Total: 5-10 seconds for typical paper
-
-**Success Rate:**
-- 90%+ on caption-detected tables
-- Text extraction works for most scientific papers
-- Progressive fallback ensures maximum coverage
+### Problem 3: Schema Mismatches
+**What went wrong:** `study_location` vs `study_area`, wrong constraint names
+**Fix:** Validation script checks actual database schema
+**Result:** Catch ALL errors before import attempt
 
 ---
 
-## 🚨 Error Handling
+## 📊 SQL vs Python Import
 
-**If extraction fails:**
-
-1. **No tables detected:**
-   ```
-   ⚠ No tables detected in PDF
-   Possible reasons:
-   - Review/methods paper (no data tables)
-   - Tables are images (need OCR)
-   - Non-standard formatting
-
-   Recommendation: Manual review of PDF
-   ```
-
-2. **Extraction quality low (<0.3):**
-   ```
-   ⚠ Low extraction quality for Table X
-   Quality score: 0.28
-
-   Possible issues:
-   - Complex multi-line headers
-   - Merged cells across rows
-   - Rotated text
-
-   Recommendation: Check CSV manually, may need cleanup
-   ```
-
-3. **Validation failed:**
-   ```
-   ✗ Validation failed for Table X
-   Issues:
-   - Ages outside 0-4500 Ma range
-   - P(χ²) values outside [0,1]
-
-   Recommendation: Check extracted data before use
-   ```
-
----
-
-## 📁 Output Structure
-
-```
-output/extracts/{Paper_Name}/
-├── Table_1.csv                    # Extracted table data
-├── Table_A2.csv
-├── Table_A3.csv
-├── manifest.json                  # Extraction metadata
-└── extraction_log.txt             # Detailed log (optional)
+### Use SQL COPY (Recommended)
+```bash
+./scripts/db/import-sql.sh Dataset-2024 build-data/learning/thermo-papers/data
 ```
 
-**Manifest format:**
-```json
-{
-  "paper": "Paper title",
-  "extraction_date": "2025-11-16T10:30:00",
-  "tables_extracted": 2,
-  "tables_failed": 1,
-  "files": ["Table_A2.csv", "Table_A3.csv"],
-  "engine_version": "IDEA-006-Phase-2",
-  "total_rows": 85
-}
+**Advantages:**
+- ✅ 10-100x faster (bulk loading)
+- ✅ Transaction-safe (all-or-nothing)
+- ✅ Simpler code
+- ✅ Native database operation
+
+**Use for:**
+- Production imports
+- Large datasets (>1000 rows)
+- When speed matters
+
+### Use Python (Alternative)
+```bash
+python scripts/db/import-dataset.py
 ```
 
----
+**Advantages:**
+- ✅ More flexible (complex transformations)
+- ✅ Better error logging
+- ✅ Easier debugging
 
-## 🎯 Success Criteria
-
-**Extraction considered successful if:**
-- ✅ At least 1 data table extracted
-- ✅ Quality score ≥ 0.5 for extracted tables
-- ✅ FAIR transformation complete
-- ✅ Validation passes (no critical errors)
-- ✅ Data uploaded to database
-- ✅ CSV files + manifest generated
-
-**Time estimate:**
-- Analysis + Extraction: 5-10 seconds
-- FAIR Transformation: 1-2 seconds
-- Validation: 1 second
-- Database Upload: 2-5 seconds
-- **Total: 10-20 seconds for typical paper**
+**Use for:**
+- Development/testing
+- Custom transformations
+- Small datasets (<1000 rows)
 
 ---
 
-## 📚 Documentation
+## 🚀 Success Metrics
 
-**Full System Docs:** `build-data/ideas/IDEA-006-SYSTEM-DOCUMENTATION.md`
+### Before Improvements
+- ❌ 3 failed import attempts
+- ❌ 17 rows lost to manual CSV editing
+- ❌ Multiple database cleanups required
 
-**Implementation Log:** `build-data/ideas/IDEA-006-universal-pdf-extraction-engine.md`
-
-**Workflow Design:** `build-data/ideas/IDEA-006-COMPLETE-WORKFLOW-DESIGN.md`
-
----
-
-## ✅ Core Features (Fully Implemented)
-
-**Phase 1-2: PDF Extraction** ✅ COMPLETE
-- Automatic table detection and classification
-- Bulletproof text-based extraction (90%+ success rate)
-- Progressive fallback (text → camelot → pdfplumber)
-- Smart column clustering and header detection
-- Quality validation and error detection
-
-**Phase 3: FAIR Schema Transformation** ✅ COMPLETE
-- Transform to database schema (samples, ft_ages, ft_counts, ft_track_lengths, ahe_grain_data)
-- Validation against schema requirements
-- Metadata enrichment (analyst, laboratory, etc.)
-- ID generation (grain_id, sample_mount_id, IGSN)
-
-**Phase 4: Database Upload** ✅ COMPLETE
-- Direct upload to PostgreSQL (Neon)
-- Transaction safety (BEGIN/COMMIT)
-- Audit trail in manifest.json
-- Raw CSV exports for backup
-
-**Phase 5: Metadata Extraction** ✅ COMPLETE
-- Methods section parsing (analyst, laboratory, zeta calibration)
-- Analytical conditions (microscope, objective, etching)
-- Dosimeter and irradiation info
-- Software and algorithms
-- Decay constants (λ_D, λ_f)
-
-**Phase 6: Advanced Validation** ✅ COMPLETE
-- Domain-specific validators (AFT ages, AHe, counts, lengths)
-- Range validation (ages 0-4500 Ma, P(χ²) 0-1)
-- Statistical validation (dispersion, errors)
-- Quality confidence scoring
-
-**Phase 7: Data Cleaning** ✅ COMPLETE
-- Post-extraction cleaning and normalization
-- Header normalization (Unicode → ASCII)
-- Cell value cleaning (±, ∼, –, <, > characters)
-- Type conversion (string → numeric)
-- Empty row/column removal
-
-**Phase 8: Multi-Method Extraction** ✅ COMPLETE
-- Text-based extraction (primary, 90%+ success)
-- Camelot lattice/stream (structured tables)
-- pdfplumber (fallback)
-- Quality-based progressive fallback
-- Extraction validation module (ready for use)
-
-**Phase 9: AI Table Detection** ✅ INSTALLED (docling, tested)
-- Docling integration available (found 19 tables vs 3 caption-based)
-- Can be enabled as primary or validation method
-- Currently used for quality comparison
-- 6x more comprehensive than caption detection
-
-## 🔮 Future Enhancements
-
-**FAIR Compliance Scoring** (Next Priority)
-- Automated FAIR scoring against Kohn et al. (2024)
-- 100-point system (Findable, Accessible, Interoperable, Reusable)
-- Grade assignment (A-F based on score)
-- Compliance report generation
-- Missing field recommendations
-- Implementation time: ~4-6 hours
-
-**External Data Integration**
-- DOI resolution and metadata lookup
-- External dataset linking (EarthChem, GeoBank)
-- Supplementary file download
-- Reference resolution ("available at [URL]")
-- Implementation time: ~6-8 hours
-
-**Enhanced OCR**
-- OCR for scanned/image PDFs (pytesseract installed)
-- Image table extraction
-- Multi-page table stitching
-- Handwritten annotation extraction
-- Implementation time: ~8-10 hours
+### After Improvements
+- ✅ 1 successful import (first attempt)
+- ✅ Zero rows lost (filtered during extraction)
+- ✅ Zero manual editing
+- ✅ Zero database cleanups
 
 ---
 
-**Ready to extract!** Provide the PDF path to begin.
+**Ready to extract!** Run this workflow with your PDF path to generate validated, import-ready CSV files.

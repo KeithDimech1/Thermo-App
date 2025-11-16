@@ -29,7 +29,7 @@ async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
       COUNT(DISTINCT s.sample_id) as sample_count,
       COALESCE(SUM(s.n_aft_grains), 0) as aft_grain_count,
       COALESCE(SUM(s.n_ahe_grains), 0) as ahe_grain_count
-    FROM geosample_metadata s
+    FROM samples s
     WHERE s.dataset_id = $1
   `;
 

@@ -68,7 +68,8 @@ async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const datasetId = parseInt(params.id, 10);
+  const { id } = await params;
+  const datasetId = parseInt(id, 10);
   const dataset = await getDatasetById(datasetId);
 
   if (!dataset) {
@@ -84,7 +85,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PaperDetailPage({ params }: PageProps) {
-  const datasetId = parseInt(params.id, 10);
+  const { id } = await params;
+  const datasetId = parseInt(id, 10);
 
   if (isNaN(datasetId)) {
     notFound();

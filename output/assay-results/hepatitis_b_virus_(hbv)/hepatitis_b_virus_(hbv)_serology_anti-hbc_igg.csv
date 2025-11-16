@@ -1,0 +1,5 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgG,Antibody,IgG,Abbott,Abbott ARCHITECT Anti-HBc II,ARCHITECT,CLIA,Optitrol Blue,99.3,0.7,,,,excellent,277,25
+Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgG,Antibody,IgG,Abbott,Abbott Alinity i Anti-HBc II,Alinity i,CLIA,Optitrol Blue,100.0,,,,,excellent,47,23
+Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgG,Antibody,IgG,Abbott,Abbott Alinity s Anti-HBc,Alinity s,CLIA,Optitrol Blue,100.0,,,,,excellent,19,24
+Hepatitis B Virus (HBV),HBV,serology,anti-HBc IgG,Antibody,IgG,Roche,Roche Elecsys Anti-HBc II,Elecsys,CLIA,Optitrol Red,79.0,21.1,,,,acceptable,19,26

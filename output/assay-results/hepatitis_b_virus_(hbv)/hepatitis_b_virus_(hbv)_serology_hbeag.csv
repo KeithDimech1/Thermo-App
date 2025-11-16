@@ -1,0 +1,6 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Hepatitis B Virus (HBV),HBV,serology,HBeAg,Antibody,Antigen,Abbott,Abbott ARCHITECT HBeAg,ARCHITECT,CLIA,Optitrol HEPA-2,95.2,4.8,4.8,,,excellent,21,120
+Hepatitis B Virus (HBV),HBV,serology,HBeAg,Antibody,Antigen,Abbott,Abbott Alinity i HBeAg,Alinity i,CLIA,Optitrol HEPA-2,86.7,13.3,,,,good,15,119
+Hepatitis B Virus (HBV),HBV,serology,HBeAg,Antibody,Antigen,DiaSorin,DiaSorin LIAISON HBeAg,LIAISON,ELISA,Optitrol HEPA-1,20.0,80.0,60.0,60.0,,poor,5,122
+Hepatitis B Virus (HBV),HBV,serology,HBeAg,Antibody,Antigen,Roche,Roche Elecsys HBeAg,Elecsys,CLIA,Optitrol HEPA-2,100.0,,,,,excellent,4,123
+Hepatitis B Virus (HBV),HBV,serology,HBeAg,Antibody,Antigen,bioMerieux,bioMerieux VIDAS HBeAg,VIDAS,ELISA,Optitrol HEPA-2,0.0,100.0,66.7,33.3,,poor,3,121

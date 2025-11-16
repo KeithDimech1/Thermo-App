@@ -1,0 +1,3 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Parvovirus B19,Parvo B19,serology,anti-PVB19 IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON Biotrin Parvovirus B19 IgG,LIAISON,ELISA,Optitrol Paediatric G ,45.8,54.2,20.8,,,acceptable,24,72
+Parvovirus B19,Parvo B19,serology,anti-PVB19 IgG,Antibody,IgG,Virion,Virion Serion Parvovirus B19 IgG,Serion,ELISA,Optitrol Paediatric G ,25.0,75.0,75.0,75.0,,poor,4,73

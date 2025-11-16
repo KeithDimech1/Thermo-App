@@ -1,0 +1,10 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Abbott,Abbott ARCHITECT Syphilis TP,ARCHITECT,CLIA,Optitrol Blue,99.0,0.9,,,,excellent,422,89
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Abbott,Abbott Alinity i Syphilis TP,Alinity i,CLIA,Optitrol Blue,100.0,,,,,excellent,124,87
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Abbott,Abbott Alinity s Syphilis,Alinity s,CLIA,Optitrol Blue,99.1,0.9,,,,excellent,116,88
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Bio-Rad,Bio-Rad Syphilis Total Ab,,ELISA,Optitrol Green,29.7,70.3,23.4,4.7,,acceptable,64,90
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON Treponema Screen,LIAISON,ELISA,Optitrol Blue,100.0,,,,,excellent,24,91
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Ortho,Ortho VITROS Syphilis TPA,VITROS,ELISA,Optitrol Green,100.0,,,,,excellent,4,92
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Roche,Roche Elecsys Syphilis,Elecsys,CLIA,Optitrol Red,98.7,1.3,,,,excellent,151,93
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Siemens,Siemens ADVIA Centaur Syphilis (SYPH),ADVIA Centaur,CLIA,Optitrol Orange,100.0,,,,,excellent,4,94
+Treponema pallidum (Syphilis),Syphilis,serology,anti-syphilis IgG,Antibody,IgG,Siemens,Siemens ATELLICA IM Syphilis (Syph),ATELLICA,CLIA,Optitrol Orange,100.0,,,,,excellent,11,95

@@ -1,0 +1,3 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Mumps virus,Mumps,serology,anti-mumps IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON Mumps IgM,LIAISON,ELISA,Optitrol Mumps M,50.0,50.0,12.5,,,acceptable,16,70
+Mumps virus,Mumps,serology,anti-mumps IgM,Antibody,IgM,Virclia,Mumps Virclia IgM monotest,Virclia,ELISA,Optitrol Mumps M,100.0,,,,,excellent,2,71

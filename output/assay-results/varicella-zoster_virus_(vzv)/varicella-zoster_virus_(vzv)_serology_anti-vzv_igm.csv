@@ -1,0 +1,4 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Varicella-Zoster Virus (VZV),VZV,serology,anti-VZV IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON VZV IgM,LIAISON,ELISA,Optitrol  VZV M,72.2,27.8,16.7,11.1,,acceptable,18,116
+Varicella-Zoster Virus (VZV),VZV,serology,anti-VZV IgM,Antibody,IgM,Siemens,Siemens Enzygnost Anti-VZV IgM,,CLIA,Optitrol  VZV M,0.0,100.0,,,,acceptable,2,117
+Varicella-Zoster Virus (VZV),VZV,serology,anti-VZV IgM,Antibody,IgM,Virclia,Varicella-Zoster Virclia IgM monotest,Virclia,ELISA,Optitrol  VZV M,0.0,100.0,,,,acceptable,1,118

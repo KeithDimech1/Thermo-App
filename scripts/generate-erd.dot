@@ -1,0 +1,198 @@
+// QC Results Database - Entity Relationship Diagram
+// Generate PNG: dot -Tpng scripts/generate-erd.dot -o readme/database/ERD-diagram.png
+// Generate SVG: dot -Tsvg scripts/generate-erd.dot -o readme/database/ERD-diagram.svg
+
+digraph QC_Results_ERD {
+    // Graph settings
+    graph [
+        rankdir=TB,
+        bgcolor=white,
+        fontname="Arial",
+        fontsize=12,
+        pad=0.5,
+        nodesep=0.8,
+        ranksep=1.0
+    ];
+
+    node [
+        shape=record,
+        fontname="Arial",
+        fontsize=10,
+        style=filled,
+        fillcolor=lightblue
+    ];
+
+    edge [
+        fontname="Arial",
+        fontsize=9,
+        color=gray30
+    ];
+
+    // Define entities (tables)
+
+    categories [
+        label="{<table>categories|<pk>id (PK)\lname (UK)\ldescription\lcreated_at\l}",
+        fillcolor="#E3F2FD"
+    ];
+
+    pathogens [
+        label="{<table>pathogens|<pk>id (PK)\lname (UK)\labbreviation\lscientific_name\l<fk1>category_id (FK)\ltransmission_route\lclinical_significance\lcreated_at\l}",
+        fillcolor="#E1F5FE"
+    ];
+
+    markers [
+        label="{<table>markers|<pk>id (PK)\lname (UK)\l<fk1>pathogen_id (FK)\l<fk2>category_id (FK)\lantibody_type\lmarker_type\lclinical_use\linterpretation_positive\linterpretation_negative\lcreated_at\l}",
+        fillcolor="#E0F7FA"
+    ];
+
+    manufacturers [
+        label="{<table>manufacturers|<pk>id (PK)\lname (UK)\lcountry\lwebsite\ltotal_assays\lcreated_at\l}",
+        fillcolor="#FFF9C4"
+    ];
+
+    assays [
+        label="{<table>assays|<pk>id (PK)\lname (UK)\l<fk1>manufacturer_id (FK)\lplatform\lmethodology\lautomation_level\lthroughput\lcreated_at\l}",
+        fillcolor="#FFF59D"
+    ];
+
+    assay_lots [
+        label="{<table>assay_lots|<pk>id (PK)\l<fk1>assay_id (FK)\llot_number (UK)\lmanufacture_date\lexpiration_date\lqc_release_date\lnotes\lcreated_at\l}",
+        fillcolor="#FFF176"
+    ];
+
+    qc_samples [
+        label="{<table>qc_samples|<pk>id (PK)\lname (UK)\lmanufacturer\llot_number\lmatrix_type\lconcentration_level\lexpiration_date\lnotes\lcreated_at\l}",
+        fillcolor="#F0F4C3"
+    ];
+
+    test_configurations [
+        label="{<table>test_configurations|<pk>id (PK)\l<fk1>marker_id (FK)\l<fk2>assay_id (FK)\l<fk3>qc_sample_id (FK)\l<fk4>assay_lot_id (FK)\ltest_type\lquality_rating\levents_examined\linclude_in_analysis\lnotes\lcreated_at\lupdated_at\l}",
+        fillcolor="#FFE0B2"
+    ];
+
+    cv_measurements [
+        label="{<table>cv_measurements|<pk>id (PK)\l<fk1>test_config_id (FK, UK)\lcv_lt_10_count\lcv_lt_10_percentage\lcv_10_15_count\lcv_10_15_percentage\lcv_15_20_count\lcv_15_20_percentage\lcv_gt_20_count\lcv_gt_20_percentage\lmean_cv\lmedian_cv\lstd_dev_cv\lmeasurement_date\lcreated_at\l}",
+        fillcolor="#FFCCBC"
+    ];
+
+    // Define relationships (foreign keys)
+
+    // Disease classification hierarchy
+    categories:pk -> pathogens:fk1 [
+        label="1:many\nhas",
+        color="#1976D2"
+    ];
+
+    categories:pk -> markers:fk2 [
+        label="1:many\ncategorizes",
+        color="#1976D2",
+        style=dashed
+    ];
+
+    pathogens:pk -> markers:fk1 [
+        label="1:many\nhas",
+        color="#0288D1"
+    ];
+
+    // Manufacturing hierarchy
+    manufacturers:pk -> assays:fk1 [
+        label="1:many\nproduces",
+        color="#F57C00"
+    ];
+
+    assays:pk -> assay_lots:fk1 [
+        label="1:many\nhas lots",
+        color="#EF6C00"
+    ];
+
+    // Test configuration relationships
+    markers:pk -> test_configurations:fk1 [
+        label="1:many\ntested by",
+        color="#388E3C"
+    ];
+
+    assays:pk -> test_configurations:fk2 [
+        label="1:many\nused in",
+        color="#388E3C"
+    ];
+
+    qc_samples:pk -> test_configurations:fk3 [
+        label="1:many\nused in",
+        color="#388E3C"
+    ];
+
+    assay_lots:pk -> test_configurations:fk4 [
+        label="1:many\nused in",
+        color="#388E3C",
+        style=dashed
+    ];
+
+    // Performance measurement
+    test_configurations:pk -> cv_measurements:fk1 [
+        label="1:1\nmeasured by",
+        color="#D32F2F",
+        penwidth=2.0
+    ];
+
+    // Grouping (subgraphs)
+
+    subgraph cluster_disease {
+        label="Disease Classification";
+        style=dashed;
+        color="#1976D2";
+        fontsize=12;
+        fontname="Arial Bold";
+        categories;
+        pathogens;
+        markers;
+    }
+
+    subgraph cluster_manufacturing {
+        label="Manufacturing";
+        style=dashed;
+        color="#F57C00";
+        fontsize=12;
+        fontname="Arial Bold";
+        manufacturers;
+        assays;
+        assay_lots;
+    }
+
+    subgraph cluster_qc {
+        label="QC Samples";
+        style=dashed;
+        color="#7CB342";
+        fontsize=12;
+        fontname="Arial Bold";
+        qc_samples;
+    }
+
+    subgraph cluster_testing {
+        label="Test Results";
+        style=dashed;
+        color="#E64A19";
+        fontsize=12;
+        fontname="Arial Bold";
+        test_configurations;
+        cv_measurements;
+    }
+
+    // Legend
+    legend [
+        shape=plaintext,
+        label=<
+            <table border="0" cellborder="1" cellspacing="0" cellpadding="4">
+                <tr><td colspan="2" bgcolor="lightgray"><b>Legend</b></td></tr>
+                <tr><td>PK</td><td>Primary Key</td></tr>
+                <tr><td>FK</td><td>Foreign Key</td></tr>
+                <tr><td>UK</td><td>Unique Constraint</td></tr>
+                <tr><td>1:many</td><td>One-to-Many</td></tr>
+                <tr><td>1:1</td><td>One-to-One</td></tr>
+                <tr><td bgcolor="#E3F2FD">Blue</td><td>Disease Classification</td></tr>
+                <tr><td bgcolor="#FFF9C4">Yellow</td><td>Manufacturing</td></tr>
+                <tr><td bgcolor="#F0F4C3">Green</td><td>QC Samples</td></tr>
+                <tr><td bgcolor="#FFE0B2">Orange</td><td>Test Results</td></tr>
+            </table>
+        >
+    ];
+}

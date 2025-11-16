@@ -1,0 +1,13 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Abbott,Abbott ARCHITECT Anti-HCV,ARCHITECT,CLIA,Optitrol Blue,98.3,1.7,0.4,0.2,,excellent,531,34
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Abbott,Abbott ARCHITECT Anti-HCV II,ARCHITECT,CLIA,Optitrol Blue,100.0,,,,,excellent,6,35
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Abbott,Abbott Alinity i Anti-HCV,Alinity i,CLIA,Optitrol Blue,99.1,0.9,0.9,,,excellent,112,31
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Abbott,Abbott Alinity i Anti-HCV II,Alinity i,CLIA,Optitrol Blue,100.0,,,,,excellent,4,32
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Abbott,Abbott Alinity s Anti-HCV,Alinity s,CLIA,Optitrol Blue,96.5,3.5,2.3,1.1,,excellent,87,33
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Bio-Rad,Bio-Rad Access HCV Ab V3,Access,ELISA,Optitrol Blue,75.0,25.0,0.0,,,acceptable,8,37
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Bio-Rad,Bio-Rad Monolisa HCV Ag-Ab ULTRA V2,Monolisa,ELISA,Optitrol Green,95.7,4.3,,,,excellent,23,38
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Ortho,Ortho VITROS Anti-HCV,VITROS,ELISA,Optitrol Blue,100.0,,,,,excellent,9,39
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Roche,Roche Elecsys Anti-HCV II,Elecsys,CLIA,Optitrol Red,100.0,,,,,excellent,171,40
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Siemens,Siemens ADVIA Centaur HCV,ADVIA Centaur,CLIA,Optitrol Orange ,100.0,,,,,excellent,16,41
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,Siemens,Siemens ATELLICA IM Hepatitis C (aHCV),ATELLICA,CLIA,Optitrol Orange ,100.0,,,,,excellent,4,42
+Hepatitis C Virus (HCV),HCV,serology,anti-HCV,Antibody,Other,bioMerieux,bioMerieux VIDAS Anti-HCV,VIDAS,ELISA,Optitrol Orange ,100.0,,,,,excellent,13,36

@@ -1,0 +1,5 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Cytomegalovirus (CMV),CMV,serology,anti-CMV IgM,Antibody,IgM,Abbott,Abbott ARCHITECT CMV IgM,ARCHITECT,CLIA,Optitrol ToRCHM,96.7,3.3,,,,excellent,60,7
+Cytomegalovirus (CMV),CMV,serology,anti-CMV IgM,Antibody,IgM,Abbott,Abbott Alinity i CMV IgM,Alinity i,CLIA,Optitrol ToRCHM,90.3,9.7,6.5,,,good,31,6
+Cytomegalovirus (CMV),CMV,serology,anti-CMV IgM,Antibody,IgM,DiaSorin,DiaSorin LIAISON CMV IgM II,LIAISON,ELISA,Optitrol ToRCHM,81.3,18.8,,,,good,16,9
+Cytomegalovirus (CMV),CMV,serology,anti-CMV IgM,Antibody,IgM,bioMerieux,bioMerieux VIDAS CMV IgM,VIDAS,ELISA,Optitrol ToRCHM,85.7,14.3,14.3,14.3,,acceptable,7,8

@@ -1,0 +1,5 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+SARS-CoV-2,SARS-CoV-2,serology,anti-COVID19 IgG,Antibody,IgG,Abbott,Abbott Alinity i SARS-CoV-2 IgG,Alinity i,CLIA,Optitrol COVID-19 G,100.0,,,,,excellent,1,10
+SARS-CoV-2,SARS-CoV-2,serology,anti-COVID19 IgG,Antibody,IgG,Roche,Roche Elecsys Anti-SARS-CoV-2,Elecsys,CLIA,Optitrol COVID-19 G,71.4,28.6,,,,acceptable,7,12
+SARS-CoV-2,SARS-CoV-2,serology,anti-COVID19 IgG,Antibody,IgG,Siemens,Siemens ADVIA Centaur SARS-CoV‑2 Total (COV2T),ADVIA Centaur,CLIA,Optitrol COVID-19 G,0.0,100.0,,,,acceptable,1,13
+SARS-CoV-2,SARS-CoV-2,serology,anti-COVID19 IgG,Antibody,IgG,bioMerieux,bioMerieux VIDAS SARS-COV-2 IgG (9COG),VIDAS,ELISA,Optitrol COVID-19 G,66.7,33.3,,,,acceptable,3,11

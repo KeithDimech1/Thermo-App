@@ -1,0 +1,63 @@
+# Build artifacts and development
+build-data/
+.claude/cache/
+node_modules/
+.next/
+out/
+dist/
+
+# Environment variables
+.env*.local
+
+# Testing
+coverage/
+.nyc_output/
+/.pnp
+.pnp.js
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+*.pyc
+__pycache__/
+
+# System files
+.DS_Store
+*.log
+.cache/
+Thumbs.db
+
+# IDE
+.vscode/
+!.vscode/settings.json  # Track Pylance optimization settings
+.idea/
+*.swp
+*.swo
+*~
+
+# Optional: Project index (uncomment if you don't want to commit it)
+# PROJECT_INDEX.json
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python virtual environment
+.venv/
+venv/
+
+# TypeScript build info
+*.tsbuildinfo

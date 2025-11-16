@@ -1,0 +1,6 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgG,Antibody,IgG,Abbott,Abbott ARCHITECT EBV VCA IgG,ARCHITECT,CLIA,Optitrol ToRCHG,95.7,4.3,,,,excellent,23,104
+Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgG,Antibody,IgG,Abbott,Abbott Alinity i EBV VCA IgG,Alinity i,CLIA,Optitrol ToRCHG,100.0,,,,,excellent,3,103
+Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgG,Antibody,IgG,DiaSorin,DiaSorin LIAISON VCA IgG,LIAISON,ELISA,Optitrol ToRCHG,72.4,27.6,,,,acceptable,29,106
+Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgG,Antibody,IgG,Siemens,Siemens Novagnost EBV-VCA IgG,,CLIA,Optitrol ToRCHG,0.0,100.0,25.0,,,acceptable,4,107
+Epstein-Barr Virus (EBV),EBV,serology,Anti-VCA IgG,Antibody,IgG,bioMerieux,bioMerieux VIDAS EBV VCA/EA IgG,VIDAS,ELISA,Optitrol ToRCHG,100.0,,,,,excellent,3,105

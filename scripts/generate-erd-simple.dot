@@ -1,0 +1,68 @@
+// QC Results Database - Entity Relationship Diagram (Simplified)
+// Generate PNG: dot -Tpng scripts/generate-erd-simple.dot -o readme/database/ERD-diagram.png
+// Generate SVG: dot -Tsvg scripts/generate-erd-simple.dot -o readme/database/ERD-diagram.svg
+
+digraph QC_Results_ERD {
+    // Graph settings
+    rankdir=LR;
+    bgcolor=white;
+    node [shape=box, style="filled,rounded", fontname="Arial"];
+    edge [fontname="Arial", fontsize=9];
+
+    // Disease Classification (Blue)
+    categories [label="categories\n\n• id (PK)\n• name\n• description", fillcolor="#E3F2FD"];
+    pathogens [label="pathogens\n\n• id (PK)\n• name\n• abbreviation\n• category_id (FK)", fillcolor="#E1F5FE"];
+    markers [label="markers\n\n• id (PK)\n• name\n• pathogen_id (FK)\n• antibody_type\n• marker_type", fillcolor="#E0F7FA"];
+
+    // Manufacturing (Yellow)
+    manufacturers [label="manufacturers\n\n• id (PK)\n• name\n• country", fillcolor="#FFF9C4"];
+    assays [label="assays\n\n• id (PK)\n• name\n• manufacturer_id (FK)\n• methodology\n• platform", fillcolor="#FFF59D"];
+    assay_lots [label="assay_lots\n\n• id (PK)\n• assay_id (FK)\n• lot_number\n• expiration_date", fillcolor="#FFF176"];
+
+    // QC Samples (Green)
+    qc_samples [label="qc_samples\n\n• id (PK)\n• name\n• manufacturer\n• matrix_type", fillcolor="#C8E6C9"];
+
+    // Test Results (Orange)
+    test_configurations [label="test_configurations\n\n• id (PK)\n• marker_id (FK)\n• assay_id (FK)\n• qc_sample_id (FK)\n• test_type\n• quality_rating", fillcolor="#FFE0B2"];
+    cv_measurements [label="cv_measurements\n\n• id (PK)\n• test_config_id (FK)\n• cv_lt_10_percentage\n• mean_cv", fillcolor="#FFCCBC"];
+
+    // Relationships - Disease Classification
+    categories -> pathogens [label="  1:many  ", color="#1976D2", penwidth=2];
+    pathogens -> markers [label="  1:many  ", color="#0288D1", penwidth=2];
+    categories -> markers [label="  1:many  ", color="#1976D2", style=dashed];
+
+    // Relationships - Manufacturing
+    manufacturers -> assays [label="  1:many  ", color="#F57C00", penwidth=2];
+    assays -> assay_lots [label="  1:many  ", color="#EF6C00", penwidth=2];
+
+    // Relationships - Test Configuration
+    markers -> test_configurations [label="  1:many  ", color="#388E3C", penwidth=2];
+    assays -> test_configurations [label="  1:many  ", color="#388E3C", penwidth=2];
+    qc_samples -> test_configurations [label="  1:many  ", color="#388E3C", penwidth=2];
+    assay_lots -> test_configurations [label="  1:many  ", color="#7CB342", style=dashed];
+
+    // Relationship - Performance
+    test_configurations -> cv_measurements [label="  1:1  ", color="#D32F2F", penwidth=3];
+
+    // Legend
+    legend [
+        shape=plaintext,
+        label=<
+            <table border="1" cellborder="0" cellspacing="0" cellpadding="8">
+                <tr><td colspan="2" bgcolor="lightgray"><b>QC Results Database ERD</b></td></tr>
+                <tr><td bgcolor="#E3F2FD">Blue</td><td>Disease Classification</td></tr>
+                <tr><td bgcolor="#FFF9C4">Yellow</td><td>Manufacturing</td></tr>
+                <tr><td bgcolor="#C8E6C9">Green</td><td>QC Samples</td></tr>
+                <tr><td bgcolor="#FFE0B2">Orange</td><td>Test Results</td></tr>
+                <tr><td>━━━</td><td>Required Relationship</td></tr>
+                <tr><td>- - -</td><td>Optional Relationship</td></tr>
+            </table>
+        >
+    ];
+
+    // Layout hints
+    {rank=same; categories; manufacturers}
+    {rank=same; pathogens; assays}
+    {rank=same; markers; assay_lots; qc_samples}
+    {rank=same; test_configurations; legend}
+}

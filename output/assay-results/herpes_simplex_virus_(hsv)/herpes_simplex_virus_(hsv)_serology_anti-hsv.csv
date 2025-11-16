@@ -1,0 +1,5 @@
+Pathogen,Pathogen Abbreviation,Test Type,Marker Name,Marker Type,Antibody Type,Manufacturer,Assay Name,Platform,Methodology,QC Sample,CV <10% (%),CV 10-15% (%),CV 15-20% (%),CV >20% (%),Mean CV (%),Quality Rating,Events Examined,Config ID
+Herpes Simplex Virus (HSV),HSV,serology,anti-HSV,Antibody,Other,DiaSorin,DiaSorin LIAISON HSV-1 Type Specific IgG,LIAISON,ELISA,Optitrol ToRCHG,68.2,31.8,9.1,,,acceptable,44,57
+Herpes Simplex Virus (HSV),HSV,serology,anti-HSV,Antibody,Other,DiaSorin,DiaSorin LIAISON HSV-1/2 IgG,LIAISON,ELISA,Optitrol ToRCHG,18.2,81.8,36.4,,,acceptable,11,55
+Herpes Simplex Virus (HSV),HSV,serology,anti-HSV,Antibody,Other,DiaSorin,DiaSorin LIAISON HSV-1/2 IgM,LIAISON,ELISA,Optitrol ToRCHM,40.0,60.0,20.0,,,acceptable,5,56
+Herpes Simplex Virus (HSV),HSV,serology,anti-HSV,Antibody,Other,DiaSorin,DiaSorin LIAISON HSV-2 IgG,LIAISON,ELISA,Optitrol HSV 2 G,58.3,41.7,8.3,8.3,,acceptable,12,58

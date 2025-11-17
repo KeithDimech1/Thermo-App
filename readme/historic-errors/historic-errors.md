@@ -39,3 +39,58 @@
 
 ---
 
+
+## ERROR-009: Security - xlsx library vulnerabilities (Prototype Pollution + ReDoS)
+
+**Date Reported:** 
+**Date Fixed:** 2025-11-17
+**Status:** ✅ Fixed
+**Fix Applied:** Migrated to ExcelJS (replaced xlsx with exceljs@4.4.0)
+
+
+**Date Reported:** 2025-11-17 (Found by `/bigtidycheck`)
+**Status:** 🔴 Critical - Security Risk
+**Priority:** P0 (Critical)
+**Impact:** High-severity security vulnerabilities in Excel processing library
+
+### Vulnerabilities Found
+
+**1. Prototype Pollution (GHSA-4r6h-8v6p-xvw6)**
+- CVSS Score: 7.8 (HIGH)
+- CWE-1321: Improperly Controlled Modification of Object Prototype Attributes
+- Affects: xlsx <0.19.3
+- Attack Vector: Local (malicious Excel file)
+
+**2. Regular Expression Denial of Service (GHSA-5pgg-2g8v-p4x9)**
+- CVSS Score: 7.5 (HIGH)
+- CWE-1333: Inefficient Regular Expression Complexity
+- Affects: xlsx <0.20.2
+- Attack Vector: Network (malicious Excel file via network)
+
+### Files Affected
+
+1. `scripts/db/import-earthbank-templates.ts` - Main import pipeline
+2. `scripts/db/examine-earthbank-templates.ts` - Template analysis utility
+
+### Impact
+
+Security vulnerability when processing EarthBank Excel templates. Could allow malicious Excel files to modify JavaScript object prototypes or cause denial of service.
+
+### Solution Options
+
+**Option 1: Upgrade xlsx library** ✅ RECOMMENDED
+```bash
+npm install xlsx@latest
+npm audit
+```
+
+**See:** [`readme/code-quality/dependencies.md`](../../readme/code-quality/dependencies.md)
+
+---
+
+---
+**Fixed on:** 2025-11-17 12:50:14
+**Archived from:** build-data/errors/live-errors.md
+
+---
+

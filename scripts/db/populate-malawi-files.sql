@@ -23,7 +23,7 @@ VALUES (
 -- Table 2: (U-Th)/He Results Part 1 (CSV)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'table2-uthe-results-part1.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/table2-uthe-results-part1.csv',
   'RAW',
@@ -35,7 +35,7 @@ VALUES (
 -- Table A2: Detailed EPMA Composition (CSV)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'tableA2.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/tableA2.csv',
   'RAW',
@@ -47,7 +47,7 @@ VALUES (
 -- Table A3: Durango QC (CSV)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'tableA3-durango-qc.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/tableA3-durango-qc.csv',
   'RAW',
@@ -63,7 +63,7 @@ VALUES (
 -- Samples (EarthBank format)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'earthbank_samples_complete.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/FAIR/earthbank_samples_complete.csv',
   'EarthBank',
@@ -75,7 +75,7 @@ VALUES (
 -- FT Datapoints (EarthBank format)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'earthbank_ft_datapoints_complete.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/FAIR/earthbank_ft_datapoints_complete.csv',
   'EarthBank',
@@ -87,7 +87,7 @@ VALUES (
 -- FT Track Length Data (EarthBank format)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'earthbank_ft_track_length_data_complete.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/FAIR/earthbank_ft_track_length_data_complete.csv',
   'EarthBank',
@@ -99,7 +99,7 @@ VALUES (
 -- He Whole Grain Data (EarthBank format)
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'earthbank_he_whole_grain_complete.csv',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/FAIR/earthbank_he_whole_grain_complete.csv',
   'EarthBank',
@@ -115,7 +115,7 @@ VALUES (
 -- Main paper PDF
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   '4D fault evolution revealed by footwall exhumation modelling_ A natural experiment in the Malawi rift.pdf',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/4D fault evolution revealed by footwall exhumation modelling_ A natural experiment in the Malawi rift.pdf',
   'PDF',
@@ -127,7 +127,7 @@ VALUES (
 -- Table 1 PDF extract
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'table1_page9.pdf',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/table1_page9.pdf',
   'PDF',
@@ -139,7 +139,7 @@ VALUES (
 -- Table 2 PDF extract
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'table2_pages10-11.pdf',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/table2_pages10-11.pdf',
   'PDF',
@@ -151,7 +151,7 @@ VALUES (
 -- Table A2 PDF extract
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'tableA2_pages22-36.pdf',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/tableA2_pages22-36.pdf',
   'PDF',
@@ -163,7 +163,7 @@ VALUES (
 -- Table A3 PDF extract
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'tableA3_page36.pdf',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/RAW/tableA3_page36.pdf',
   'PDF',
@@ -178,7 +178,7 @@ VALUES (
 
 INSERT INTO data_files (dataset_id, file_name, file_path, file_type, display_name, description, file_size_bytes)
 VALUES (
-  4,
+  1,
   'images-archive',
   '/build-data/learning/thermo-papers/Malawi-Rift-Footwall-Exhumation/images',
   'Images',

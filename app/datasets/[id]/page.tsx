@@ -4,10 +4,12 @@ import { notFound } from 'next/navigation';
 import {
   getDatasetById,
   getDataFilesByDataset,
-  getDatasetTotalFileSize
+  getDatasetTotalFileSize,
+  getFairScoreBreakdown
 } from '@/lib/db/queries';
 import { query } from '@/lib/db/connection';
 import DownloadSection from '@/components/datasets/DownloadSection';
+import FairScoreCard from '@/components/datasets/FairScoreCard';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 
 export const dynamic = 'force-dynamic';
@@ -98,10 +100,11 @@ export default async function PaperDetailPage({ params }: PageProps) {
     return notFound();
   }
 
-  const [files, totalSize, stats] = await Promise.all([
+  const [files, totalSize, stats, fairBreakdown] = await Promise.all([
     getDataFilesByDataset(datasetId),
     getDatasetTotalFileSize(datasetId),
-    getDatasetStats(datasetId)
+    getDatasetStats(datasetId),
+    getFairScoreBreakdown(datasetId)
   ]);
 
   // Parse PostgreSQL array fields
@@ -172,6 +175,24 @@ export default async function PaperDetailPage({ params }: PageProps) {
           </div>
         )}
 
+        {/* Full Citation */}
+        {dataset.full_citation && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">📄 Citation</p>
+            <p className="text-sm text-gray-900 italic">{dataset.full_citation}</p>
+            {dataset.pdf_url && (
+              <a
+                href={dataset.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-2 text-sm text-amber-700 hover:text-amber-900 underline"
+              >
+                📎 View PDF
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Metadata Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {/* Authors */}
@@ -182,18 +203,56 @@ export default async function PaperDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Study Area */}
-          {dataset.study_area && (
+          {/* Publication Details */}
+          {(dataset.publication_year || dataset.publication_journal) && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📍 Study Area</p>
-              <p className="text-sm text-gray-900">{dataset.study_area}</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">📰 Publication</p>
+              <p className="text-sm text-gray-900">
+                {dataset.publication_journal}
+                {dataset.publication_year && ` (${dataset.publication_year})`}
+                {dataset.publication_volume_pages && `, ${dataset.publication_volume_pages}`}
+              </p>
+            </div>
+          )}
+
+          {/* Study Location */}
+          {dataset.study_location && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">📍 Study Location</p>
+              <p className="text-sm text-gray-900">{dataset.study_location}</p>
+            </div>
+          )}
+
+          {/* Mineral Analyzed */}
+          {dataset.mineral_analyzed && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">🔬 Mineral</p>
+              <p className="text-sm text-gray-900">{dataset.mineral_analyzed}</p>
+            </div>
+          )}
+
+          {/* Sample Count */}
+          {dataset.sample_count && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">📊 Total Samples</p>
+              <p className="text-sm text-gray-900">{dataset.sample_count}</p>
+            </div>
+          )}
+
+          {/* Age Range */}
+          {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">⏱️ Age Range</p>
+              <p className="text-sm text-gray-900">
+                {dataset.age_range_min_ma?.toFixed(1)}-{dataset.age_range_max_ma?.toFixed(1)} Ma
+              </p>
             </div>
           )}
 
           {/* Laboratory */}
           {dataset.laboratory && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">🔬 Laboratory</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">🏛️ Laboratory</p>
               <p className="text-sm text-gray-900">{dataset.laboratory}</p>
             </div>
           )}
@@ -211,7 +270,7 @@ export default async function PaperDetailPage({ params }: PageProps) {
           {/* DOI */}
           {dataset.doi && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📖 DOI</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">🔗 DOI</p>
               <a
                 href={`https://doi.org/${dataset.doi}`}
                 target="_blank"
@@ -226,7 +285,7 @@ export default async function PaperDetailPage({ params }: PageProps) {
           {/* Analyst */}
           {dataset.analyst && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">🔬 Analyst</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">👨‍🔬 Analyst</p>
               <p className="text-sm text-gray-900">{dataset.analyst}</p>
             </div>
           )}
@@ -276,6 +335,13 @@ export default async function PaperDetailPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* FAIR Score Card */}
+      {dataset.fair_score !== null && dataset.fair_score !== undefined && (
+        <div className="mb-8">
+          <FairScoreCard fairScore={dataset.fair_score} fairBreakdown={fairBreakdown} />
+        </div>
+      )}
 
       {/* Download Section */}
       <DownloadSection files={files} datasetId={datasetId} totalSize={totalSize} />

@@ -16,9 +16,10 @@ type TableData = Record<string, any>;
 interface InteractiveTableProps {
   tableName: string;
   columns: ColumnDef<TableData>[];
+  datasetFilter?: string;
 }
 
-export default function InteractiveTable({ tableName, columns }: InteractiveTableProps) {
+export default function InteractiveTable({ tableName, columns, datasetFilter = 'all' }: InteractiveTableProps) {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function InteractiveTable({ tableName, columns }: InteractiveTabl
           page: page.toString(),
           limit: limit.toString(),
           ...(sortBy && { sortBy, sortOrder }),
+          ...(datasetFilter && datasetFilter !== 'all' && { dataset_id: datasetFilter }),
         });
 
         const response = await fetch(`/api/tables/${tableName}?${params}`);
@@ -66,7 +68,7 @@ export default function InteractiveTable({ tableName, columns }: InteractiveTabl
     }
 
     fetchData();
-  }, [tableName, sorting, pagination.pageIndex, pagination.pageSize]);
+  }, [tableName, sorting, pagination.pageIndex, pagination.pageSize, datasetFilter]);
 
   const table = useReactTable({
     data,

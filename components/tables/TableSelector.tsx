@@ -12,49 +12,64 @@ interface TableSelectorProps {
 }
 
 const TABLE_OPTIONS: TableOption[] = [
-  // Core Data
+  // FAIR EarthBank Core Tables (4 required tables)
   {
     value: 'samples',
-    label: '📍 Samples',
-    description: 'Geosample metadata (IGSN, location, lithology)'
+    label: '⭐ Samples (FAIR Table)',
+    description: 'EarthBank Sample Template - Geosample metadata (IGSN, location, lithology)'
   },
-  // Fission-Track Data
   {
     value: 'ft-datapoints',
-    label: '🔬 FT Datapoints',
-    description: 'Fission-track analytical sessions (ages, statistics)'
-  },
-  {
-    value: 'ft-count-data',
-    label: '🔢 FT Count Data',
-    description: 'Grain-by-grain track count data (Ns, Ni, Nd)'
+    label: '⭐ FT Datapoints (FAIR Table)',
+    description: 'EarthBank FTDatapoint Template - Fission-track analytical sessions'
   },
   {
     value: 'ft-track-lengths',
-    label: '📏 FT Track Lengths',
-    description: 'Individual track measurements (length, angle)'
+    label: '⭐ FT Track Lengths (FAIR Table)',
+    description: 'EarthBank FTLengthData - Individual track measurements'
+  },
+  {
+    value: 'he-grains',
+    label: '⭐ He Whole Grain Data (FAIR Table)',
+    description: 'EarthBank HeWholeGrain - Single grain (U-Th)/He results'
+  },
+  // Additional Fission-Track Data
+  {
+    value: 'ft-count-data',
+    label: 'FT Count Data',
+    description: 'Grain-by-grain track count data (Ns, Ni, Nd, Dpar)'
+  },
+  {
+    value: 'ft-single-grain-ages',
+    label: 'FT Single Grain Ages',
+    description: 'Individual grain ages (not just pooled/central)'
+  },
+  {
+    value: 'ft-binned-length-data',
+    label: 'FT Binned Length Data',
+    description: 'Binned track length histograms (legacy format)'
   },
   // (U-Th)/He Data
   {
     value: 'he-datapoints',
-    label: '⚛️ He Datapoints',
+    label: 'He Datapoints',
     description: '(U-Th)/He analytical sessions (mean ages, QC stats)'
-  },
-  {
-    value: 'he-grains',
-    label: '💎 He Whole Grain Data',
-    description: 'Single grain (U-Th)/He results (ages, chemistry)'
   },
   // Infrastructure
   {
     value: 'batches',
-    label: '📦 Batches',
+    label: 'Batches',
     description: 'Analytical batches (linking samples to reference materials)'
   },
   {
     value: 'people',
-    label: '👤 People',
+    label: 'People',
     description: 'Researchers (ORCID-based provenance)'
+  },
+  {
+    value: 'datasets',
+    label: 'Datasets',
+    description: 'Data packages with privacy controls and DOI'
   }
 ];
 

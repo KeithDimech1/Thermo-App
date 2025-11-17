@@ -33,6 +33,8 @@ import {
   SampleDetailResponse,
   DatasetStatsResponse,
   Dataset,
+  DataFile,
+  FairScoreBreakdown,
   // Legacy types (for backward compatibility)
   FTCounts,
   FTTrackLengths,
@@ -581,28 +583,48 @@ export async function getDatasetById(id: number): Promise<Dataset | null> {
   return await queryOne<Dataset>(sql, [id]);
 }
 
+/**
+ * Get FAIR score breakdown for a dataset
+ * Returns detailed FAIR compliance assessment
+ */
+export async function getFairScoreBreakdown(datasetId: number): Promise<FairScoreBreakdown | null> {
+  const sql = `
+    SELECT * FROM fair_score_breakdown
+    WHERE dataset_id = $1
+  `;
+
+  return await queryOne<FairScoreBreakdown>(sql, [datasetId]);
+}
+
 // =============================================================================
-// DATA FILES (Legacy support - schema v1 had data_files table)
+// DATA FILES
 // =============================================================================
-// Note: Schema v2 doesn't have data_files table yet, but code references it
-// These functions return empty arrays for now
 
 /**
  * Get all data files for a specific dataset
- * Note: data_files table doesn't exist in schema v2 yet
  */
-export async function getDataFilesByDataset(_datasetId: number): Promise<any[]> {
-  // Return empty array - data_files table doesn't exist in schema v2
-  return [];
+export async function getDataFilesByDataset(datasetId: number): Promise<DataFile[]> {
+  const sql = `
+    SELECT * FROM data_files
+    WHERE dataset_id = $1
+    ORDER BY file_type, file_name
+  `;
+
+  return await query<DataFile>(sql, [datasetId]);
 }
 
 /**
  * Get total file size for a dataset
- * Note: data_files table doesn't exist in schema v2 yet
  */
-export async function getDatasetTotalFileSize(_datasetId: number): Promise<number> {
-  // Return 0 - data_files table doesn't exist in schema v2
-  return 0;
+export async function getDatasetTotalFileSize(datasetId: number): Promise<number> {
+  const sql = `
+    SELECT COALESCE(SUM(file_size_bytes), 0) as total_size
+    FROM data_files
+    WHERE dataset_id = $1
+  `;
+
+  const rows = await query<{ total_size: string }>(sql, [datasetId]);
+  return rows.length > 0 && rows[0] ? parseInt(rows[0].total_size, 10) : 0;
 }
 
 // =============================================================================

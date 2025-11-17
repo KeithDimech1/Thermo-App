@@ -27,8 +27,23 @@ export interface Dataset {
   publication_doi: string | null;
   doi: string | null; // Alias for publication_doi (legacy support)
 
+  // Full paper metadata (MIGRATION 006)
+  full_citation: string | null;
+  publication_year: number | null;
+  publication_journal: string | null;
+  publication_volume_pages: string | null;
+  study_location: string | null;
+  pdf_filename: string | null;
+  pdf_url: string | null;
+
   // Geographic scope
   study_area: string | null;
+
+  // Dataset characteristics (MIGRATION 006)
+  mineral_analyzed: string | null;
+  sample_count: number | null;
+  age_range_min_ma: number | null;
+  age_range_max_ma: number | null;
 
   // Privacy and access control (NEW in v2)
   privacy_status: 'public' | 'embargo' | 'private';
@@ -60,6 +75,39 @@ export interface Dataset {
   created_at: Date;
 }
 
+export interface FairScoreBreakdown {
+  id: number;
+  dataset_id: number;
+
+  // Table-level scores (Kohn et al. 2024)
+  table4_score: number | null;  // Geosample Metadata (max 15)
+  table4_reasoning: string | null;
+  table5_score: number | null;  // FT Counts (max 15)
+  table5_reasoning: string | null;
+  table6_score: number | null;  // Track Lengths (max 10)
+  table6_reasoning: string | null;
+  table10_score: number | null; // Ages (max 10)
+  table10_reasoning: string | null;
+
+  // FAIR category scores (25 points each)
+  findable_score: number | null;
+  findable_reasoning: string | null;
+  accessible_score: number | null;
+  accessible_reasoning: string | null;
+  interoperable_score: number | null;
+  interoperable_reasoning: string | null;
+  reusable_score: number | null;
+  reusable_reasoning: string | null;
+
+  // Overall score
+  total_score: number | null;
+  grade: string | null; // A, B, C, D, F
+
+  // Metadata
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface DataFile {
   id: number;
   dataset_id: number;
@@ -70,6 +118,8 @@ export interface DataFile {
   file_size_bytes: number | null;
   row_count: number | null;
   description: string | null;
+  is_folder: boolean | null; // NEW: TRUE if this entry represents a folder
+  folder_path: string | null; // NEW: Path to the folder if is_folder=TRUE
   created_at: Date;
   updated_at: Date;
 }

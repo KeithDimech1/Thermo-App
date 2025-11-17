@@ -1566,3 +1566,26 @@ If yes to all three → Success! ✅
 ---
 
 **Ready to start!** Ask the user for the PDF path and let's begin the analysis.
+
+---
+
+### STEP 6: Populate Database (Optional)
+
+**See:** `.claude/commands/thermoanalysis-database-update.md` for complete instructions
+
+**Quick summary:**
+After analysis is complete, you can populate the database with the extracted metadata:
+
+1. Run the metadata extraction script (from thermoanalysis-database-update.md STEP 6.1-6.3)
+2. Edit generated SQL files to replace `%DATASET_NAME%` placeholders
+3. Run SQL scripts: `psql "$DATABASE_URL" -f update-database-metadata.sql`
+4. Run SQL scripts: `psql "$DATABASE_URL" -f populate-data-files.sql`
+
+**This step populates:**
+- Full citation, authors, publication details
+- Study location, mineral analyzed, sample count, age range
+- FAIR score breakdown (if extraction-report.md exists)
+- Data files (RAW CSVs, FAIR templates, PDF, images)
+
+**Note:** This step is optional but recommended for production deployments.
+

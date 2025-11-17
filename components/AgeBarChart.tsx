@@ -10,13 +10,38 @@ interface SampleAgeData {
   elevation_m: number | null;
 }
 
+interface Dataset {
+  id: number;
+  dataset_name: string;
+}
+
 export function AgeBarChart() {
   const [data, setData] = useState<SampleAgeData[]>([]);
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch datasets on mount
   useEffect(() => {
-    fetch('/api/analysis/ages')
+    fetch('/api/datasets')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) {
+          setDatasets(json.data);
+        }
+      })
+      .catch(err => console.error('Error loading datasets:', err));
+  }, []);
+
+  // Fetch age data when dataset selection changes
+  useEffect(() => {
+    setLoading(true);
+    const url = selectedDataset === 'all'
+      ? '/api/analysis/ages'
+      : `/api/analysis/ages?dataset_id=${selectedDataset}`;
+
+    fetch(url)
       .then(res => res.json())
       .then(json => {
         if (json.success) {
@@ -27,7 +52,7 @@ export function AgeBarChart() {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedDataset]);
 
   if (loading) {
     return (
@@ -61,9 +86,31 @@ export function AgeBarChart() {
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg p-6">
-      <h3 className="text-lg font-semibold text-slate-900 mb-4">
-        Sample Age Distribution ({data.length} samples)
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-slate-900">
+          Sample Age Distribution ({data.length} samples)
+        </h3>
+
+        {/* Dataset Filter */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="dataset-filter" className="text-sm font-medium text-slate-700">
+            Filter by Dataset:
+          </label>
+          <select
+            id="dataset-filter"
+            value={selectedDataset}
+            onChange={(e) => setSelectedDataset(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="all">All Datasets</option>
+            {datasets.map(dataset => (
+              <option key={dataset.id} value={dataset.id}>
+                {dataset.dataset_name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       <div className="overflow-x-auto">
         <svg

@@ -43,35 +43,52 @@ export default function DatasetCard({
           {dataset.dataset_name}
         </h3>
 
+        {/* Publication info */}
+        {(dataset.publication_year || dataset.publication_journal) && (
+          <p className="text-sm text-gray-600 mb-1">
+            <span className="font-semibold">📄 Publication:</span>{' '}
+            {dataset.publication_journal}
+            {dataset.publication_year && ` (${dataset.publication_year})`}
+          </p>
+        )}
+
         {/* Authors */}
         {authors.length > 0 && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">👤 Authors:</span>{' '}
-            {authors.join(', ')}
+            {authors.slice(0, 3).join(', ')}
+            {authors.length > 3 && ` et al.`}
           </p>
         )}
 
-        {/* Study Area */}
-        {dataset.study_area && (
+        {/* Study Location */}
+        {dataset.study_location && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">📍 Study Area:</span>{' '}
-            {dataset.study_area}
+            <span className="font-semibold">📍 Location:</span>{' '}
+            {dataset.study_location}
           </p>
         )}
 
-        {/* Laboratory */}
-        {dataset.laboratory && (
-          <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">🔬 Laboratory:</span>{' '}
-            {dataset.laboratory}
-          </p>
-        )}
+        {/* Mineral & Sample Count */}
+        <div className="flex gap-4 text-sm text-gray-600 mb-1">
+          {dataset.mineral_analyzed && (
+            <span>
+              <span className="font-semibold">🔬 Mineral:</span> {dataset.mineral_analyzed}
+            </span>
+          )}
+          {dataset.sample_count && (
+            <span>
+              <span className="font-semibold">📊 Samples:</span> {dataset.sample_count}
+            </span>
+          )}
+        </div>
 
-        {/* Collection Date */}
-        {dataset.collection_date && (
+        {/* Age Range */}
+        {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">📅 Collection:</span>{' '}
-            {new Date(dataset.collection_date).getFullYear()}
+            <span className="font-semibold">⏱️ Age Range:</span>{' '}
+            {dataset.age_range_min_ma !== null && dataset.age_range_min_ma.toFixed(1)}-
+            {dataset.age_range_max_ma !== null && dataset.age_range_max_ma.toFixed(1)} Ma
           </p>
         )}
       </div>
@@ -118,6 +135,33 @@ export default function DatasetCard({
                 {method}
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* FAIR Score Badge */}
+      {dataset.fair_score && (
+        <div className="mb-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+            <span className="text-xs font-semibold text-gray-700">FAIR Score:</span>
+            <span className={`text-lg font-bold ${
+              dataset.fair_score >= 90 ? 'text-green-600' :
+              dataset.fair_score >= 80 ? 'text-blue-600' :
+              dataset.fair_score >= 70 ? 'text-yellow-600' :
+              'text-orange-600'
+            }`}>
+              {dataset.fair_score}/100
+            </span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+              dataset.fair_score >= 90 ? 'bg-green-100 text-green-800' :
+              dataset.fair_score >= 80 ? 'bg-blue-100 text-blue-800' :
+              dataset.fair_score >= 70 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-orange-100 text-orange-800'
+            }`}>
+              {dataset.fair_score >= 90 ? 'A' :
+               dataset.fair_score >= 80 ? 'B' :
+               dataset.fair_score >= 70 ? 'C' : 'D'}
+            </span>
           </div>
         </div>
       )}

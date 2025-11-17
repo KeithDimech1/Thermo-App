@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import InteractiveTable from '@/components/tables/InteractiveTable';
 import TableSelector from '@/components/tables/TableSelector';
@@ -97,21 +97,79 @@ const PEOPLE_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'email', header: 'Email' },
 ];
 
+const FT_SINGLE_GRAIN_AGES_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
+  { accessorKey: 'grain_id', header: 'Grain ID' },
+  { accessorKey: 'grain_age_ma', header: 'Grain Age (Ma)' },
+  { accessorKey: 'grain_age_error_ma', header: '± Error' },
+  { accessorKey: 'u_ppm', header: 'U (ppm)' },
+  { accessorKey: 'rmr0', header: 'rmr₀' },
+  { accessorKey: 'kappa', header: 'κ' },
+];
+
+const FT_BINNED_LENGTH_DATA_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
+  { accessorKey: 'bin_0_1_um', header: '0-1 μm' },
+  { accessorKey: 'bin_1_2_um', header: '1-2 μm' },
+  { accessorKey: 'bin_2_3_um', header: '2-3 μm' },
+  { accessorKey: 'bin_10_11_um', header: '10-11 μm' },
+  { accessorKey: 'bin_11_12_um', header: '11-12 μm' },
+  { accessorKey: 'bin_12_13_um', header: '12-13 μm' },
+  { accessorKey: 'bin_13_14_um', header: '13-14 μm' },
+  { accessorKey: 'bin_14_15_um', header: '14-15 μm' },
+  { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
+];
+
+const DATASETS_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'dataset_name', header: 'Dataset Name' },
+  { accessorKey: 'publication_year', header: 'Year' },
+  { accessorKey: 'publication_journal', header: 'Journal' },
+  { accessorKey: 'study_location', header: 'Location' },
+  { accessorKey: 'mineral_analyzed', header: 'Mineral' },
+  { accessorKey: 'sample_count', header: 'Samples' },
+  { accessorKey: 'fair_score', header: 'FAIR Score' },
+];
+
 const TABLE_COLUMNS: Record<string, ColumnDef<TableData>[]> = {
   'samples': SAMPLES_COLUMNS,
   'ft-datapoints': FT_DATAPOINTS_COLUMNS,
   'ft-count-data': FT_COUNT_DATA_COLUMNS,
   'ft-track-lengths': FT_TRACK_LENGTHS_COLUMNS,
+  'ft-single-grain-ages': FT_SINGLE_GRAIN_AGES_COLUMNS,
+  'ft-binned-length-data': FT_BINNED_LENGTH_DATA_COLUMNS,
   'he-datapoints': HE_DATAPOINTS_COLUMNS,
   'he-grains': HE_GRAINS_COLUMNS,
   'batches': BATCHES_COLUMNS,
   'people': PEOPLE_COLUMNS,
+  'datasets': DATASETS_COLUMNS,
 };
+
+interface Dataset {
+  id: number;
+  dataset_name: string;
+}
 
 export default function TablesPage() {
   const [selectedTable, setSelectedTable] = useState('samples');
+  const [selectedDataset, setSelectedDataset] = useState<string>('all');
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
 
   const columns = TABLE_COLUMNS[selectedTable] || SAMPLES_COLUMNS;
+
+  // Fetch datasets on mount
+  useEffect(() => {
+    fetch('/api/datasets')
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) {
+          setDatasets(json.data);
+        }
+      })
+      .catch(err => console.error('Error loading datasets:', err));
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -122,16 +180,43 @@ export default function TablesPage() {
         </p>
       </div>
 
-      {/* Table Selector */}
-      <div className="mb-6">
-        <TableSelector
-          selectedTable={selectedTable}
-          onTableChange={setSelectedTable}
-        />
+      {/* Filters Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Dataset Filter */}
+        <div className="space-y-2">
+          <label htmlFor="dataset-filter" className="block text-sm font-medium text-gray-700">
+            Filter by Dataset/Paper:
+          </label>
+          <select
+            id="dataset-filter"
+            value={selectedDataset}
+            onChange={(e) => setSelectedDataset(e.target.value)}
+            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">All Datasets</option>
+            {datasets.map(dataset => (
+              <option key={dataset.id} value={dataset.id}>
+                {dataset.dataset_name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Table Selector */}
+        <div>
+          <TableSelector
+            selectedTable={selectedTable}
+            onTableChange={setSelectedTable}
+          />
+        </div>
       </div>
 
       {/* Interactive Table */}
-      <InteractiveTable tableName={selectedTable} columns={columns} />
+      <InteractiveTable
+        tableName={selectedTable}
+        columns={columns}
+        datasetFilter={selectedDataset}
+      />
     </div>
   );
 }

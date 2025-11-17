@@ -42,13 +42,13 @@ build-data/learning/thermo-papers/PAPER_NAME/paper-index.md
 | **Page numbers** | Exact page(s) where table appears | Page 9, Pages 10-11 (spans 2 pages) |
 | **Data type** | AFT/AHe/Chemistry | AFT ages, (U-Th-Sm)/He results |
 | **Description** | Brief content summary | AFT results summary (35 samples) |
-| **Priority** | HIGH/MEDIUM/LOW | PRIMARY, HIGH, LOW |
+
 
 **Example from McMillan et al. (2024):**
 ```
-Table 1: Page 9 - AFT results summary (35 samples) - ✅ PRIMARY
-Table 2: Pages 10-11 - (U-Th-Sm)/He results (spans 2 pages) - ✅ HIGH
-Table A3: Page 36 - Durango reference material - ✅ LOW
+Table 1: Page 9 - AFT results summary (35 samples) -
+Table 2: Pages 10-11 - (U-Th-Sm)/He results (spans 2 pages) - 
+Table A3: Page 36 - Durango reference material -
 ```
 
 **Note:** Focus on HIGH priority tables first (AFT ages, count data, track lengths, AHe data)
@@ -350,7 +350,7 @@ python extract_table_1.py
 
 ---
 
-## Step 4: Calculate FAIR Score
+## Step 10: Calculate FAIR Score
 
 **Task:** Rate data completeness on 0-100 scale
 
@@ -396,7 +396,7 @@ Key gaps:
 
 ---
 
-## Step 5: Transform to EarthBank Templates
+## Step 11: Transform to EarthBank Templates
 
 **Task:** Map extracted data to EarthBank Excel template format
 
@@ -468,9 +468,201 @@ RAW field → EarthBank field:
 
 ---
 
-## Step 6: Identify Missing Critical Information
+## Step 12: Import to Database
 
-**Task:** Generate actionable report of missing metadata
+**Task:** Load validated and transformed data into Schema v2 PostgreSQL database
+
+**Database Configuration:**
+```bash
+# Required in .env.local
+DIRECT_URL="postgresql://neondb_owner:npg_a7j4RQTnJxcz@ep-fragrant-bush-ahfxu1xq.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+**Schema v2 Tables to Populate:**
+
+### Samples Table
+```typescript
+// Read from: earthbank_samples.csv
+// Target table: samples
+// Fields: sample_id, igsn, lat, lon, elevation_m, mineral_type, lithology
+```
+
+### FT Datapoints Table
+```typescript
+// Read from: earthbank_ft_datapoints.csv
+// Target table: ft_datapoints
+// Key fields:
+// - sample_id (FK to samples)
+// - datapoint_key (unique identifier)
+// - central_age_ma, central_age_error_ma
+// - pooled_age_ma, pooled_age_error_ma
+// - n_grains, dispersion_pct, P_chi2_pct
+// - mean_track_length_um
+// - zeta_yr_cm2, dosimeter
+// - laboratory, analyst_orcid, analysis_date
+```
+
+### FT Count Data Table
+```typescript
+// Read from: earthbank_ft_count_data.csv
+// Target table: ft_count_data
+// Fields:
+// - ft_datapoint_id (FK to ft_datapoints)
+// - grain_id
+// - Ns, rho_s_cm2, U_ppm, Dpar_um
+```
+
+### FT Track Length Data Table
+```typescript
+// Read from: earthbank_ft_track_length_data.csv
+// Target table: ft_track_length_data
+// Fields:
+// - ft_datapoint_id (FK to ft_datapoints)
+// - track_id, grain_id
+// - track_length_um, angle_to_c_axis_deg
+```
+
+### He Whole Grain Data Table
+```typescript
+// Read from: earthbank_he_whole_grain_data.csv (if AHe data present)
+// Target table: he_whole_grain_data
+// Fields: (75+ columns - see readme/database/tables/he_datapoints.md)
+```
+
+**Import Process:**
+
+**Option A: TypeScript import script (recommended)**
+```bash
+# Create import script: scripts/import_mcmillan_2024.ts
+npx tsx scripts/import_mcmillan_2024.ts
+```
+
+**Option B: SQL COPY commands**
+```sql
+-- Import samples
+COPY samples(sample_id, igsn, lat, lon, elevation_m, ...)
+FROM '/path/to/earthbank_samples.csv'
+DELIMITER ',' CSV HEADER;
+
+-- Import ft_datapoints
+COPY ft_datapoints(sample_id, datapoint_key, central_age_ma, ...)
+FROM '/path/to/earthbank_ft_datapoints.csv'
+DELIMITER ',' CSV HEADER;
+
+-- Import ft_count_data (with FK lookups)
+-- ... (similar for other tables)
+```
+
+**Import Script Template:**
+```typescript
+import { pool } from '@/lib/db/connection'
+import { readCSV } from '@/lib/utils/csv'
+
+async function importMcMillan2024() {
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+
+    // 1. Import samples
+    const samples = await readCSV('FAIR/earthbank_samples.csv')
+    for (const sample of samples) {
+      await client.query(`
+        INSERT INTO samples (sample_id, igsn, lat, lon, elevation_m, ...)
+        VALUES ($1, $2, $3, $4, $5, ...)
+        ON CONFLICT (sample_id) DO NOTHING
+      `, [sample.sample_id, sample.igsn, ...])
+    }
+
+    // 2. Import ft_datapoints
+    const datapoints = await readCSV('FAIR/earthbank_ft_datapoints.csv')
+    for (const dp of datapoints) {
+      const result = await client.query(`
+        INSERT INTO ft_datapoints (sample_id, datapoint_key, ...)
+        VALUES ($1, $2, ...)
+        RETURNING id
+      `, [dp.sample_id, dp.datapoint_key, ...])
+
+      const datapointId = result.rows[0].id
+
+      // 3. Import ft_count_data for this datapoint
+      const counts = await readCSV('FAIR/earthbank_ft_count_data.csv')
+      const dpCounts = counts.filter(c => c.datapoint_key === dp.datapoint_key)
+      for (const count of dpCounts) {
+        await client.query(`
+          INSERT INTO ft_count_data (ft_datapoint_id, grain_id, ...)
+          VALUES ($1, $2, ...)
+        `, [datapointId, count.grain_id, ...])
+      }
+
+      // 4. Import track length data
+      // ... (similar pattern)
+    }
+
+    await client.query('COMMIT')
+    console.log('Import successful!')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('Import failed:', error)
+  } finally {
+    client.release()
+  }
+}
+
+importMcMillan2024()
+```
+
+**Validation After Import:**
+```sql
+-- Check sample count
+SELECT COUNT(*) FROM samples WHERE sample_id LIKE 'MU19-%';
+
+-- Check datapoint count
+SELECT COUNT(*) FROM ft_datapoints
+JOIN samples ON ft_datapoints.sample_id = samples.sample_id
+WHERE samples.sample_id LIKE 'MU19-%';
+
+-- Check count data (should be n_grains × n_samples total rows)
+SELECT COUNT(*) FROM ft_count_data
+JOIN ft_datapoints ON ft_count_data.ft_datapoint_id = ft_datapoints.id
+JOIN samples ON ft_datapoints.sample_id = samples.sample_id
+WHERE samples.sample_id LIKE 'MU19-%';
+
+-- Verify age ranges
+SELECT
+  MIN(central_age_ma) as min_age,
+  MAX(central_age_ma) as max_age,
+  AVG(central_age_ma) as avg_age
+FROM ft_datapoints
+JOIN samples ON ft_datapoints.sample_id = samples.sample_id
+WHERE samples.sample_id LIKE 'MU19-%';
+```
+
+**Expected Results (McMillan et al. 2024):**
+- 35 samples (MU19-05 through MU19-XX)
+- 35 ft_datapoints (1 per sample - LA-ICP-MS method)
+- ~875 ft_count_data rows (assuming ~25 grains per sample)
+- ~2000+ ft_track_length_data rows (confined tracks)
+- Age range: ~100-325 Ma (AFT central ages)
+
+**Success Criteria:**
+- ✅ All samples imported without errors
+- ✅ Foreign key relationships intact
+- ✅ Age ranges match paper Table 1
+- ✅ Sample IDs match expected pattern
+- ✅ No NULL values in required fields
+
+**Troubleshooting:**
+- **FK constraint errors:** Ensure samples imported before datapoints
+- **Duplicate key errors:** Check for duplicate sample_id or datapoint_key
+- **Type errors:** Verify numeric columns are properly cast (not strings)
+- **Missing data:** Check for NULL values in required fields
+
+---
+
+## Missing Information Identification
+
+**Task:** Document gaps that require manual data entry or author contact
 
 **Critical missing fields report:**
 
@@ -516,150 +708,31 @@ RAW field → EarthBank field:
 
 ---
 
-## Step 7: Generate Extraction Report
+## Output Directory Structure
 
-**Task:** Document extraction quality and next steps
-
-**Report template:**
-
-```markdown
-# Extraction Report: [PAPER NAME]
-
-**Extracted:** [DATE]
-**FAIR Score:** [XX]/100 ([GRADE])
-
----
-
-## Summary
-
-**Tables extracted:** X
-**Samples:** XX valid samples
-**Age range:** X.X - XX.X Ma
-**Mineral:** [apatite/zircon]
-**Method:** [EDM/LA-ICP-MS]
-
----
-
-## Data Completeness
-
-### Critical Fields (XX/50 points)
-✅ Count data complete (Ns, ρs, Dpar)
-✅ Ages calculated (central age, dispersion)
-⚠️  Missing zeta calibration factor
-❌ No IGSN assigned
-
-### Recommended Fields (XX/30 points)
-✅ Track length data present
-⚠️  Kinetic parameters partial (Dpar only, no Cl)
-❌ No secondary standards reported
-
-### Quality Indicators (XX/20 points)
-✅ Grain-level data included
-✅ Complete methods description
-⚠️  Uncertainty propagation partial
-❌ No reference materials QC
-
----
-
-## FAIR Assessment
-
-**Findable (X/25):**
-- ❌ No IGSN (sample not globally findable)
-- ✅ Lat/lon coordinates provided
-- ⚠️  Incomplete location metadata
-
-**Accessible (X/25):**
-- ✅ Data extracted to open format (CSV)
-- ✅ All tables accessible
-- ⚠️  Some fields require paper text extraction
-
-**Interoperable (X/25):**
-- ✅ EarthBank template format
-- ✅ Standard field names
-- ⚠️  Some units need conversion
-
-**Reusable (X/25):**
-- ⚠️  Missing calibration parameters (zeta)
-- ⚠️  Partial provenance (no analyst ORCID)
-- ✅ Statistical parameters complete
-
----
-
-## File Structure
+**After successful extraction, the paper directory should contain:**
 
 ```
-[PAPER_NAME]/
-├── paper-index.md              (from /thermoanalysis)
-├── paper-analysis.md           (from /thermoanalysis)
-├── RAW/
-│   ├── table-1-raw.csv         (XX rows × YY cols)
-│   ├── table-a2-raw.csv        (XX rows × YY cols)
-│   └── table-a3-raw.csv        (XX rows × YY cols)
+build-data/learning/thermo-papers/PAPER_NAME/
+├── paper-index.md                          # From /thermoanalysis
+├── paper-analysis.md                       # From /thermoanalysis
+├── paper.pdf                               # Original PDF
+├── extracted/
+│   ├── table-1-page-9.pdf                  # Isolated PDF pages
+│   ├── table-1-page-9-raw-text.txt         # pdfplumber output
+│   ├── extract_table_1.py                  # Custom extraction script
+│   ├── table-1-extracted.csv               # Final validated CSV
+│   ├── table-2-pages-10-11.pdf
+│   ├── table-2-pages-10-11-raw-text.txt
+│   ├── extract_table_2.py
+│   └── table-2-extracted.csv
 ├── FAIR/
-│   ├── earthbank_samples.csv           (XX samples)
-│   ├── earthbank_ft_datapoints.csv     (XX datapoints)
-│   ├── earthbank_ft_count_data.csv     (XX grains)
-│   └── earthbank_ft_length_data.csv    (XX tracks)
-├── [PDF_NAME].pdf
-└── extraction-report.md         (this file)
-```
+│   ├── earthbank_samples.csv               # EarthBank format (XX samples)
+│   ├── earthbank_ft_datapoints.csv         # EarthBank format (XX datapoints)
+│   ├── earthbank_ft_count_data.csv         # EarthBank format (XX grains)
+│   └── earthbank_ft_length_data.csv        # EarthBank format (XX tracks)
+└── extraction-report.md                    # FAIR score & completeness
 
----
-
-## Next Steps
-
-### 1. Complete Critical Metadata
-- [ ] Assign IGSN to all samples
-- [ ] Extract zeta calibration factor from paper
-- [ ] Identify analyst and laboratory
-- [ ] Populate collection metadata
-
-### 2. Import to Database
-```bash
-# Option A: Import EarthBank templates
-python scripts/db/import-earthbank-templates.py FAIR/
-
-# Option B: Import via SQL
-psql "$DATABASE_URL" -f FAIR/import.sql
-```
-
-### 3. Deploy to Production
-```bash
-# Copy dataset to public directory
-cp -r [PAPER_NAME] public/data/datasets/
-
-# Update database metadata
-psql "$DATABASE_URL" -c "UPDATE datasets SET fair_score = [XX], ..."
-```
-
-### 4. Upload to EarthBank
-- Complete missing critical fields
-- Upload templates to https://earthbank.auscope.org.au/
-- Mint DOI for dataset citation
-
----
-
-## Missing Information Summary
-
-**ACTION REQUIRED before database import:**
-1. Extract zeta calibration from methods section
-2. Register samples for IGSN assignment
-3. Extract analyst/lab information from acknowledgments
-
-**RECOMMENDED for FAIR compliance:**
-1. Find QC data for secondary standards
-2. Get complete etching conditions
-3. Obtain collection dates from authors
-
-**OPTIONAL for enhanced quality:**
-1. Measure Cl content for kinetic parameters
-2. Get stratigraphic ages if available
-3. Link to related datasets (same study area)
-
----
-
-**Extraction completed successfully.**
-**Ready for manual metadata completion and database import.**
 ```
 
 ---
@@ -667,59 +740,153 @@ psql "$DATABASE_URL" -c "UPDATE datasets SET fair_score = [XX], ..."
 ## Usage
 
 **Command:**
+```bash
+/thermoextract
 ```
-/thermoextract path/to/paper.pdf
-```
 
-**Requirements:**
-1. Paper must have been analyzed with `/thermoanalysis` first
-2. PDF must be readable (not corrupted)
-3. Tables must be on pages identified in paper-index.md
+**Prerequisites:**
+1. ✅ Paper must have been analyzed with `/thermoanalysis` first
+2. ✅ `paper-index.md` exists with table locations and page numbers
+3. ✅ PDF is readable (not corrupted or image-only scans)
+4. ✅ Python environment has `pdfplumber` and `pandas` installed
 
-**Expected time:** 5-10 minutes per paper (depending on number of tables)
+**Expected time:**
+- **Per table:** 5-10 minutes (extraction + validation + retry if needed)
+- **Typical paper (2-3 tables):** 15-30 minutes
+- **Complex paper (5+ tables):** 45-60 minutes
 
-**Output location:** `build-data/learning/thermo-papers/[PAPER_NAME]/`
+**Output locations:**
+- **Extracted CSVs:** `build-data/learning/thermo-papers/PAPER_NAME/extracted/`
+- **EarthBank templates:** `build-data/learning/thermo-papers/PAPER_NAME/FAIR/`
+- **Database:** PostgreSQL (DIRECT_URL connection)
 
 ---
 
 ## Success Criteria
 
-✅ **Extraction successful if:**
-- All tables identified by `/thermoanalysis` extracted to RAW CSVs
-- FAIR score calculated (any score acceptable, documents quality)
-- EarthBank templates generated (even with missing fields)
-- Extraction report documents what's missing
+### ✅ Extraction Successful If:
 
-❌ **Extraction failed if:**
-- Cannot read PDF pages
-- Tables not where paper-index.md says they are
-- Claude cannot interpret table structure
-- No samples match expected pattern
+**Stage 1-8 (CSV Extraction):**
+- ✅ All HIGH priority tables extracted from paper-index.md
+- ✅ pdfplumber text extraction succeeds for all pages
+- ✅ AI structure analysis identifies headers and delimiters correctly
+- ✅ Bespoke extraction scripts generated for each table
+- ✅ AI validation passes (spot-checked rows match original text)
+- ✅ CSV files have correct column count and data types
+- ✅ Sample IDs match expected pattern from paper-index.md
+
+**Stage 9-12 (Validation & Import):**
+- ✅ Required fields from Kohn et al. (2024) present (≥80%)
+- ✅ FAIR score calculated and documented (any score acceptable)
+- ✅ EarthBank templates generated (valid CSV format)
+- ✅ Database import succeeds without FK constraint errors
+- ✅ Post-import validation queries return expected counts
+- ✅ Age ranges match paper values
+
+### ❌ Extraction Failed If:
+
+**PDF/Text Extraction Failures:**
+- ❌ PDF pages cannot be read (corrupted file)
+- ❌ pdfplumber returns empty text (image-only PDF, needs OCR)
+- ❌ Tables not on pages specified in paper-index.md
+
+**Structure Analysis Failures:**
+- ❌ AI cannot identify column delimiters (unusual table format)
+- ❌ Headers span multiple lines in unparseable way
+- ❌ Merged cells or complex spanning columns break extraction
+
+**Validation Failures:**
+- ❌ CSV validation fails 3+ times (script cannot parse table correctly)
+- ❌ Sample IDs don't match expected pattern (wrong table extracted)
+- ❌ Column count wildly different from expected
+- ❌ Numeric values cannot be parsed (wrong delimiter, merged cells)
+
+**Database Import Failures:**
+- ❌ FK constraint errors (missing parent records)
+- ❌ Duplicate key errors (sample_id or datapoint_key conflicts)
+- ❌ Type casting errors (strings in numeric columns)
+- ❌ Required fields are NULL
+
+**When extraction fails:**
+1. Review AI structure analysis output
+2. Manually inspect raw text file to verify pdfplumber output
+3. Adjust extraction script based on table-specific quirks
+4. If 3 retries fail, flag for manual review or contact paper authors
 
 ---
 
-## Advantages Over Old Approach
+## Advantages Over Previous Approach
 
-**Old approach (broken):**
-- 1455 lines of inline Python code
-- Complex multi-method extraction scripts
-- Manual row filtering needed
-- 13 separate steps
+### Old Approach (Broken - backup saved as backup-2025-11-16.md):
+- ❌ 1455 lines of inline Python code in slash command
+- ❌ Hardcoded extraction logic (couldn't adapt to different table formats)
+- ❌ Pure AI vision (unreliable for complex tables)
+- ❌ No validation loop (extracted once, hoped for best)
+- ❌ No database import (stopped at CSV generation)
+- ❌ 13 conceptual steps but incomplete implementation
 
-**New approach (this):**
-- ~200 lines of clear instructions
-- AI-powered direct PDF reading
-- Automatic validation against standards
-- 7 logical steps
+### New Approach (This):
+- ✅ **12 clear, executable steps** with specific tools and prompts
+- ✅ **pdfplumber + AI hybrid** (reliable text extraction + intelligent structure understanding)
+- ✅ **Bespoke extraction scripts** per table (adapts to different formats)
+- ✅ **AI validation loop** (iterative correction until perfect)
+- ✅ **Complete end-to-end** (PDF → CSV → EarthBank → Database)
+- ✅ **Kohn 2024 compliance checking** (field-level validation)
+- ✅ **FAIR score calculation** (quantifies data completeness)
+- ✅ **TypeScript import scripts** (Schema v2 integration)
 
-**Key improvements:**
-1. ✅ Leverages Claude AI vision (no extraction scripts)
-2. ✅ Validates against Kohn 2024 standards
-3. ✅ Calculates FAIR score automatically
-4. ✅ Maps directly to EarthBank templates
-5. ✅ Integrates with `/thermoanalysis` output
-6. ✅ Generates actionable missing field report
+### Key Innovations:
+1. **Page-level extraction** - Isolates tables from noise (Step 2)
+2. **AI structure analysis** - Understands headers/delimiters without hardcoding (Step 4)
+3. **Generated extraction scripts** - Creates custom Python parsers per table (Step 5)
+4. **Validation with retry** - AI reviews CSV, fixes errors iteratively (Steps 7-8)
+5. **Database integration** - Complete import to Schema v2 tables (Step 12)
 
 ---
 
-**Ready to extract!** Run `/thermoextract path/to/paper.pdf` to start.
+## Example Workflow (McMillan et al. 2024)
+
+```bash
+# 1. Read paper-index.md
+# Identifies: Table 1 (page 9), Table 2 (pages 10-11), Table A3 (page 36)
+
+# 2. Extract PDF pages
+python scripts/extract_pdf_pages.py --pdf paper.pdf --pages 9 \
+  --output extracted/table-1-page-9.pdf
+
+# 3. Extract text with pdfplumber
+# Generates: table-1-page-9-raw-text.txt
+
+# 4. AI structure analysis
+# Result: 24 columns, space-delimited, "MU19-\d{2}" pattern, ± uncertainties
+
+# 5. Create extraction script
+# AI generates: extract_table_1.py
+
+# 6. Extract to CSV
+python extracted/extract_table_1.py
+# Output: table-1-extracted.csv
+
+# 7. AI validation
+# Spot-checks 5 rows → ✅ PASS (all values match)
+
+# 8. Retry loop
+# (Skipped - validation passed first time)
+
+# 9. Compare to Kohn 2024
+# Result: 18/22 required fields present (82%)
+
+# 10. Calculate FAIR score
+# Result: 78/100 (Good) - missing IGSN and analyst ORCID
+
+# 11. Transform to EarthBank
+# Generates 4 CSV files in FAIR/ directory
+
+# 12. Import to database
+npx tsx scripts/import_mcmillan_2024.ts
+# Result: 35 samples, 35 datapoints, 875 count records imported ✅
+```
+
+---
+
+**Ready to extract!** Run `/thermoextract` to start the workflow.

@@ -190,7 +190,7 @@ export default async function SampleDetailPage({
                           <div>
                             <p className="text-xs text-gray-600">P(χ²)</p>
                             <p className="text-lg font-bold text-gray-900">
-                              {datapoint.p_chi2_pct?.toFixed(1)}%
+                              {datapoint.P_chi2_pct?.toFixed(1)}%
                             </p>
                           </div>
                         </div>

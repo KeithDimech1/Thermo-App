@@ -1,16 +1,19 @@
 import Link from 'next/link';
-import { getSampleDetail } from '@/lib/db/queries';
+import { getSampleDetailV1 } from '@/lib/db/queries';
 import { notFound } from 'next/navigation';
 import { AHeGrainData } from '@/lib/types/thermo-data';
 
 export const dynamic = 'force-dynamic';
+
+// TODO: Update this page to use getSampleDetail() with datapoint arrays
+// Currently using legacy getSampleDetailV1() for backward compatibility
 
 export default async function SampleDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const sampleDetail = await getSampleDetail(params.id);
+  const sampleDetail = await getSampleDetailV1(params.id);
 
   if (!sampleDetail) {
     return notFound();

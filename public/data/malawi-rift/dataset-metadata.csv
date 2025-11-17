@@ -1,9 +1,0 @@
-key,value
-dataset_name,Malawi Rift Thermochronology
-study_area,Malawi Rift Central Basin - Usisya Border Fault
-data_source,McMillan 2019 field campaign
-analyst,M. McMillan
-laboratory,University of Melbourne (assumed)
-transformation_date,2025-11-16T12:36:46.491663
-fair_standard,Kohn et al. (2024) GSA Bulletin
-notes,"Latitude/longitude coordinates not provided in source data, IGSN should be assigned for FAIR compliance, Individual grain-level FT count data not available (sample aggregates only), Individual track-level measurements not available (summary statistics only), Zeta calibration values not provided"

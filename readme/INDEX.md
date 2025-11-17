@@ -1,53 +1,123 @@
-# AusGeochem Thermochronology - Code Documentation
+# AusGeochem Thermochronology - Living Documentation
 
-**Last Updated:** 2025-11-16
-**Project:** Thermochronology Database Application
-**Database:** PostgreSQL (Neon) - 6 tables, 2 views
+**Last Updated:** 2025-11-17 23:30
+**Project:** Next.js + PostgreSQL Thermochronology Database
+**Schema Version:** 2.0 (EarthBank FAIR Architecture)
 
 ---
 
-## 📖 Quick Start
+## Quick Start
 
 **New to this codebase?** Start here:
+1. Read [Database Schema Changes](database/SCHEMA_CHANGES.md) - **CRITICAL: Schema v1 → v2 migration**
+2. Understand the [Datapoint Architecture](#key-concepts) (1 sample → many analyses)
+3. Check [Database Tables](#database-tables) for schema reference
+4. Review [Code Documentation](#code-documentation) for query patterns
 
-1. **Understand the domain:** Read `.claude/CLAUDE.md` - Thermochronology concepts explained
-2. **Database schema:** See `database/SCHEMA_CHANGES.md` - What tables exist and why
-3. **ERD reference:** Check `build-data/assets/schemas/AusGeochem_ERD.md` - Full schema spec
-4. **Code structure:** This file (you are here!) - What code does what
+**Looking for something specific?**
+- Database changes: [SCHEMA_CHANGES.md](database/SCHEMA_CHANGES.md)
+- Table documentation: [database/tables/](database/tables/)
+- Code usage: [Code by Category](#code-documentation)
 
 ---
 
-## 🗂️ Documentation by Category
+## Key Concepts
 
-### 🗄️ Database Documentation
+### Schema v2: Datapoint Architecture
 
-**Schema Overview:**
-- `database/SCHEMA_CHANGES.md` - Schema migration log (QC → Thermochronology)
+**CRITICAL CHANGE:** The database evolved from single-analysis-per-sample to multiple-analyses-per-sample.
 
-**Table Documentation:** ✅
-- **[database/tables/datasets.md](database/tables/datasets.md)** - Data packages with privacy/DOI
-- **[database/tables/samples.md](database/tables/samples.md)** ⭐ **PRIMARY TABLE** - Geological samples (IGSN, location, lithology)
-- **[database/tables/ft_ages.md](database/tables/ft_ages.md)** - Fission-track age determinations
-- **[database/tables/ft_counts.md](database/tables/ft_counts.md)** - Grain-by-grain track counts
-- **[database/tables/ft_track_lengths.md](database/tables/ft_track_lengths.md)** - Individual track measurements
-- **[database/tables/ahe_grain_data.md](database/tables/ahe_grain_data.md)** - (U-Th)/He grain ages
+**Old (Schema v1):**
+```
+1 sample → 1 AFT analysis → stored in ft_ages table
+```
 
-### ⚙️ Database Layer (2 files)
+**New (Schema v2):**
+```
+1 sample → many datapoints → each is an analytical session
+                          → can be from different labs
+                          → can use different methods
+                          → full QC metadata per session
+```
 
-**`lib/db/connection.ts`** (208 lines)
-- PostgreSQL connection pool (Neon)
-- Query helpers: `query()`, `queryOne()`, `transaction()`
-- SSL configuration
-- Slow query logging (>1000ms)
+**Why it matters:**
+- Same sample analyzed multiple times for validation
+- Inter-laboratory comparison possible
+- ORCID-based provenance tracking
+- Batch-level QC with reference materials
+- **100% EarthBank FAIR compliant**
 
-**`lib/db/queries.ts`** (400+ lines)
-- **12 query functions** for thermochronology data
-- Functions:
-  - `getAllSamples()` - Get samples with filtering
-  - `getSampleById()` - Single sample
-  - `getSampleDetail()` - Sample + all FT/AHe data
-  - `getFTAgesBySample()` - Fission-track ages
-  - `getFTCountsBySample()` - Track count data
+**Code Impact:**
+- Use `getFTDatapointsBySample()` → returns array
+- ~~Use `getFTAgesBySample()`~~ → deprecated (returns first datapoint only)
+
+---
+
+## Database Documentation
+
+### Schema Changes
+
+[📄 SCHEMA_CHANGES.md](database/SCHEMA_CHANGES.md) - Complete schema evolution log
+
+**Latest:** 2025-11-17 - Major expansion (6 → 20 tables) for EarthBank FAIR compliance
+
+### Database Tables (20)
+
+#### Core Infrastructure (7 tables)
+- [datasets](database/tables/datasets.md) - Data packages with DOI, privacy controls
+- [samples](database/tables/samples.md) - **PRIMARY TABLE** - Geological samples with IGSN
+- [batches](database/tables/batches.md) - Analytical batches linking unknowns to standards
+- [reference_materials](database/tables/reference_materials.md) - QC standards (Durango, etc.)
+- [people](database/tables/people.md) - Individuals (ORCID-based provenance)
+- [mounts](database/tables/mounts.md) - Physical epoxy mounts
+- [grains](database/tables/grains.md) - Individual grains within mounts
+
+#### Fission-Track Data (5 tables)
+- [ft_datapoints](database/tables/ft_datapoints.md) - **CORE TABLE** - FT analytical sessions
+- [ft_count_data](database/tables/ft_count_data.md) - Grain-by-grain count data
+- [ft_single_grain_ages](database/tables/ft_single_grain_ages.md) - Single grain ages
+- [ft_track_length_data](database/tables/ft_track_length_data.md) - Individual track measurements
+- [ft_binned_length_data](database/tables/ft_binned_length_data.md) - Binned length histograms
+
+#### (U-Th)/He Data (2 tables)
+- [he_datapoints](database/tables/he_datapoints.md) - (U-Th)/He analytical sessions
+- [he_whole_grain_data](database/tables/he_whole_grain_data.md) - Grain-level (U-Th)/He results
+
+#### Provenance Linking (2 tables)
+- [sample_people_roles](database/tables/sample_people_roles.md) - Sample→People→Roles
+- [datapoint_people_roles](database/tables/datapoint_people_roles.md) - Datapoint→People→Roles
+
+#### Legacy Tables (4 tables - Schema v1 compatibility)
+- [ahe_grain_data](database/tables/ahe_grain_data.md) - (U-Th)/He grain data (DEPRECATED)
+
+**Note:** ft_ages, ft_counts, ft_track_lengths removed in v2
+
+#### Views (2)
+- `vw_aft_complete` - Complete AFT data (ages + lengths + counts)
+- `vw_sample_summary` - Sample-level statistics with AFT and AHe data
+
+---
+
+## Code Documentation
+
+### Database Layer (2 files)
+
+**[lib/db/connection.md](lib/db/connection.md)** - PostgreSQL connection pool
+- Singleton pattern for Neon serverless
+- Auto-loads `.env.local` for scripts
+- Query execution, transactions, health checks
+
+**lib/db/queries.ts** - All SQL queries
+- 30+ query functions
+- Schema v2 datapoint-aware
+- Backward compatibility for v1 code
+
+### Type Definitions (1 file)
+
+**lib/types/thermo-data.ts** - TypeScript types
+- Maps to PostgreSQL schema
+- FAIR data standard compliance
+- Both v1 and v2 type definitions
   - `getFTLengthsBySample()` - Track length data
   - `getAHeGrainsBySample()` - (U-Th)/He data
   - `getDatasetStats()` - Statistics

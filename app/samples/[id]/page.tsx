@@ -85,13 +85,6 @@ export default async function SampleDetailPage({
               )}
             </div>
 
-            {/* Sample Description */}
-            {sample.sample_description && (
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-700">{sample.sample_description}</p>
-              </div>
-            )}
-
             {/* Data Availability Summary */}
             <div className="mt-6 flex gap-6 pt-6 border-t border-gray-200">
               <div className="flex items-center gap-2">

@@ -14,19 +14,23 @@ export async function GET(request: NextRequest) {
     let sql = `
       SELECT
         s.sample_id,
+        fd.id as datapoint_id,
+        fd.datapoint_key,
         s.latitude,
         s.longitude,
         s.elevation_m,
-        fa.central_age_ma,
-        fa.central_age_error_ma,
-        fa.pooled_age_ma,
-        fa.pooled_age_error_ma,
-        fa.dispersion_pct,
-        fa.p_chi2,
-        fa.n_grains
+        fd.central_age_ma,
+        fd.central_age_error_ma,
+        fd.pooled_age_ma,
+        fd.pooled_age_error_ma,
+        fd.dispersion_pct,
+        fd.P_chi2_pct as p_chi2,
+        fd.n_grains,
+        fd.laboratory,
+        fd.analysis_date
       FROM samples s
-      JOIN ft_ages fa ON s.sample_id = fa.sample_id
-      WHERE fa.central_age_ma IS NOT NULL
+      JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
+      WHERE fd.central_age_ma IS NOT NULL
     `;
 
     const params: any[] = [];
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
       params.push(parseInt(datasetId));
     }
 
-    sql += ` ORDER BY fa.central_age_ma`;
+    sql += ` ORDER BY fd.central_age_ma`;
 
     const result = await query(sql, params);
 

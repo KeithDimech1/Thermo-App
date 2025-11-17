@@ -19,54 +19,93 @@ const SAMPLES_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'mineral_type', header: 'Mineral Type' },
 ];
 
-const FT_AGES_COLUMNS: ColumnDef<TableData>[] = [
+const FT_DATAPOINTS_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
   { accessorKey: 'sample_id', header: 'Sample ID' },
+  { accessorKey: 'datapoint_key', header: 'Datapoint Key' },
+  { accessorKey: 'laboratory', header: 'Laboratory' },
   { accessorKey: 'pooled_age_ma', header: 'Pooled Age (Ma)' },
   { accessorKey: 'pooled_age_error_ma', header: '± Error' },
   { accessorKey: 'central_age_ma', header: 'Central Age (Ma)' },
   { accessorKey: 'central_age_error_ma', header: '± Error' },
   { accessorKey: 'n_grains', header: 'N Grains' },
-  { accessorKey: 'p_chi2', header: 'P(χ²)' },
+  { accessorKey: 'p_chi2_pct', header: 'P(χ²) %' },
   { accessorKey: 'dispersion_pct', header: 'Dispersion (%)' },
 ];
 
-const FT_COUNTS_COLUMNS: ColumnDef<TableData>[] = [
-  { accessorKey: 'sample_id', header: 'Sample ID' },
+const FT_COUNT_DATA_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
   { accessorKey: 'grain_id', header: 'Grain ID' },
   { accessorKey: 'ns', header: 'Ns' },
   { accessorKey: 'ni', header: 'Ni' },
   { accessorKey: 'nd', header: 'Nd' },
   { accessorKey: 'rho_s_cm2', header: 'ρs (cm⁻²)' },
   { accessorKey: 'rho_i_cm2', header: 'ρi (cm⁻²)' },
-  { accessorKey: 'rho_d_cm2', header: 'ρd (cm⁻²)' },
-];
-
-const TRACK_LENGTHS_COLUMNS: ColumnDef<TableData>[] = [
-  { accessorKey: 'sample_id', header: 'Sample ID' },
-  { accessorKey: 'grain_id', header: 'Grain ID' },
-  { accessorKey: 'mean_track_length_um', header: 'Mean Length (μm)' },
-  { accessorKey: 'mean_track_length_sd_um', header: 'SD (μm)' },
   { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
-  { accessorKey: 'angle_to_c_axis_deg', header: 'Angle to c-axis (°)' },
 ];
 
-const AHE_GRAINS_COLUMNS: ColumnDef<TableData>[] = [
+const FT_TRACK_LENGTHS_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
+  { accessorKey: 'grain_id', header: 'Grain ID' },
+  { accessorKey: 'track_id', header: 'Track ID' },
+  { accessorKey: 'track_type', header: 'Type' },
+  { accessorKey: 'apparent_length_um', header: 'Length (μm)' },
+  { accessorKey: 'angle_to_c_axis_deg', header: 'Angle (°)' },
+  { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
+];
+
+const HE_DATAPOINTS_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
   { accessorKey: 'sample_id', header: 'Sample ID' },
-  { accessorKey: 'lab_no', header: 'Lab No' },
-  { accessorKey: 'uncorr_age_ma', header: 'Uncorr Age (Ma)' },
-  { accessorKey: 'corr_age_ma', header: 'Corr Age (Ma)' },
-  { accessorKey: 'corr_age_1sigma_ma', header: '± 1σ' },
-  { accessorKey: 'ft', header: 'Ft' },
+  { accessorKey: 'datapoint_key', header: 'Datapoint Key' },
+  { accessorKey: 'laboratory', header: 'Laboratory' },
+  { accessorKey: 'n_aliquots', header: 'N Aliquots' },
+  { accessorKey: 'mean_he4_corr_age_ma', header: 'Mean Age (Ma)' },
+  { accessorKey: 'se_mean_he4_corr_age_ma', header: 'SE (Ma)' },
+  { accessorKey: 'chi_square', header: 'χ²' },
+  { accessorKey: 'mswd', header: 'MSWD' },
+];
+
+const HE_GRAINS_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'he_datapoint_id', header: 'Datapoint ID' },
+  { accessorKey: 'grain_id', header: 'Grain ID' },
+  { accessorKey: 'he4_uncorr_age_ma', header: 'Uncorr Age (Ma)' },
+  { accessorKey: 'he4_corr_age_ma', header: 'Corr Age (Ma)' },
+  { accessorKey: 'he4_corr_age_error_ma', header: '± Error' },
+  { accessorKey: 'ft_value', header: 'Ft' },
   { accessorKey: 'u_ppm', header: 'U (ppm)' },
   { accessorKey: 'th_ppm', header: 'Th (ppm)' },
+  { accessorKey: 'eu_ppm', header: 'eU (ppm)' },
+];
+
+const BATCHES_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'batch_name', header: 'Batch Name' },
+  { accessorKey: 'analysis_date', header: 'Analysis Date' },
+  { accessorKey: 'laboratory', header: 'Laboratory' },
+  { accessorKey: 'analytical_session', header: 'Session' },
+];
+
+const PEOPLE_COLUMNS: ColumnDef<TableData>[] = [
+  { accessorKey: 'id', header: 'ID' },
+  { accessorKey: 'orcid', header: 'ORCID' },
+  { accessorKey: 'name', header: 'Name' },
+  { accessorKey: 'affiliation', header: 'Affiliation' },
+  { accessorKey: 'email', header: 'Email' },
 ];
 
 const TABLE_COLUMNS: Record<string, ColumnDef<TableData>[]> = {
   'samples': SAMPLES_COLUMNS,
-  'ft-ages': FT_AGES_COLUMNS,
-  'ft-counts': FT_COUNTS_COLUMNS,
-  'track-lengths': TRACK_LENGTHS_COLUMNS,
-  'ahe-grains': AHE_GRAINS_COLUMNS,
+  'ft-datapoints': FT_DATAPOINTS_COLUMNS,
+  'ft-count-data': FT_COUNT_DATA_COLUMNS,
+  'ft-track-lengths': FT_TRACK_LENGTHS_COLUMNS,
+  'he-datapoints': HE_DATAPOINTS_COLUMNS,
+  'he-grains': HE_GRAINS_COLUMNS,
+  'batches': BATCHES_COLUMNS,
+  'people': PEOPLE_COLUMNS,
 };
 
 export default function TablesPage() {

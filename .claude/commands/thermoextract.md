@@ -27,70 +27,295 @@
 
 ## Step 1: Load Paper Analysis
 
-**Task:** Read the thermoanalysis output to get table locations and paper metadata
+**Task:** Read the paper-index.md to identify tables and their exact page numbers
 
-**What to read:**
-- `build-data/learning/thermo-papers/PAPER_NAME/paper-index.md` - Table inventory and locations
-- `build-data/learning/thermo-papers/PAPER_NAME/paper-analysis.md` - Detailed content analysis
-
-**Extract this metadata:**
-- Authors & year
-- Study location
-- Mineral type (apatite/zircon)
-- Analysis method (EDM/LA-ICP-MS)
-- Sample ID pattern
-- Table locations (page numbers)
-- Expected age range
-
-**Example output:**
+**File to read:**
+```bash
+build-data/learning/thermo-papers/PAPER_NAME/paper-index.md
 ```
-Paper: McMillan et al. (2024) - Malawi Rift 4D Fault Evolution
-Tables found:
-  - Table 1 (page 8): AFT ages and track length data
-  - Table A2 (page 29): EPMA mineral chemistry
-  - Table A3 (page 30): (U-Th)/He QC data
-Mineral: apatite
-Method: LA-ICP-MS AFT
-Samples: 34 samples (pattern: ^[A-Z]{2}\d{2}-\d{2,3}$)
+
+**Extract from "📊 Data Tables in Paper" section:**
+
+| Field | What to Extract | Example |
+|-------|----------------|---------|
+| **Table identifiers** | Table numbers/names | Table 1, Table 2, Table A2, Table A3 |
+| **Page numbers** | Exact page(s) where table appears | Page 9, Pages 10-11 (spans 2 pages) |
+| **Data type** | AFT/AHe/Chemistry | AFT ages, (U-Th-Sm)/He results |
+| **Description** | Brief content summary | AFT results summary (35 samples) |
+| **Priority** | HIGH/MEDIUM/LOW | PRIMARY, HIGH, LOW |
+
+**Example from McMillan et al. (2024):**
 ```
+Table 1: Page 9 - AFT results summary (35 samples) - ✅ PRIMARY
+Table 2: Pages 10-11 - (U-Th-Sm)/He results (spans 2 pages) - ✅ HIGH
+Table A3: Page 36 - Durango reference material - ✅ LOW
+```
+
+**Note:** Focus on HIGH priority tables first (AFT ages, count data, track lengths, AHe data)
 
 ---
 
-## Step 2: Extract Tables with AI Vision
+## Step 2: Extract PDF Pages
 
-**Task:** For each table identified, read the PDF page directly and extract data
+**Task:** Isolate individual PDF pages containing each target table
+
+**Tool:** Use existing script `scripts/extract_pdf_pages.py`
 
 **Process:**
-1. Load PDF page number where table is located
-2. Claude reads the page image directly
-3. Extract table structure (headers, rows, columns)
-4. Convert to CSV format
-5. Save to `RAW/table-X-raw.csv`
+```bash
+# For single-page table
+python scripts/extract_pdf_pages.py \
+  --pdf "build-data/learning/thermo-papers/PAPER_NAME/paper.pdf" \
+  --pages 9 \
+  --output "build-data/learning/thermo-papers/PAPER_NAME/extracted/table-1-page-9.pdf"
 
-**AI Extraction Prompt Template:**
-```
-You are viewing page X of a thermochronology research paper.
-This page contains [TABLE TYPE] data.
-
-Extract the complete table with all rows and columns.
-Format requirements:
-- Include all headers exactly as shown
-- Extract all data rows (no page numbers, footers, or captions)
-- Preserve numeric precision (e.g., 245.3 ± 49.2)
-- Empty cells should be blank
-- Export as CSV
-
-Table type: [AFT ages / track lengths / mineral chemistry / He data]
-Expected columns: [list from paper analysis]
+# For multi-page table (e.g., spans pages 10-11)
+python scripts/extract_pdf_pages.py \
+  --pdf "build-data/learning/thermo-papers/PAPER_NAME/paper.pdf" \
+  --pages 10,11 \
+  --output "build-data/learning/thermo-papers/PAPER_NAME/extracted/table-2-pages-10-11.pdf"
 ```
 
-**Output:** Raw CSV files in `RAW/` directory
+**Output:** Individual PDF files for each table in `extracted/` subdirectory
+
+**Why this step?**
+- Isolates table from rest of paper (removes noise)
+- Allows focused text extraction on relevant pages only
+- Enables page-specific pdfplumber configuration
 
 ---
 
-## Step 3: Validate Against Kohn (2024) Standards
+## Step 3: Extract Text with pdfplumber
 
-**Task:** Compare extracted tables to required fields from Kohn et al. (2024) Table 4-10
+**Task:** Extract raw text from isolated PDF pages using pdfplumber
+
+**Python Script Template:**
+```python
+import pdfplumber
+
+# Open extracted PDF page
+with pdfplumber.open("path/to/extracted/table-X.pdf") as pdf:
+    for page in pdf.pages:
+        # Extract text (preserves spacing/alignment)
+        text = page.extract_text()
+
+        # Save to text file
+        with open("path/to/extracted/table-X-raw-text.txt", "w") as f:
+            f.write(text)
+```
+
+**Output:** Raw text files in `extracted/` directory
+- `table-1-page-9-raw-text.txt`
+- `table-2-pages-10-11-raw-text.txt`
+- etc.
+
+**Why pdfplumber?**
+- More reliable than pure AI vision for table text
+- Preserves spacing and alignment (critical for column detection)
+- Handles multi-column layouts better than OCR
+
+---
+
+## Step 4: AI Structure Analysis
+
+**Task:** Use AI to analyze the first 10-20 lines of raw text and understand table structure
+
+**Process:**
+1. Read the raw text file
+2. Extract first 10-20 lines (headers + 2-3 data rows)
+3. Ask AI to analyze structure
+
+**AI Analysis Prompt:**
+```
+You are analyzing a thermochronology data table extracted from a research paper.
+
+Here are the first 15 lines of text from the table:
+[PASTE RAW TEXT HERE]
+
+Analyze the structure and answer:
+1. What are the column headers? (exact text)
+2. What delimiter separates columns? (tab, multiple spaces, comma?)
+3. Are headers on one line or multiple lines?
+4. What pattern do sample IDs follow? (regex)
+5. How many columns are there?
+6. Are there any footnote symbols or special characters in the data?
+7. Are there any merged cells or spanning columns?
+8. What numeric format is used? (decimal: . or ,)
+9. How are uncertainties represented? (±, separate column, parentheses?)
+10. Are there any non-data rows? (subtotals, averages, blank rows?)
+
+Provide a concise structural summary.
+```
+
+**AI Output Example:**
+```
+Table Structure Analysis:
+- Headers: Single line, tab-separated
+- Columns: 24 columns detected
+- Sample ID: Pattern "MU19-\d{2}" (e.g., MU19-05, MU19-18)
+- Delimiter: Multiple spaces (aligned columns)
+- Uncertainties: ± format in same cell (e.g., "125.3 ± 15.2")
+- Special notes:
+  * Column 3 has footnote markers (a, b, c)
+  * Rows with "—" indicate no data
+  * Last row is average (skip it)
+```
+
+---
+
+## Step 5: Create Extraction Plan
+
+**Task:** Based on AI structure analysis, create a bespoke Python extraction script
+
+**Template Generator Prompt:**
+```
+Based on the structure analysis, generate a Python script to extract this table to CSV.
+
+Requirements:
+- Use pandas for dataframe operations
+- Handle [DELIMITER TYPE] delimiter
+- Extract column headers: [LIST HEADERS]
+- Sample ID regex: [REGEX PATTERN]
+- Skip non-data rows: [SPECIFY ROWS TO SKIP]
+- Split uncertainty columns (e.g., "125.3 ± 15.2" → two columns: value, error)
+- Remove footnote symbols from data
+- Handle missing data markers (—, n.d., <LOD)
+- Output CSV with clean column names
+
+Script should be robust and handle edge cases.
+```
+
+**AI generates:** Custom Python extraction script
+- `extract_table_1.py`
+- `extract_table_2.py`
+- etc.
+
+**Example script structure:**
+```python
+import pandas as pd
+import re
+
+# Read raw text
+with open("table-1-raw-text.txt", "r") as f:
+    lines = f.readlines()
+
+# Skip header rows and footers
+data_lines = lines[2:-1]  # Based on structure analysis
+
+# Split columns (adjust delimiter based on analysis)
+rows = []
+for line in data_lines:
+    # Custom parsing logic based on AI recommendations
+    cols = re.split(r'\s{2,}', line.strip())  # 2+ spaces = delimiter
+    rows.append(cols)
+
+# Create dataframe
+df = pd.DataFrame(rows, columns=HEADERS)
+
+# Clean data
+df = df[df['Sample_ID'].str.match(r'MU19-\d{2}')]  # Filter valid samples
+df = df.replace('—', None)  # Missing data
+
+# Split uncertainty columns
+# ... (custom logic based on format)
+
+# Export to CSV
+df.to_csv("table-1-extracted.csv", index=False)
+```
+
+---
+
+## Step 6: Extract to CSV
+
+**Task:** Run the bespoke extraction script and generate CSV
+
+**Process:**
+```bash
+cd build-data/learning/thermo-papers/PAPER_NAME/extracted/
+python extract_table_1.py
+```
+
+**Output:** Clean CSV file
+- `table-1-extracted.csv`
+
+**CSV Requirements:**
+- Headers must be clean (no special characters)
+- One row per sample/grain/datapoint
+- Numeric columns must be pure numbers (no ± symbols)
+- Uncertainty in separate column from value
+- Missing data as empty cells (not "—" or "n.d.")
+- Sample IDs validated against expected pattern
+
+---
+
+## Step 7: AI Validation
+
+**Task:** Use AI to review the extracted CSV and verify correctness
+
+**Process:**
+1. Read the CSV file
+2. Compare to original raw text (spot check 3-5 rows)
+3. Validate column count, data types, sample IDs
+4. Check for extraction errors
+
+**AI Validation Prompt:**
+```
+I extracted this CSV from a thermochronology data table.
+
+CSV preview (first 5 rows):
+[PASTE CSV ROWS]
+
+Original text (corresponding lines):
+[PASTE RAW TEXT LINES]
+
+Validation checklist:
+1. Do sample IDs match? ✓ / ✗
+2. Do numeric values match? ✓ / ✗
+3. Are uncertainties in separate columns? ✓ / ✗
+4. Are all columns present? (expected: 24, found: __)
+5. Are there any parsing errors? (merged cells, split values, etc.)
+6. Does the data make scientific sense? (ages positive, uncertainties reasonable)
+
+If any validation fails, describe the issue and recommend fixes.
+```
+
+**AI Output:**
+- ✅ **PASS** - CSV is correct, proceed to next step
+- ❌ **FAIL** - CSV has errors, see issues below
+
+---
+
+## Step 8: Retry Loop (If Validation Fails)
+
+**Task:** If AI validation detects errors, delete CSV and retry extraction
+
+**Process:**
+```bash
+# Delete incorrect CSV
+rm table-1-extracted.csv
+
+# Review AI feedback
+# Adjust extraction script (extract_table_1.py) based on issues
+
+# Re-run extraction
+python extract_table_1.py
+
+# Re-run AI validation (Step 7)
+```
+
+**Retry until:**
+- AI validation passes all checks
+- Spot-checked rows match original text exactly
+- Column count and data types are correct
+
+**Maximum retries:** 3 attempts
+- If still failing after 3 tries, flag for manual review
+
+---
+
+## Step 9: Compare to Kohn (2024) Standards
+
+**Task:** Validate extracted CSV against required fields from Kohn et al. (2024) Table 4-10
 
 **Reference files:**
 - `/build-data/learning/archive/01-Kohn-2024-Reporting-Standards.md`

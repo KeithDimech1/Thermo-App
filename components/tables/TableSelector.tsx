@@ -12,30 +12,49 @@ interface TableSelectorProps {
 }
 
 const TABLE_OPTIONS: TableOption[] = [
+  // Core Data
   {
     value: 'samples',
-    label: 'Samples',
-    description: 'Geosample metadata (locations, lithology)'
+    label: '📍 Samples',
+    description: 'Geosample metadata (IGSN, location, lithology)'
+  },
+  // Fission-Track Data
+  {
+    value: 'ft-datapoints',
+    label: '🔬 FT Datapoints',
+    description: 'Fission-track analytical sessions (ages, statistics)'
   },
   {
-    value: 'ft-ages',
-    label: 'Fission-Track Ages',
-    description: 'Calculated AFT ages with statistics'
+    value: 'ft-count-data',
+    label: '🔢 FT Count Data',
+    description: 'Grain-by-grain track count data (Ns, Ni, Nd)'
   },
   {
-    value: 'ft-counts',
-    label: 'FT Track Counts',
-    description: 'Grain-by-grain track count data'
+    value: 'ft-track-lengths',
+    label: '📏 FT Track Lengths',
+    description: 'Individual track measurements (length, angle)'
+  },
+  // (U-Th)/He Data
+  {
+    value: 'he-datapoints',
+    label: '⚛️ He Datapoints',
+    description: '(U-Th)/He analytical sessions (mean ages, QC stats)'
   },
   {
-    value: 'track-lengths',
-    label: 'Track Lengths',
-    description: 'Confined track length measurements'
+    value: 'he-grains',
+    label: '💎 He Whole Grain Data',
+    description: 'Single grain (U-Th)/He results (ages, chemistry)'
+  },
+  // Infrastructure
+  {
+    value: 'batches',
+    label: '📦 Batches',
+    description: 'Analytical batches (linking samples to reference materials)'
   },
   {
-    value: 'ahe-grains',
-    label: '(U-Th)/He Grain Data',
-    description: 'Single grain (U-Th)/He ages'
+    value: 'people',
+    label: '👤 People',
+    description: 'Researchers (ORCID-based provenance)'
   }
 ];
 

@@ -230,10 +230,10 @@ export default async function SampleDetailPage({
                                   {counts.map(count => (
                                     <tr key={count.id} className="hover:bg-gray-50">
                                       <td className="px-3 py-2 font-mono text-xs">{count.grain_id}</td>
-                                      <td className="px-3 py-2 text-right">{count.ns}</td>
-                                      <td className="px-3 py-2 text-right">{count.ni}</td>
+                                      <td className="px-3 py-2 text-right">{count.Ns}</td>
+                                      <td className="px-3 py-2 text-right">{count.Ni}</td>
                                       <td className="px-3 py-2 text-right">{count.rho_s_cm2?.toFixed(0)}</td>
-                                      <td className="px-3 py-2 text-right">{count.dpar_um?.toFixed(2)}</td>
+                                      <td className="px-3 py-2 text-right">{count.Dpar_um?.toFixed(2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -308,11 +308,11 @@ export default async function SampleDetailPage({
                               </p>
                             </div>
                           )}
-                          {datapoint.mswd && (
+                          {datapoint.MSWD && (
                             <div>
                               <p className="text-xs text-gray-600">MSWD</p>
                               <p className="text-lg font-bold text-gray-900">
-                                {datapoint.mswd.toFixed(2)}
+                                {datapoint.MSWD.toFixed(2)}
                               </p>
                             </div>
                           )}
@@ -346,8 +346,8 @@ export default async function SampleDetailPage({
                                       <td className="px-3 py-2 text-right text-gray-600">
                                         {grain.he4_corr_age_error_ma?.toFixed(1)}
                                       </td>
-                                      <td className="px-3 py-2 text-right">{grain.eu_ppm?.toFixed(0)}</td>
-                                      <td className="px-3 py-2 text-right">{grain.ft_value?.toFixed(2)}</td>
+                                      <td className="px-3 py-2 text-right">{grain.eU_ppm?.toFixed(0)}</td>
+                                      <td className="px-3 py-2 text-right">{grain.Ft_value?.toFixed(2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>

@@ -132,24 +132,57 @@ sys.path.insert(0, str(Path.cwd()))
 
 ---
 
-### STEP 1: Extract PDF Tables
+### STEP 1: Extract PDF Tables with Enhanced Thermoanalysis Integration
 
 ```python
 from scripts.pdf.extraction_engine import UniversalThermoExtractor
 
 print('━' * 60)
-print('STEP 1: EXTRACTING PDF TABLES')
+print('STEP 1: TABLE EXTRACTION (Enhanced with thermoanalysis)')
 print('━' * 60)
 print()
 
-# Initialize and run extraction
-extractor = UniversalThermoExtractor(pdf_path)
+# Initialize enhanced extractor with paper_dir
+extractor = UniversalThermoExtractor(
+    pdf_path=pdf_path,
+    cache_dir='./cache',
+    paper_dir=paper_dir  # Enables thermoanalysis integration
+)
+
+# Analyze document (uses thermoanalysis if available)
 extractor.analyze()
+
+# Check what was used for discovery
+if (paper_dir / 'text' / 'text-index.md').exists():
+    print('✅ Using thermoanalysis table discovery')
+else:
+    print('⚠️  Using semantic analysis (run /thermoanalysis first for better results)')
+
+print(f'   Found {len(extractor.structure.tables)} tables')
+for table_id, info in extractor.structure.tables.items():
+    print(f'   - {table_id}: {info["type"]} (page {info["page"] + 1})')
+print()
+
+# Extract all tables
+print('🔧 Extracting tables...')
 results = extractor.extract_all()
 
-print(f'✅ Extracted {len(results)} tables')
+print(f'✅ Extracted {len(results)} tables:')
 for table_id, df in results.items():
     print(f'   - {table_id}: {len(df)} rows × {len(df.columns)} columns')
+print()
+
+# Save extracted tables to paper directory
+extracted_dir = paper_dir / 'extracted'
+extracted_dir.mkdir(exist_ok=True)
+
+print(f'💾 Saving extracted tables to: {extracted_dir}')
+for table_id, df in results.items():
+    # Sanitize table name for filename
+    safe_name = table_id.replace(' ', '-')
+    csv_path = extracted_dir / f'{safe_name}.csv'
+    df.to_csv(csv_path, index=False)
+    print(f'   ✅ Saved {csv_path.name}')
 print()
 
 # Use metadata if available
@@ -204,11 +237,11 @@ print()
 
 ---
 
-### STEP 3: Filter Invalid Rows (CRITICAL)
+### STEP 3: Filter Invalid Rows - Multi-Table Cleaning (CRITICAL)
 
 ```python
 print('━' * 60)
-print('STEP 3: FILTERING INVALID ROWS')
+print('STEP 3: FILTERING INVALID ROWS (ALL TABLES)')
 print('━' * 60)
 print()
 
@@ -221,24 +254,76 @@ else:
     sample_pattern = r'^[A-Z]{2,4}\d{2}-\d{2,3}$'  # Default pattern
     print(f'   Using default sample ID pattern: {sample_pattern}')
 
-valid_samples = table1['sample_id'].astype(str).str.match(
-    sample_pattern,
-    na=False
-)
+print()
 
-print(f'   Total rows extracted: {len(table1)}')
-print(f'   Valid sample rows: {valid_samples.sum()}')
-print(f'   Invalid rows filtered: {len(table1) - valid_samples.sum()}')
+# Dictionary to store cleaned tables
+cleaned_tables = {}
 
-if valid_samples.sum() == 0:
-    print('❌ ERROR: No valid samples found!')
-    print('   Check sample ID format or adjust pattern')
-    sys.exit(1)
+# Loop through ALL extracted tables and apply table-specific cleaning
+for table_id, df in results.items():
+    print(f'📋 Cleaning {table_id}...')
 
-# Create clean dataset
-table1_clean = table1[valid_samples].copy()
+    # Determine table type and apply appropriate cleaning logic
+    if 'Table 1' in table_id or 'Table A1' in table_id:
+        # Main sample data tables: use sample ID pattern matching
+        if 'sample_id' in df.columns:
+            valid_rows = df['sample_id'].astype(str).str.match(sample_pattern, na=False)
+            df_clean = df[valid_rows].copy()
+            print(f'   Sample data: {len(df)} rows → {len(df_clean)} valid samples')
+            cleaned_tables[table_id] = df_clean
+        else:
+            print(f'   ⚠️  No sample_id column found, saving as-is')
+            cleaned_tables[table_id] = df
 
-print(f'✅ Data cleaned: {len(table1_clean)} valid samples')
+    elif 'Table A2' in table_id or 'EPMA' in table_id:
+        # EPMA mineral chemistry tables: keep standard reference materials
+        # Look for Durango, FCT, Madagascar in first column
+        first_col = df.columns[0]
+        if first_col in df.columns:
+            # Skip header rows (first 5-6 rows often contain metadata)
+            # Keep rows with standard names
+            valid_rows = df[first_col].astype(str).str.contains(
+                'urango|FCT|adagascar|Durango|Fish Canyon|Madagascar',
+                case=False,
+                na=False
+            )
+            df_clean = df[valid_rows].copy()
+            print(f'   EPMA chemistry: {len(df)} rows → {len(df_clean)} standard records')
+            cleaned_tables[table_id] = df_clean
+        else:
+            print(f'   ⚠️  Unexpected structure, saving as-is')
+            cleaned_tables[table_id] = df
+
+    elif 'Table A3' in table_id or '(U-Th)/He' in table_id or 'He QC' in table_id:
+        # (U-Th)/He QC data: keep rows with analysis numbers
+        # Look for columns like 'analysis_no', 'sample_no', or numeric IDs
+        analysis_cols = [col for col in df.columns if 'analysis' in col.lower() or 'sample' in col.lower()]
+
+        if analysis_cols:
+            # Keep rows where analysis number is not null
+            analysis_col = analysis_cols[0]
+            valid_rows = df[analysis_col].notna()
+            df_clean = df[valid_rows].copy()
+            print(f'   (U-Th)/He QC: {len(df)} rows → {len(df_clean)} analysis records')
+            cleaned_tables[table_id] = df_clean
+        else:
+            # Fallback: skip first 2 rows (usually headers/metadata), keep rest
+            df_clean = df.iloc[2:].copy()
+            print(f'   (U-Th)/He QC: {len(df)} rows → {len(df_clean)} records (header rows skipped)')
+            cleaned_tables[table_id] = df_clean
+
+    else:
+        # Other tables: save as-is (may need custom logic for specific papers)
+        print(f'   ⚠️  Unknown table type, saving as-is')
+        cleaned_tables[table_id] = df
+
+print()
+print(f'✅ Cleaned {len(cleaned_tables)} tables')
+
+# Keep table1_clean for backward compatibility with subsequent steps
+table1_clean = cleaned_tables.get('Table 1', cleaned_tables.get(paper_metadata['primary_table'], list(cleaned_tables.values())[0]))
+
+print(f'✅ Primary table has {len(table1_clean)} valid samples')
 print()
 ```
 
@@ -430,27 +515,24 @@ print()
 
 ---
 
-### STEP 7: Save RAW Extracted Data
+### STEP 7: Save Cleaned Tables
 
 ```python
 print('━' * 60)
-print('STEP 7: SAVING RAW EXTRACTED DATA')
+print('STEP 7: SAVING CLEANED TABLES')
 print('━' * 60)
 print()
 
-# Save original extracted tables to RAW/ (exactly as extracted)
-# This preserves the original PDF data before any transformations
-for table_id, df in results.items():
+# Save all cleaned tables to RAW/ directory
+# NOTE: Only cleaned versions saved (raw extractions discarded to save space)
+for table_id, df_clean in cleaned_tables.items():
     # Clean table name for filename
-    table_filename = table_id.lower().replace(' ', '-') + '-raw.csv'
-    df.to_csv(raw_dir / table_filename, index=False)
-    print(f'   - {table_filename} ({len(df)} rows × {len(df.columns)} columns)')
+    table_filename = table_id.lower().replace(' ', '-') + '-cleaned.csv'
+    df_clean.to_csv(raw_dir / table_filename, index=False)
+    print(f'   ✅ {table_filename} ({len(df_clean)} rows × {len(df_clean.columns)} columns)')
 
-# Also save the cleaned main table
-table1_clean.to_csv(raw_dir / 'table-1-cleaned.csv', index=False)
-
-print(f'✅ Saved raw extraction data to RAW/')
-print(f'   Total files: {len(results) + 1}')
+print()
+print(f'✅ Saved {len(cleaned_tables)} cleaned tables to RAW/')
 print()
 ```
 

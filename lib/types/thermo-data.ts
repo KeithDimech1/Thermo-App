@@ -24,8 +24,7 @@ export interface Dataset {
 
   // Publication and citation
   publication_reference: string | null;
-  publication_doi: string | null;
-  doi: string | null; // Alias for publication_doi (legacy support)
+  doi: string | null;
 
   // Full paper metadata (MIGRATION 006)
   full_citation: string | null;
@@ -45,16 +44,6 @@ export interface Dataset {
   age_range_min_ma: number | null;
   age_range_max_ma: number | null;
 
-  // Privacy and access control (NEW in v2)
-  privacy_status: 'public' | 'embargo' | 'private';
-  embargo_date: Date | null;
-  data_package_doi: string | null;
-
-  // Metadata
-  keywords: string | null;
-  data_owner: string | null;
-  license: string | null;
-
   // Papers view metadata (IDEA-004 legacy support)
   authors: string[] | null;
   collection_date: Date | null;
@@ -70,8 +59,6 @@ export interface Dataset {
   extraction_report_url: string | null;
 
   // Audit
-  submission_date: Date | null;
-  last_modified_date: Date | null;
   created_at: Date;
 }
 

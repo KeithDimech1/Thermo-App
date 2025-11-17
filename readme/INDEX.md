@@ -1,6 +1,6 @@
 # AusGeochem Thermochronology - Living Documentation
 
-**Last Updated:** 2025-11-17 23:30
+**Last Updated:** 2025-11-17
 **Project:** Next.js + PostgreSQL Thermochronology Database
 **Schema Version:** 2.0 (EarthBank FAIR Architecture)
 
@@ -230,12 +230,52 @@
 
 ---
 
+## 🔧 Slash Commands
+
+**[SLASH_COMMANDS.md](SLASH_COMMANDS.md)** ⭐ **NEW** - Complete slash command reference
+
+Two specialized commands for extracting and analyzing thermochronology research papers:
+
+1. **`/thermoanalysis`** - Deep paper analysis with indexed navigation
+   - Reads PDFs thoroughly
+   - Extracts images with figure captions
+   - Creates indexed documentation
+   - Discovers tables dynamically
+   - Prepares metadata for extraction
+
+2. **`/thermoextract`** - Zero-error data extraction
+   - Multi-method table extraction
+   - Transform to FAIR schema (EarthBank compatible)
+   - Validate before import
+   - Generate SQL import scripts
+   - Integrated with /thermoanalysis
+
+**Workflow:** `/thermoanalysis` → `/thermoextract` → Database Import
+
+### Quality Analysis
+
+**[SLASH_COMMANDS_QUALITY_REPORT.md](SLASH_COMMANDS_QUALITY_REPORT.md)** 🔍 **NEW** - Comprehensive quality review
+- **Overall Score:** 7.5/10 (GOOD)
+- **Critical Issues:** 4 identified
+- **Important Issues:** 8 identified
+- **Security Analysis:** ✅ No critical vulnerabilities
+- **Performance Analysis:** Bottlenecks documented
+
+**[SLASH_COMMANDS_CRITICAL_FIXES.md](SLASH_COMMANDS_CRITICAL_FIXES.md)** 🔧 **NEW** - Actionable code fixes
+- Ready-to-apply code replacements
+- Phase 1: Critical fixes (1-2 hours)
+- Phase 2: Important fixes (2-3 hours)
+- Testing scenarios and verification commands
+
+---
+
 ## 📊 Documentation Statistics
 
 **Code Files:** 22 TypeScript/JavaScript files
 **Scripts:** 6 database utilities
-**Documentation:** 6 markdown files (code docs) + 6 table docs + 3 meta docs
+**Documentation:** 6 markdown files (code docs) + 6 table docs + 6 meta docs
 **Database Tables:** 6 tables + 2 views
+**Slash Commands:** 2 specialized extraction workflows (with quality analysis)
 
 **Lines of Code:**
 - `lib/db/queries.ts`: ~400 lines (database queries)
@@ -250,18 +290,21 @@
 
 ```
 readme/
-├── INDEX.md                           ← You are here
-├── CHANGES.md                         ← What's new (changelog)
-├── app/api/                           ← API route documentation
+├── INDEX.md                                    ← You are here
+├── CHANGES.md                                  ← What's new (changelog)
+├── SLASH_COMMANDS.md                           ⭐ NEW - Extraction workflow docs
+├── SLASH_COMMANDS_QUALITY_REPORT.md            🔍 NEW - Quality analysis (7.5/10)
+├── SLASH_COMMANDS_CRITICAL_FIXES.md            🔧 NEW - Ready-to-apply fixes
+├── app/api/                                    ← API route documentation
 │   ├── samples/
-│   └── tables/[name]/route.md        ⭐ NEW
-├── components/tables/                 ⭐ NEW
+│   └── tables/[name]/route.md                 ⭐ NEW
+├── components/tables/                          ⭐ NEW
 │   └── InteractiveTable.md
-├── scripts/                           ⭐ NEW
+├── scripts/                                    ⭐ NEW
 │   └── query-mcmillan-data.md
 └── database/
-    ├── SCHEMA_CHANGES.md              ← Schema migration log
-    └── tables/                        ← Table documentation (6 files)
+    ├── SCHEMA_CHANGES.md                       ← Schema migration log
+    └── tables/                                 ← Table documentation (6 files)
         ├── samples.md
         ├── ft_ages.md
         ├── ft_counts.md
@@ -292,6 +335,12 @@ readme/
 → Read `.claude/CLAUDE.md` § Key Domain Concepts
 → Check `build-data/learning/thermo-papers/`
 
+**...extract data from a research paper**
+→ Read `SLASH_COMMANDS.md` (complete workflow)
+→ Run `/thermoanalysis` first (paper analysis)
+→ Then run `/thermoextract` (data extraction)
+→ Result: Zero-error database import
+
 **...add a new feature**
 → Check `lib/db/queries.ts` for existing patterns
 → Add types to `lib/types/thermo-data.ts`
@@ -311,8 +360,17 @@ readme/
 - [x] Document API routes (3 of 4 documented) ✅
 - [x] Document key components (InteractiveTable) ✅
 - [x] Document utility scripts (query-mcmillan-data) ✅
+- [x] Document slash commands ✅ (2025-11-17)
+- [x] Quality review of slash commands ✅ (2025-11-17)
+- [ ] Apply critical fixes to slash commands (4 issues)
 - [ ] Create code → table cross-reference map (partial - in table docs)
 - [ ] Document remaining pages and components
+
+**Slash Command Improvements:**
+- [ ] Apply Phase 1 critical fixes (1-2 hours) - See SLASH_COMMANDS_CRITICAL_FIXES.md
+- [ ] Apply Phase 2 important fixes (2-3 hours)
+- [ ] Test extraction workflow with fixes
+- [ ] Update command files with improvements
 
 **Feature Development:**
 - [x] Interactive table viewer with sorting/pagination ✅
@@ -323,5 +381,5 @@ readme/
 
 ---
 
-**Last Updated:** 2025-11-16 (BigTidy documentation run)
+**Last Updated:** 2025-11-17 (Slash commands documentation added)
 **Next Review:** After adding data visualization features

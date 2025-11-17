@@ -1,21 +1,26 @@
 # /thermoextract - AI-Powered Thermochronology Data Extraction
 
-**Purpose:** Extract thermochronology data from research papers using Claude AI vision, validate against Kohn et al. (2024) standards, and transform to EarthBank FAIR templates.
+**Purpose:** Extract thermochronology data from research papers using pdfplumber + AI analysis, validate against Kohn et al. (2024) standards, and import to database.
 
-**Key Innovation:** Direct PDF/image reading with Claude AI (no complex Python extraction scripts)
+**Key Innovation:** Iterative AI-guided extraction with pdfplumber for reliable text extraction + AI structure understanding + validation loop
 
 ---
 
 ## Workflow Overview
 
 ```
-1. Read /thermoanalysis output → Get table locations & metadata
-2. Extract tables with AI → Direct PDF page reading
-3. Save RAW CSVs → Exact extracted data
-4. Compare to Kohn 2024 → Check required fields
-5. Calculate FAIR score → Rate completeness (0-100)
-6. Transform to EarthBank → Map to import templates
-7. Generate report → Document extraction quality
+1. Read paper-index.md → Get table locations & page numbers
+2. Extract PDF pages → Isolate individual table pages
+3. pdfplumber text extraction → Get raw text from each page
+4. AI structure analysis → Understand headers & data patterns
+5. Create extraction plan → Bespoke CSV generation strategy
+6. Extract to CSV → Generate structured data file
+7. AI validation → Review CSV for correctness
+8. Retry loop → Delete & retry until perfect
+9. Compare to Kohn 2024 → Check required fields
+10. Calculate FAIR score → Rate completeness (0-100)
+11. Transform to EarthBank → Map to import templates
+12. Import to database → Load into Schema v2 tables
 ```
 
 ---

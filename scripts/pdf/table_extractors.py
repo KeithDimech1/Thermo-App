@@ -469,6 +469,66 @@ def extract_with_pdfplumber(
         return None
 
 
+def get_expected_row_range(table_type: str) -> Dict[str, int]:
+    """
+    Get expected row count range for table type
+
+    Args:
+        table_type: Table type (AFT, He, Sample_Metadata, Chemistry, unknown)
+
+    Returns:
+        Dict with min, max, mid values
+    """
+    ranges = {
+        'AFT': {'min': 5, 'max': 150, 'mid': 40},
+        'He': {'min': 10, 'max': 300, 'mid': 60},
+        'Sample_Metadata': {'min': 5, 'max': 200, 'mid': 50},
+        'Chemistry': {'min': 20, 'max': 500, 'mid': 100},
+        'unknown': {'min': 5, 'max': 500, 'mid': 50}
+    }
+    return ranges.get(table_type, ranges['unknown'])
+
+
+def get_expected_col_range(table_type: str) -> Dict[str, int]:
+    """
+    Get expected column count range for table type
+
+    Args:
+        table_type: Table type (AFT, He, Sample_Metadata, Chemistry, unknown)
+
+    Returns:
+        Dict with min, max, mid values
+    """
+    ranges = {
+        'AFT': {'min': 8, 'max': 25, 'mid': 15},
+        'He': {'min': 10, 'max': 30, 'mid': 17},
+        'Sample_Metadata': {'min': 5, 'max': 15, 'mid': 8},
+        'Chemistry': {'min': 8, 'max': 40, 'mid': 20},
+        'unknown': {'min': 5, 'max': 50, 'mid': 15}
+    }
+    return ranges.get(table_type, ranges['unknown'])
+
+
+def get_validation_keywords(table_type: str) -> List[str]:
+    """
+    Get validation keywords for table type
+
+    Args:
+        table_type: Table type (AFT, He, Sample_Metadata, Chemistry, unknown)
+
+    Returns:
+        List of expected keywords (lowercase)
+    """
+    keywords = {
+        'AFT': ['ma', 'age', '±', 'myr', 'pooled', 'central', 'track', 'ns', 'ni', 'nd'],
+        'He': ['ppm', 'ncc', 'ft', 'grain', 'corr', 'uncorr', 'thu', 'sm', 'raw'],
+        'Sample_Metadata': ['lat', 'lon', 'elevation', 'lithology', 'sample', 'location'],
+        'Chemistry': ['wt%', 'apfu', 'cl', 'dpar', 'rmr', 'f', 'oh', 'oxide'],
+        'unknown': ['sample', 'data', 'value', 'id']
+    }
+    return keywords.get(table_type, keywords['unknown'])
+
+
 def evaluate_extraction_quality(df: pd.DataFrame, table_type: str = None) -> float:
     """
     Evaluate quality of extracted table
@@ -552,8 +612,43 @@ def evaluate_extraction_quality(df: pd.DataFrame, table_type: str = None) -> flo
 
     score += numeric_quality * 0.15
 
+    # 6. Type-specific validation (up to 0.2 bonus)
+    type_score = 0.0
+    if table_type and table_type != 'unknown':
+        # Check row count expectation
+        expected_rows = get_expected_row_range(table_type)
+        if expected_rows['min'] <= len(df) <= expected_rows['max']:
+            type_score += 0.07
+
+        # Check column count expectation
+        expected_cols = get_expected_col_range(table_type)
+        if expected_cols['min'] <= len(df.columns) <= expected_cols['max']:
+            type_score += 0.07
+
+        # Check for validation keywords
+        keywords = get_validation_keywords(table_type)
+
+        # Convert all cell values to lowercase strings for searching
+        all_text = ' '.join(
+            str(cell).lower()
+            for row in df.itertuples(index=False)
+            for cell in row
+        )
+        # Also check column names
+        all_text += ' ' + ' '.join(str(col).lower() for col in df.columns)
+
+        # Count how many keywords found
+        found_keywords = sum(1 for kw in keywords if kw.lower() in all_text)
+        keyword_ratio = found_keywords / len(keywords) if len(keywords) > 0 else 0
+        type_score += keyword_ratio * 0.06
+
+        logger.debug(f"  Type-specific score: {type_score:.2f} (found {found_keywords}/{len(keywords)} keywords)")
+
+    score += type_score
+
     logger.debug(f"Quality score: {score:.2f} (rows: {row_score:.2f}, cols: {col_score:.2f}, "
-                f"complete: {completeness:.2f}, headers: {header_quality:.2f}, numeric: {numeric_quality:.2f})")
+                f"complete: {completeness:.2f}, headers: {header_quality:.2f}, numeric: {numeric_quality:.2f}, "
+                f"type: {type_score:.2f})")
 
     return score
 

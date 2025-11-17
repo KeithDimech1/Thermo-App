@@ -72,18 +72,20 @@ class UniversalThermoExtractor:
         validation = extractor.validate(fair_data)
     """
 
-    def __init__(self, pdf_path: str, cache_dir: str = './cache'):
+    def __init__(self, pdf_path: str, cache_dir: str = './cache', paper_dir: Optional[Path] = None):
         """
         Initialize extractor
 
         Args:
             pdf_path: Path to PDF file
             cache_dir: Directory for caching results
+            paper_dir: Optional path to paper directory (for thermoanalysis integration)
         """
         self.pdf_path = Path(pdf_path)
         if not self.pdf_path.exists():
             raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
+        self.paper_dir = Path(paper_dir) if paper_dir else None
         self.cache = PDFCache(cache_dir)
         self.structure = None  # Document structure (DocumentStructure object)
         self.metadata = None   # Paper metadata (dict)
@@ -96,6 +98,8 @@ class UniversalThermoExtractor:
         """
         Step 1: Analyze document structure
 
+        - Check for thermoanalysis outputs (use if available)
+        - Fall back to PDF semantic analysis if not available
         - Build table reference map ("Table 2A" → actual location)
         - Classify table types (AFT/AHe/counts/lengths)
         - Extract paper metadata
@@ -108,13 +112,33 @@ class UniversalThermoExtractor:
         logger.info("STEP 1: Analyzing document structure")
         logger.info("=" * 60)
 
-        # Check cache
+        # Check cache first
         cached = self.cache.get(str(self.pdf_path), 'structure')
         if cached:
             logger.info("✓ Using cached document structure")
             self.structure, self.metadata = cached
             return self
 
+        # Check for thermoanalysis outputs (IDEA-012 integration)
+        if self.paper_dir and (self.paper_dir / 'text' / 'text-index.md').exists():
+            logger.info("✅ Found thermoanalysis outputs - using discovered tables")
+            self._load_from_thermoanalysis()
+        else:
+            if self.paper_dir:
+                logger.info("⚠️  No thermoanalysis found - using semantic analysis (slower)")
+            self._analyze_pdf_directly()
+
+        # Cache results
+        self.cache.set(str(self.pdf_path), 'structure', (self.structure, self.metadata))
+
+        return self
+
+    def _analyze_pdf_directly(self):
+        """
+        Analyze PDF directly using semantic analysis
+
+        This is the original analyze() logic, used when thermoanalysis not available.
+        """
         # Build document structure
         logger.info("→ Building document structure...")
         self.structure = DocumentStructure(str(self.pdf_path))
@@ -136,10 +160,113 @@ class UniversalThermoExtractor:
         self.metadata.update(methods_metadata)
         logger.info(f"✓ Extracted metadata: {len(methods_metadata)} fields")
 
-        # Cache results
-        self.cache.set(str(self.pdf_path), 'structure', (self.structure, self.metadata))
+    def _load_from_thermoanalysis(self):
+        """
+        Load discovered tables from thermoanalysis outputs
 
-        return self
+        Reads text/text-index.md and builds structure.tables from discovered metadata.
+        Still needs to detect bboxes for extraction.
+        """
+        import re
+
+        # Read text-index.md
+        index_path = self.paper_dir / 'text' / 'text-index.md'
+        logger.info(f"→ Reading discovered tables from {index_path.name}...")
+
+        with open(index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Parse markdown table
+        discovered = []
+        in_table = False
+
+        for line in content.split('\n'):
+            if line.startswith('| Table |'):
+                in_table = True
+                continue
+            if in_table and line.startswith('|') and not line.startswith('|----'):
+                # Parse table row: | Table 1 | AFT | 9 | Context... |
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) >= 5 and parts[1]:  # Valid row
+                    discovered.append({
+                        'name': parts[1],
+                        'type': parts[2],
+                        'page': int(parts[3]) if parts[3].isdigit() else 1,
+                        'context': parts[4][:150]
+                    })
+            elif in_table and not line.startswith('|'):
+                break
+
+        logger.info(f"✓ Found {len(discovered)} tables from thermoanalysis")
+
+        # Initialize structure (need this for bbox detection)
+        self.structure = DocumentStructure(str(self.pdf_path))
+
+        # Build structure.tables from discovered metadata
+        for table_info in discovered:
+            table_name = table_info['name']
+            table_type = table_info['type']
+            page_1indexed = table_info['page']
+            page_0indexed = page_1indexed - 1  # Convert to 0-indexed
+
+            # Use whole-page bbox (thermoanalysis doesn't provide caption bboxes)
+            # Pass None as caption_bbox to use fallback logic
+            bbox = self.structure._find_table_bbox(page_0indexed, None)
+
+            self.structure.tables[table_name] = {
+                'type': table_type,
+                'page': page_0indexed,
+                'bbox': bbox,
+                'caption': f"{table_name} - {table_info['context']}"
+            }
+            logger.info(f"  - {table_name}: {table_type} (page {page_1indexed})")
+
+        # Close PDF after bbox detection
+        if self.structure.pdf:
+            self.structure.pdf.close()
+            self.structure.pdf = None
+
+        logger.info(f"✓ Loaded {len(self.structure.tables)} tables from thermoanalysis")
+
+        # Load metadata from paper-index.md if available
+        paper_index_path = self.paper_dir / 'paper-index.md'
+        if paper_index_path.exists():
+            logger.info("→ Loading metadata from paper-index.md...")
+            self.metadata = self._load_metadata_from_index(paper_index_path)
+            logger.info(f"✓ Loaded metadata: {len(self.metadata)} fields")
+        else:
+            # Fall back to extracting metadata from PDF
+            logger.info("→ Extracting paper metadata from PDF...")
+            self.metadata = self._extract_metadata()
+            logger.info(f"✓ Extracted metadata: {len(self.metadata)} fields")
+
+    def _load_metadata_from_index(self, index_path: Path) -> Dict:
+        """Load paper metadata from paper-index.md"""
+        import re
+
+        metadata = {}
+
+        with open(index_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract metadata using regex
+        patterns = {
+            'title': r'\*\*Title:\*\* (.+)',
+            'authors': r'\*\*Authors:\*\* (.+)',
+            'year': r'\*\*Year:\*\* (\d{4})',
+            'journal': r'\*\*Journal:\*\* (.+)',
+            'doi': r'\*\*DOI:\*\* (.+)',
+            'study_location': r'\*\*Study Area:\*\* (.+)',
+            'mineral_type': r'\*\*Mineral Type:\*\* (.+)',
+            'analysis_method': r'\*\*Analysis Method:\*\* (.+)',
+        }
+
+        for key, pattern in patterns.items():
+            match = re.search(pattern, content)
+            if match:
+                metadata[key] = match.group(1).strip()
+
+        return metadata
 
     def extract_all(self) -> Dict[str, pd.DataFrame]:
         """

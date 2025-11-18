@@ -8,7 +8,7 @@ import { query } from '@/lib/db/connection';
  * Used to determine which tables have data and should be shown in the UI.
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

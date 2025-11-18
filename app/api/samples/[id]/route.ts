@@ -2,15 +2,17 @@
  * API Route: /api/samples/[id]
  *
  * Get complete details for a single sample including:
- * - Sample metadata
+ * - Sample metadata (camelCase)
  * - Fission-track count data
  * - Track length data
- * - Age data
+ * - Single grain ages
  * - (U-Th)/He grain data
+ *
+ * MIGRATED TO EARTHBANK SCHEMA (camelCase)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSampleDetail } from '@/lib/db/queries';
+import { getSampleDetail } from '@/lib/db/earthbank-queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +30,7 @@ export async function GET(
       );
     }
 
+    // Query EarthBank schema (returns camelCase JSON)
     const sampleDetail = await getSampleDetail(sampleId);
 
     if (!sampleDetail) {

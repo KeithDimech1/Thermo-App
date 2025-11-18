@@ -7,19 +7,20 @@
  * - Total AHe grains
  * - Age ranges (AFT and AHe)
  * - Elevation range
+ *
+ * MIGRATED TO EARTHBANK SCHEMA (camelCase)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatasetStats } from '@/lib/db/queries';
+import { getDatasetStats } from '@/lib/db/earthbank-queries';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const datasetId = parseInt(searchParams.get('dataset_id') || '1', 10);
-
-    const stats = await getDatasetStats(datasetId);
+    // Query EarthBank schema (returns camelCase JSON)
+    // Note: getDatasetStats() returns stats for all datasets (no filtering)
+    const stats = await getDatasetStats();
 
     return NextResponse.json(stats);
   } catch (error) {

@@ -3,23 +3,23 @@
  *
  * Get all samples with optional filtering and pagination
  *
+ * MIGRATED TO EARTHBANK SCHEMA (camelCase)
+ *
  * Query Parameters:
  * - limit: number (default: 50)
  * - offset: number (default: 0)
- * - mineral_type: string
+ * - mineralType: string (camelCase)
  * - lithology: string
- * - analysis_method: string
- * - min_elevation_m: number
- * - max_elevation_m: number
- * - has_aft: boolean
- * - has_ahe: boolean
- * - sortBy: 'sample_id' | 'elevation_m' | 'mineral_type'
+ * - datasetID: string (UUID, camelCase)
+ * - minElevationM: number (camelCase)
+ * - maxElevationM: number (camelCase)
+ * - sortBy: 'sampleID' | 'elevationM' | 'mineralType' (camelCase)
  * - sortOrder: 'asc' | 'desc'
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllSamples } from '@/lib/db/queries';
-import { SampleFilters } from '@/lib/types/thermo-data';
+import { getAllSamples } from '@/lib/db/earthbank-queries';
+import { EarthBankSampleFilters } from '@/lib/types/earthbank-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,42 +31,34 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    // Parse sorting
-    const sortBy = (searchParams.get('sortBy') as 'sample_id' | 'elevation_m' | 'mineral_type') || 'sample_id';
+    // Parse sorting (camelCase field names)
+    const sortBy = (searchParams.get('sortBy') as 'sampleID' | 'elevationM' | 'mineralType') || 'sampleID';
     const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
 
-    // Parse filters
-    const filters: SampleFilters = {};
+    // Parse filters (camelCase field names)
+    const filters: EarthBankSampleFilters = {};
 
-    if (searchParams.has('mineral_type')) {
-      filters.mineral_type = searchParams.get('mineral_type')!;
+    if (searchParams.has('mineralType')) {
+      filters.mineralType = searchParams.get('mineralType')!;
     }
 
     if (searchParams.has('lithology')) {
       filters.lithology = searchParams.get('lithology')!;
     }
 
-    if (searchParams.has('analysis_method')) {
-      filters.analysis_method = searchParams.get('analysis_method')!;
+    if (searchParams.has('datasetID')) {
+      filters.datasetID = searchParams.get('datasetID')!;
     }
 
-    if (searchParams.has('min_elevation_m')) {
-      filters.min_elevation_m = parseFloat(searchParams.get('min_elevation_m')!);
+    if (searchParams.has('minElevationM')) {
+      filters.minElevationM = parseFloat(searchParams.get('minElevationM')!);
     }
 
-    if (searchParams.has('max_elevation_m')) {
-      filters.max_elevation_m = parseFloat(searchParams.get('max_elevation_m')!);
+    if (searchParams.has('maxElevationM')) {
+      filters.maxElevationM = parseFloat(searchParams.get('maxElevationM')!);
     }
 
-    if (searchParams.has('has_aft')) {
-      filters.has_aft = searchParams.get('has_aft') === 'true';
-    }
-
-    if (searchParams.has('has_ahe')) {
-      filters.has_ahe = searchParams.get('has_ahe') === 'true';
-    }
-
-    // Execute query
+    // Execute query (returns camelCase JSON)
     const result = await getAllSamples(filters, limit, offset, sortBy, sortOrder);
 
     return NextResponse.json(result);

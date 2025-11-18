@@ -32,6 +32,13 @@ export async function GET(
 
     const file = files[0];
 
+    if (!file) {
+      return NextResponse.json(
+        { error: 'File not found' },
+        { status: 404 }
+      );
+    }
+
     // Resolve file path
     // Paths starting with /data/ are in the public directory
     // Other paths starting with / are absolute from project root

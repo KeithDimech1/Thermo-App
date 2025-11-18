@@ -653,7 +653,7 @@ export interface EarthBankDatasetStats {
 // =============================================================================
 
 export interface EarthBankSampleFilters {
-  datasetID?: number;
+  datasetID?: string;  // UUID
   mineralType?: string;
   lithology?: string;
   minElevationM?: number;

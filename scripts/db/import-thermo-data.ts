@@ -1,6 +1,19 @@
 #!/usr/bin/env tsx
 /**
- * Thermochronology Data Import Script
+ * ⚠️ DEPRECATED - NOT UPDATED FOR EARTHBANK SCHEMA (IDEA-014)
+ *
+ * This script uses the OLD snake_case schema (samples, ft_datapoints, etc.)
+ * and has NOT been migrated to the new EarthBank camelCase schema.
+ *
+ * ✅ USE THIS INSTEAD:
+ * ./scripts/db/import-earthbank-csvs.sh
+ *
+ * See IDEA-014 migration log for details:
+ * build-data/ideas/debug/IDEA-014-migrate-to-earthbank-native-schema-camelcase-1-1-template-mapping.md
+ *
+ * ---
+ *
+ * Thermochronology Data Import Script (LEGACY - NEEDS UPDATING)
  *
  * Imports FAIR-formatted CSV data into PostgreSQL/Neon database
  * Handles transactions, error recovery, and progress reporting
@@ -14,6 +27,16 @@
  *
  * @version 1.0.0
  */
+
+console.error('⚠️  WARNING: This script is DEPRECATED and uses the OLD schema.');
+console.error('');
+console.error('✅ Use this workflow instead:');
+console.error('   ./scripts/db/import-earthbank-csvs.sh');
+console.error('');
+console.error('Press Ctrl+C to cancel, or wait 5 seconds to continue anyway...');
+console.error('');
+
+await new Promise(resolve => setTimeout(resolve, 5000));
 
 // Load environment variables from .env.local
 import { config } from 'dotenv';

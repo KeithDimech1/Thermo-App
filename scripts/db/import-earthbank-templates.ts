@@ -1,6 +1,20 @@
 #!/usr/bin/env npx tsx
 /**
- * EarthBank Template Import Pipeline
+ * ⚠️ DEPRECATED - NOT UPDATED FOR EARTHBANK SCHEMA (IDEA-014)
+ *
+ * This script uses the OLD snake_case schema (samples, ft_datapoints, etc.)
+ * and has NOT been migrated to the new EarthBank camelCase schema.
+ *
+ * ✅ USE THIS INSTEAD:
+ * 1. Transform Excel → CSV with camelCase headers (use scripts/db/transform-fair-csv-headers.ts)
+ * 2. Import CSVs using: ./scripts/db/import-earthbank-csvs.sh
+ *
+ * See IDEA-014 migration log for details:
+ * build-data/ideas/debug/IDEA-014-migrate-to-earthbank-native-schema-camelcase-1-1-template-mapping.md
+ *
+ * ---
+ *
+ * EarthBank Template Import Pipeline (LEGACY - NEEDS UPDATING)
  *
  * Imports data from EarthBank Excel templates into PostgreSQL database.
  * Supports:
@@ -16,6 +30,17 @@
  * Week 2 - ERROR-005 Schema Migration
  * Created: 2025-11-17
  */
+
+console.error('⚠️  WARNING: This script is DEPRECATED and uses the OLD schema.');
+console.error('');
+console.error('✅ Use this workflow instead:');
+console.error('   1. Transform Excel → CSV: npx tsx scripts/db/transform-fair-csv-headers.ts <file>');
+console.error('   2. Import CSVs: ./scripts/db/import-earthbank-csvs.sh');
+console.error('');
+console.error('Press Ctrl+C to cancel, or wait 5 seconds to continue anyway...');
+console.error('');
+
+await new Promise(resolve => setTimeout(resolve, 5000));
 
 import * as ExcelJS from 'exceljs';
 import * as path from 'path';

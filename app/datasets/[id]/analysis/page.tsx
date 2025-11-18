@@ -12,7 +12,9 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const dataset = await getDatasetById(parseInt(params.id));
+  const { id } = await params;
+  const datasetId = parseInt(id, 10);
+  const dataset = await getDatasetById(datasetId);
 
   if (!dataset) {
     return {
@@ -27,7 +29,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function DatasetAnalysisPage({ params }: Props) {
-  const datasetId = parseInt(params.id);
+  const { id } = await params;
+  const datasetId = parseInt(id, 10);
+
+  if (isNaN(datasetId)) {
+    return notFound();
+  }
+
   const dataset = await getDatasetById(datasetId);
 
   if (!dataset) {

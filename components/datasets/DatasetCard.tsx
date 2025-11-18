@@ -46,7 +46,7 @@ export default function DatasetCard({
         {/* Laboratory */}
         {dataset.laboratory && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">🏛️ Laboratory:</span>{' '}
+            <span className="font-semibold">Laboratory:</span>{' '}
             {dataset.laboratory}
           </p>
         )}
@@ -54,7 +54,7 @@ export default function DatasetCard({
         {/* Publication info */}
         {(dataset.publication_year || dataset.publication_journal) && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">📄 Publication:</span>{' '}
+            <span className="font-semibold">Publication:</span>{' '}
             {dataset.publication_journal}
             {dataset.publication_year && ` (${dataset.publication_year})`}
             {dataset.publication_volume_pages && `, ${dataset.publication_volume_pages}`}
@@ -71,16 +71,18 @@ export default function DatasetCard({
         {/* Authors */}
         {authors.length > 0 && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">👤 Authors:</span>{' '}
-            {authors.slice(0, 3).join(', ')}
-            {authors.length > 3 && ` et al.`}
+            <span className="font-semibold">Authors:</span>{' '}
+            <span className="italic">
+              {authors.slice(0, 3).join(', ')}
+              {authors.length > 3 && ' et al.'}
+            </span>
           </p>
         )}
 
         {/* Study Location */}
         {dataset.study_location && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">📍 Location:</span>{' '}
+            <span className="font-semibold">Location:</span>{' '}
             {dataset.study_location}
           </p>
         )}
@@ -89,12 +91,7 @@ export default function DatasetCard({
         <div className="flex gap-4 text-sm text-gray-600 mb-1">
           {dataset.mineral_analyzed && (
             <span>
-              <span className="font-semibold">🔬 Mineral:</span> {dataset.mineral_analyzed}
-            </span>
-          )}
-          {dataset.sample_count && (
-            <span>
-              <span className="font-semibold">📊 Samples:</span> {dataset.sample_count}
+              <span className="font-semibold">Mineral:</span> {dataset.mineral_analyzed}
             </span>
           )}
         </div>
@@ -102,7 +99,7 @@ export default function DatasetCard({
         {/* Age Range */}
         {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
           <p className="text-sm text-gray-600 mb-1">
-            <span className="font-semibold">⏱️ Age Range:</span>{' '}
+            <span className="font-semibold">Age Range:</span>{' '}
             {dataset.age_range_min_ma !== null && dataset.age_range_min_ma.toFixed(1)}-
             {dataset.age_range_max_ma !== null && dataset.age_range_max_ma.toFixed(1)} Ma
           </p>
@@ -117,26 +114,29 @@ export default function DatasetCard({
       )}
 
       {/* Statistics */}
-      <div className="flex flex-wrap gap-3 mb-4 pb-4 border-b border-gray-200">
-        {sampleCount > 0 && (
-          <div className="text-sm">
-            <span className="font-semibold text-gray-900">{sampleCount}</span>
-            <span className="text-gray-600"> samples</span>
-          </div>
-        )}
-        {aftGrainCount > 0 && (
-          <div className="text-sm">
-            <span className="font-semibold text-green-700">{aftGrainCount}</span>
-            <span className="text-gray-600"> AFT grains</span>
-          </div>
-        )}
-        {aheGrainCount > 0 && (
-          <div className="text-sm">
-            <span className="font-semibold text-blue-700">{aheGrainCount}</span>
-            <span className="text-gray-600"> AHe grains</span>
-          </div>
-        )}
-      </div>
+      {(sampleCount > 0 || aftGrainCount > 0 || aheGrainCount > 0) && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-700">
+            {sampleCount > 0 && (
+              <span>
+                <span className="font-semibold">{sampleCount}</span> samples
+              </span>
+            )}
+            {aftGrainCount > 0 && (
+              <span>
+                {sampleCount > 0 && '    '}
+                <span className="font-semibold">{aftGrainCount}</span> AFT grains
+              </span>
+            )}
+            {aheGrainCount > 0 && (
+              <span>
+                {(sampleCount > 0 || aftGrainCount > 0) && '    '}
+                <span className="font-semibold">{aheGrainCount}</span> AHe grains
+              </span>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Analysis Methods */}
       {analysisMethods.length > 0 && (

@@ -12,7 +12,7 @@ import * as ExcelJS from 'exceljs';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const TEMPLATES_DIR = path.join(__dirname, '../../build-data/learning/thermo-papers/earthbanktemplates');
+const TEMPLATES_DIR = path.join(__dirname, '../../build-data/learning/archive/earthbanktemplates');
 
 const TEMPLATES = [
   'FTDatapoint.template.v2024-11-11.xlsx',

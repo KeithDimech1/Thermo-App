@@ -561,11 +561,23 @@ export async function searchSamplesByLocation(
 
 /**
  * Get all datasets/papers with optional filtering
+ * Includes authors from people table via dataset_people_roles junction table
  */
 export async function getAllDatasets(): Promise<Dataset[]> {
   const sql = `
-    SELECT * FROM datasets
-    ORDER BY id ASC
+    SELECT
+      d.*,
+      COALESCE(
+        (
+          SELECT array_agg(p.name ORDER BY dpr.author_order)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
+      ) as authors
+    FROM datasets d
+    ORDER BY d.id ASC
   `;
 
   return await query<Dataset>(sql);
@@ -573,11 +585,23 @@ export async function getAllDatasets(): Promise<Dataset[]> {
 
 /**
  * Get single dataset by ID
+ * Includes authors from people table via dataset_people_roles junction table
  */
 export async function getDatasetById(id: number): Promise<Dataset | null> {
   const sql = `
-    SELECT * FROM datasets
-    WHERE id = $1
+    SELECT
+      d.*,
+      COALESCE(
+        (
+          SELECT array_agg(p.name ORDER BY dpr.author_order)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
+      ) as authors
+    FROM datasets d
+    WHERE d.id = $1
   `;
 
   return await queryOne<Dataset>(sql, [id]);

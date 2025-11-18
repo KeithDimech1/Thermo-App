@@ -134,20 +134,56 @@ export async function GET(
     // Calculate offset
     const offset = (page - 1) * limit;
 
+    // Handle dataset filtering
+    const datasetId = searchParams.get('dataset_id');
+    const hasDatasetFilter = datasetId && !isNaN(parseInt(datasetId, 10));
+
+    // Build WHERE clause for dataset filtering
+    let whereClause = '';
+    let queryParams: any[] = [];
+
+    if (hasDatasetFilter) {
+      // Check if the table has a dataset_id column
+      if (config.tableName === 'samples') {
+        whereClause = 'WHERE dataset_id = $1';
+        queryParams = [parseInt(datasetId, 10)];
+      } else if (config.tableName === 'ft_datapoints' || config.tableName === 'he_datapoints') {
+        // Join with samples table to filter by dataset
+        whereClause = `WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = $1)`;
+        queryParams = [parseInt(datasetId, 10)];
+      } else if (config.tableName === 'ft_count_data' || config.tableName === 'ft_track_length_data' || config.tableName === 'ft_single_grain_ages') {
+        // Join through ft_datapoints -> samples
+        whereClause = `WHERE ft_datapoint_id IN (
+          SELECT id FROM ft_datapoints
+          WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = $1)
+        )`;
+        queryParams = [parseInt(datasetId, 10)];
+      } else if (config.tableName === 'he_whole_grain_data') {
+        // Join through he_datapoints -> samples
+        whereClause = `WHERE he_datapoint_id IN (
+          SELECT id FROM he_datapoints
+          WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = $1)
+        )`;
+        queryParams = [parseInt(datasetId, 10)];
+      }
+      // For batches and people, don't filter by dataset (they're shared across datasets)
+    }
+
     // Build query
     const columnList = config.columns.join(', ');
-    const countSql = `SELECT COUNT(*) as total FROM ${config.tableName}`;
+    const countSql = `SELECT COUNT(*) as total FROM ${config.tableName} ${whereClause}`;
     const dataSql = `
       SELECT ${columnList}
       FROM ${config.tableName}
+      ${whereClause}
       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
-      LIMIT $1 OFFSET $2
+      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
     `;
 
     // Execute queries
     const [countResult, dataResult] = await Promise.all([
-      query<{ total: string }>(countSql),
-      query(dataSql, [limit, offset])
+      query<{ total: string }>(countSql, queryParams),
+      query(dataSql, [...queryParams, limit, offset])
     ]);
 
     const total = parseInt(countResult[0]?.total || '0', 10);

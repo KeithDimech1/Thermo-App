@@ -5,6 +5,7 @@ import { getDatasetById } from '@/lib/db/queries';
 import { query } from '@/lib/db/connection';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
+import SupplementaryFilesSection from '@/components/datasets/SupplementaryFilesSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -219,6 +220,12 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      {/* Supplementary Files Section */}
+      <SupplementaryFilesSection
+        datasetId={datasetId}
+        supplementaryFilesUrl={dataset.supplementary_files_url}
+      />
 
       {/* Description */}
       {dataset.description && (

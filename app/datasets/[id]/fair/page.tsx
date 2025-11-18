@@ -159,7 +159,12 @@ export default async function DatasetFairPage({ params }: PageProps) {
                 </span>
               </div>
               {fairBreakdown.findable_reasoning && (
-                <p className="text-gray-800 text-sm leading-relaxed">{fairBreakdown.findable_reasoning}</p>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  {fairBreakdown.findable_reasoning
+                    .replace(/✅/g, '•')
+                    .replace(/❌/g, '•')
+                    .replace(/⚠️/g, '•')}
+                </p>
               )}
             </div>
           )}
@@ -176,7 +181,12 @@ export default async function DatasetFairPage({ params }: PageProps) {
                 </span>
               </div>
               {fairBreakdown.accessible_reasoning && (
-                <p className="text-gray-800 text-sm leading-relaxed">{fairBreakdown.accessible_reasoning}</p>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  {fairBreakdown.accessible_reasoning
+                    .replace(/✅/g, '•')
+                    .replace(/❌/g, '•')
+                    .replace(/⚠️/g, '•')}
+                </p>
               )}
             </div>
           )}
@@ -193,7 +203,12 @@ export default async function DatasetFairPage({ params }: PageProps) {
                 </span>
               </div>
               {fairBreakdown.interoperable_reasoning && (
-                <p className="text-gray-800 text-sm leading-relaxed">{fairBreakdown.interoperable_reasoning}</p>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  {fairBreakdown.interoperable_reasoning
+                    .replace(/✅/g, '•')
+                    .replace(/❌/g, '•')
+                    .replace(/⚠️/g, '•')}
+                </p>
               )}
             </div>
           )}
@@ -210,7 +225,12 @@ export default async function DatasetFairPage({ params }: PageProps) {
                 </span>
               </div>
               {fairBreakdown.reusable_reasoning && (
-                <p className="text-gray-800 text-sm leading-relaxed">{fairBreakdown.reusable_reasoning}</p>
+                <p className="text-gray-800 text-sm leading-relaxed">
+                  {fairBreakdown.reusable_reasoning
+                    .replace(/✅/g, '•')
+                    .replace(/❌/g, '•')
+                    .replace(/⚠️/g, '•')}
+                </p>
               )}
             </div>
           )}
@@ -250,7 +270,10 @@ export default async function DatasetFairPage({ params }: PageProps) {
                   </div>
                   {fairBreakdown.table4_reasoning && (
                     <p className="mt-4 text-xs text-gray-700 border-t border-gray-200 pt-3">
-                      {fairBreakdown.table4_reasoning}
+                      {fairBreakdown.table4_reasoning
+                        .replace(/✅/g, '•')
+                        .replace(/❌/g, '•')
+                        .replace(/⚠️/g, '•')}
                     </p>
                   )}
                 </div>
@@ -284,7 +307,10 @@ export default async function DatasetFairPage({ params }: PageProps) {
                   </div>
                   {fairBreakdown.table5_reasoning && (
                     <p className="mt-4 text-xs text-gray-700 border-t border-gray-200 pt-3">
-                      {fairBreakdown.table5_reasoning}
+                      {fairBreakdown.table5_reasoning
+                        .replace(/✅/g, '•')
+                        .replace(/❌/g, '•')
+                        .replace(/⚠️/g, '•')}
                     </p>
                   )}
                 </div>
@@ -318,7 +344,10 @@ export default async function DatasetFairPage({ params }: PageProps) {
                   </div>
                   {fairBreakdown.table6_reasoning && (
                     <p className="mt-4 text-xs text-gray-700 border-t border-gray-200 pt-3">
-                      {fairBreakdown.table6_reasoning}
+                      {fairBreakdown.table6_reasoning
+                        .replace(/✅/g, '•')
+                        .replace(/❌/g, '•')
+                        .replace(/⚠️/g, '•')}
                     </p>
                   )}
                 </div>
@@ -352,7 +381,10 @@ export default async function DatasetFairPage({ params }: PageProps) {
                   </div>
                   {fairBreakdown.table10_reasoning && (
                     <p className="mt-4 text-xs text-gray-700 border-t border-gray-200 pt-3">
-                      {fairBreakdown.table10_reasoning}
+                      {fairBreakdown.table10_reasoning
+                        .replace(/✅/g, '•')
+                        .replace(/❌/g, '•')
+                        .replace(/⚠️/g, '•')}
                     </p>
                   )}
                 </div>

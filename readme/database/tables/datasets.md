@@ -19,18 +19,44 @@ The `datasets` table manages data packages for FAIR data principles. Each datase
 
 ---
 
-## Schema (Key Fields)
+## Schema (Complete Fields)
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | integer | PRIMARY KEY |
-| `name` | varchar(200) | Dataset name |
+| `dataset_name` | varchar(200) | Dataset name |
 | `description` | text | Description of dataset |
-| `privacy_status` | varchar(50) | 'public', 'embargo', or 'private' |
-| `embargo_date` | date | When data becomes public |
-| `doi` | varchar(100) | Digital Object Identifier |
+| **Publication Information** |
+| `doi` | varchar(100) | Publication DOI (Digital Object Identifier) |
+| `publication_reference` | text | Full publication reference text |
+| `full_citation` | text | Complete citation (formatted) |
+| `publication_year` | integer | Year of publication (e.g., 2021) |
+| `publication_journal` | varchar(200) | Journal name |
+| `publication_volume_pages` | varchar(100) | Volume and page numbers |
+| **File Links** |
+| `pdf_filename` | varchar(500) | PDF filename (local storage) |
+| `pdf_url` | text | URL to PDF file (external link) |
+| `supplementary_files_url` | text | URL to supplementary data repository (OSF, Zenodo, Figshare, etc.) |
+| **Study Metadata** |
+| `study_area` | varchar(200) | Geographic study area |
+| `study_location` | text | Detailed location description |
+| `laboratory` | varchar(200) | Laboratory where analysis was conducted |
+| `mineral_analyzed` | varchar(100) | Primary mineral analyzed (apatite, zircon, etc.) |
+| `sample_count` | integer | Number of samples in dataset |
+| `age_range_min_ma` | numeric(10,2) | Minimum age (Ma) |
+| `age_range_max_ma` | numeric(10,2) | Maximum age (Ma) |
+| **Analysis Metadata** |
+| `authors` | text[] | Array of author names |
+| `collection_date` | date | Sample collection date |
+| `analysis_methods` | text[] | Array of analysis methods used |
+| `paper_summary` | text | Summary of paper findings |
+| `key_findings` | text[] | Array of key findings |
+| **FAIR Scoring** |
+| `fair_score` | integer | Overall FAIR score (0-100) |
+| `fair_reasoning` | text | Explanation of FAIR score |
+| `extraction_report_url` | text | URL to extraction report |
+| **Audit** |
 | `created_at` | timestamp | When dataset created |
-| `created_by` | varchar(100) | Creator/owner |
 
 ---
 

@@ -13,85 +13,87 @@ interface TableAvailability {
   [key: string]: boolean;
 }
 
-// Column definitions for each table type
+// Column definitions for each table type (EarthBank camelCase schema)
 const SAMPLES_COLUMNS: ColumnDef<TableData>[] = [
-  { accessorKey: 'sample_id', header: 'Sample ID' },
-  { accessorKey: 'igsn', header: 'IGSN' },
+  { accessorKey: 'sampleID', header: 'Sample ID' },
+  { accessorKey: 'IGSN', header: 'IGSN' },
   { accessorKey: 'latitude', header: 'Latitude' },
   { accessorKey: 'longitude', header: 'Longitude' },
-  { accessorKey: 'elevation_m', header: 'Elevation (m)' },
+  { accessorKey: 'elevationM', header: 'Elevation (m)' },
   { accessorKey: 'lithology', header: 'Lithology' },
-  { accessorKey: 'mineral_type', header: 'Mineral Type' },
+  { accessorKey: 'mineralType', header: 'Mineral Type' },
 ];
 
 const FT_DATAPOINTS_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'sample_id', header: 'Sample ID' },
-  { accessorKey: 'datapoint_key', header: 'Datapoint Key' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'sampleID', header: 'Sample ID' },
   { accessorKey: 'laboratory', header: 'Laboratory' },
-  { accessorKey: 'pooled_age_ma', header: 'Pooled Age (Ma)' },
-  { accessorKey: 'pooled_age_error_ma', header: '± Error' },
-  { accessorKey: 'central_age_ma', header: 'Central Age (Ma)' },
-  { accessorKey: 'central_age_error_ma', header: '± Error' },
-  { accessorKey: 'n_grains', header: 'N Grains' },
-  { accessorKey: 'p_chi2_pct', header: 'P(χ²) %' },
-  { accessorKey: 'dispersion_pct', header: 'Dispersion (%)' },
+  { accessorKey: 'pooledAgeMa', header: 'Pooled Age (Ma)' },
+  { accessorKey: 'pooledAgeUncertaintyMa', header: '± Error' },
+  { accessorKey: 'centralAgeMa', header: 'Central Age (Ma)' },
+  { accessorKey: 'centralAgeUncertaintyMa', header: '± Error' },
+  { accessorKey: 'nGrains', header: 'N Grains' },
+  { accessorKey: 'pChi2', header: 'P(χ²) %' },
+  { accessorKey: 'dispersion', header: 'Dispersion (%)' },
+  { accessorKey: 'mtl', header: 'MTL (μm)' },
 ];
 
 const FT_COUNT_DATA_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
-  { accessorKey: 'grain_id', header: 'Grain ID' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'grainName', header: 'Grain Name' },
   { accessorKey: 'ns', header: 'Ns' },
   { accessorKey: 'ni', header: 'Ni' },
   { accessorKey: 'nd', header: 'Nd' },
-  { accessorKey: 'rho_s_cm2', header: 'ρs (cm⁻²)' },
-  { accessorKey: 'rho_i_cm2', header: 'ρi (cm⁻²)' },
-  { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
+  { accessorKey: 'rhoS', header: 'ρs (cm⁻²)' },
+  { accessorKey: 'rhoI', header: 'ρi (cm⁻²)' },
+  { accessorKey: 'rhoD', header: 'ρd (cm⁻²)' },
+  { accessorKey: 'dPar', header: 'Dpar (μm)' },
 ];
 
 const FT_TRACK_LENGTHS_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
-  { accessorKey: 'grain_id', header: 'Grain ID' },
-  { accessorKey: 'track_id', header: 'Track ID' },
-  { accessorKey: 'track_type', header: 'Type' },
-  { accessorKey: 'apparent_length_um', header: 'Length (μm)' },
-  { accessorKey: 'angle_to_c_axis_deg', header: 'Angle (°)' },
-  { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'grainName', header: 'Grain Name' },
+  { accessorKey: 'trackID', header: 'Track ID' },
+  { accessorKey: 'trackType', header: 'Type' },
+  { accessorKey: 'lengthUm', header: 'Length (μm)' },
+  { accessorKey: 'cAxisAngleDeg', header: 'Angle (°)' },
+  { accessorKey: 'dPar', header: 'Dpar (μm)' },
 ];
 
 const HE_DATAPOINTS_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'sample_id', header: 'Sample ID' },
-  { accessorKey: 'datapoint_key', header: 'Datapoint Key' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'sampleID', header: 'Sample ID' },
   { accessorKey: 'laboratory', header: 'Laboratory' },
-  { accessorKey: 'n_aliquots', header: 'N Aliquots' },
-  { accessorKey: 'mean_he4_corr_age_ma', header: 'Mean Age (Ma)' },
-  { accessorKey: 'se_mean_he4_corr_age_ma', header: 'SE (Ma)' },
-  { accessorKey: 'chi_square', header: 'χ²' },
-  { accessorKey: 'mswd', header: 'MSWD' },
+  { accessorKey: 'nGrains', header: 'N Grains' },
+  { accessorKey: 'meanCorrectedAgeMa', header: 'Mean Age (Ma)' },
+  { accessorKey: 'meanCorrectedAgeUncertaintyMa', header: 'SE (Ma)' },
+  { accessorKey: 'chi2pct', header: 'χ²' },
+  { accessorKey: 'MSWD', header: 'MSWD' },
 ];
 
 const HE_GRAINS_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'he_datapoint_id', header: 'Datapoint ID' },
-  { accessorKey: 'grain_id', header: 'Grain ID' },
-  { accessorKey: 'he4_uncorr_age_ma', header: 'Uncorr Age (Ma)' },
-  { accessorKey: 'he4_corr_age_ma', header: 'Corr Age (Ma)' },
-  { accessorKey: 'he4_corr_age_error_ma', header: '± Error' },
-  { accessorKey: 'ft_value', header: 'Ft' },
-  { accessorKey: 'u_ppm', header: 'U (ppm)' },
-  { accessorKey: 'th_ppm', header: 'Th (ppm)' },
-  { accessorKey: 'eu_ppm', header: 'eU (ppm)' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'grainName', header: 'Grain Name' },
+  { accessorKey: 'uncorrectedHeAge', header: 'Uncorr Age (Ma)' },
+  { accessorKey: 'correctedHeAge', header: 'Corr Age (Ma)' },
+  { accessorKey: 'correctedHeAgeUncertainty', header: '± Error' },
+  { accessorKey: 'ft', header: 'Ft' },
+  { accessorKey: 'uConcentration', header: 'U (ppm)' },
+  { accessorKey: 'thConcentration', header: 'Th (ppm)' },
+  { accessorKey: 'eU', header: 'eU (ppm)' },
 ];
 
 const BATCHES_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'batch_name', header: 'Batch Name' },
-  { accessorKey: 'analysis_date', header: 'Analysis Date' },
+  { accessorKey: 'batchName', header: 'Batch Name' },
+  { accessorKey: 'analysisDate', header: 'Analysis Date' },
   { accessorKey: 'laboratory', header: 'Laboratory' },
-  { accessorKey: 'analytical_session', header: 'Session' },
+  { accessorKey: 'analyticalSession', header: 'Session' },
 ];
 
 const PEOPLE_COLUMNS: ColumnDef<TableData>[] = [
@@ -104,27 +106,27 @@ const PEOPLE_COLUMNS: ColumnDef<TableData>[] = [
 
 const FT_SINGLE_GRAIN_AGES_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
-  { accessorKey: 'grain_id', header: 'Grain ID' },
-  { accessorKey: 'grain_age_ma', header: 'Grain Age (Ma)' },
-  { accessorKey: 'grain_age_error_ma', header: '± Error' },
-  { accessorKey: 'u_ppm', header: 'U (ppm)' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'grainName', header: 'Grain Name' },
+  { accessorKey: 'ageMa', header: 'Grain Age (Ma)' },
+  { accessorKey: 'ageUncertaintyMa', header: '± Error' },
+  { accessorKey: 'uPpm', header: 'U (ppm)' },
   { accessorKey: 'rmr0', header: 'rmr₀' },
   { accessorKey: 'kappa', header: 'κ' },
 ];
 
 const FT_BINNED_LENGTH_DATA_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'ft_datapoint_id', header: 'Datapoint ID' },
-  { accessorKey: 'bin_0_1_um', header: '0-1 μm' },
-  { accessorKey: 'bin_1_2_um', header: '1-2 μm' },
-  { accessorKey: 'bin_2_3_um', header: '2-3 μm' },
-  { accessorKey: 'bin_10_11_um', header: '10-11 μm' },
-  { accessorKey: 'bin_11_12_um', header: '11-12 μm' },
-  { accessorKey: 'bin_12_13_um', header: '12-13 μm' },
-  { accessorKey: 'bin_13_14_um', header: '13-14 μm' },
-  { accessorKey: 'bin_14_15_um', header: '14-15 μm' },
-  { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
+  { accessorKey: 'datapointName', header: 'Datapoint Name' },
+  { accessorKey: 'i0x1', header: '0-1 μm' },
+  { accessorKey: 'i1x2', header: '1-2 μm' },
+  { accessorKey: 'i2x3', header: '2-3 μm' },
+  { accessorKey: 'i10x11', header: '10-11 μm' },
+  { accessorKey: 'i11x12', header: '11-12 μm' },
+  { accessorKey: 'i12x13', header: '12-13 μm' },
+  { accessorKey: 'i13x14', header: '13-14 μm' },
+  { accessorKey: 'i14x15', header: '14-15 μm' },
+  { accessorKey: 'dPar', header: 'Dpar (μm)' },
 ];
 
 const TABLE_COLUMNS: Record<string, ColumnDef<TableData>[]> = {
@@ -158,16 +160,16 @@ export default function TablesView({ datasetId }: TablesViewProps) {
         const response = await fetch(`/api/datasets/${datasetId}/table-counts`);
         if (response.ok) {
           const counts = await response.json();
-          // Convert counts to boolean availability
+          // Convert counts to boolean availability (EarthBank camelCase response)
           const availability: TableAvailability = {
             'samples': counts.samples > 0,
-            'ft-datapoints': counts.ft_datapoints > 0,
-            'ft-count-data': counts.ft_count_data > 0,
-            'ft-track-lengths': counts.ft_track_lengths > 0,
-            'ft-single-grain-ages': counts.ft_single_grain_ages > 0,
-            'ft-binned-length-data': counts.ft_binned_length_data > 0,
-            'he-datapoints': counts.he_datapoints > 0,
-            'he-grains': counts.he_grains > 0,
+            'ft-datapoints': counts.ftDatapoints > 0,
+            'ft-count-data': counts.ftCountData > 0,
+            'ft-track-lengths': counts.ftTrackLengthData > 0,
+            'ft-single-grain-ages': counts.ftSingleGrainAges > 0,
+            'ft-binned-length-data': counts.ftBinnedLengthData > 0,
+            'he-datapoints': counts.heDatapoints > 0,
+            'he-grains': counts.heWholeGrainData > 0,
           };
           setTableAvailability(availability);
         }

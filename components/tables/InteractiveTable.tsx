@@ -47,7 +47,7 @@ export default function InteractiveTable({ tableName, columns, datasetFilter = '
           page: page.toString(),
           limit: limit.toString(),
           ...(sortBy && { sortBy, sortOrder }),
-          ...(datasetFilter && datasetFilter !== 'all' && { dataset_id: datasetFilter }),
+          ...(datasetFilter && datasetFilter !== 'all' && { datasetID: datasetFilter }),
         });
 
         const response = await fetch(`/api/tables/${tableName}?${params}`);

@@ -115,16 +115,16 @@ def load_sample_ages(
             s.elevation_m,
             s.lithology,
             s.mineral_type,
-            fa.pooled_age_ma as age,
-            fa.pooled_age_error_ma as age_error,
-            fa.central_age_ma,
-            fa.dispersion_pct as dispersion,
-            fa.p_chi2 as p_chi_squared,
-            fa.n_grains,
+            fd.pooled_age_ma as age,
+            fd.pooled_age_error_ma as age_error,
+            fd.central_age_ma,
+            fd.dispersion_pct as dispersion,
+            fd.p_chi2_pct / 100.0 as p_chi_squared,
+            fd.n_grains,
             d.dataset_name,
             d.id as dataset_id
         FROM samples s
-        JOIN ft_ages fa ON s.sample_id = fa.sample_id
+        JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
         JOIN datasets d ON s.dataset_id = d.id
         WHERE s.mineral_type = %s
     """
@@ -205,17 +205,18 @@ def load_ft_grain_ages(sample_id: str) -> pd.DataFrame:
             fc.ns,
             fc.ni,
             fc.rho_i_cm2,
-            fc.u_ppm,
+            NULL as u_ppm,  -- Not available in ft_count_data (v2)
             -- Calculate single-grain age from count data
             -- Age = (1 / lambda_f) * ln(1 + (lambda_f / lambda_d) * (rho_s / rho_i) * (rho_d / rho_std))
             -- Simplified: Use ratio method for now (rho_s / rho_i) * pooled_age
-            (fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s) as grain_age_ma,
+            (fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_datapoints WHERE sample_id = %s) as grain_age_ma,
             -- Approximate error (Poisson statistics)
-            ((fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_ages WHERE sample_id = %s)) *
+            ((fc.rho_s_cm2 / NULLIF(fc.rho_i_cm2, 0)) * (SELECT pooled_age_ma FROM ft_datapoints WHERE sample_id = %s)) *
                 SQRT(1.0 / NULLIF(fc.ns, 0) + 1.0 / NULLIF(fc.ni, 0)) as grain_age_error_ma
-        FROM ft_counts fc
-        WHERE fc.sample_id = %s
-        AND fc.ns > 0 AND fc.ni > 0  -- Exclude grains with zero counts
+        FROM ft_datapoints fd
+        JOIN ft_count_data fc ON fd.id = fc.ft_datapoint_id
+        WHERE fd.sample_id = %s
+        AND fc.ns > 0  -- Exclude grains with zero counts
         ORDER BY fc.grain_id
     """
 
@@ -266,16 +267,17 @@ def load_track_lengths(sample_id: str) -> pd.DataFrame:
     """
     query = """
         SELECT
-            id,
-            track_number,
-            track_length_um,
-            angle_to_c_axis_deg,
-            dpar_um,
-            etch_time_sec
-        FROM ft_track_lengths
-        WHERE sample_id = %s
-        AND track_length_um IS NOT NULL
-        ORDER BY track_number
+            tl.id,
+            tl.track_id as track_number,
+            tl.true_length_um as track_length_um,
+            tl.angle_to_c_axis_deg,
+            tl.dpar_um,
+            tl.etch_duration_seconds as etch_time_sec
+        FROM ft_datapoints fd
+        JOIN ft_track_length_data tl ON fd.id = tl.ft_datapoint_id
+        WHERE fd.sample_id = %s
+        AND tl.true_length_um IS NOT NULL
+        ORDER BY tl.track_id
     """
 
     return query_to_dataframe(query, (sample_id,))
@@ -314,14 +316,14 @@ def load_spatial_transect(
                 s.latitude,
                 s.elevation_m,
                 s.sample_id as sample_name,
-                fa.central_age_ma as age,
-                fa.central_age_error_ma as age_error,
-                fa.dispersion_pct as dispersion,
-                fa.p_chi2 as p_chi_squared,
+                fd.central_age_ma as age,
+                fd.central_age_error_ma as age_error,
+                fd.dispersion_pct as dispersion,
+                fd.p_chi2_pct / 100.0 as p_chi_squared,
                 NULL as mtl,
                 'AFT' as method
             FROM samples s
-            JOIN ft_ages fa ON s.sample_id = fa.sample_id
+            JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
             WHERE s.dataset_id = %s
             ORDER BY s.{axis}
         """
@@ -381,11 +383,11 @@ def load_age_elevation(
                 s.elevation_m,
                 s.latitude,
                 s.longitude,
-                fa.central_age_ma as age,
-                fa.central_age_error_ma as age_error,
-                fa.n_grains
+                fd.central_age_ma as age,
+                fd.central_age_error_ma as age_error,
+                fd.n_grains
             FROM samples s
-            JOIN ft_ages fa ON s.sample_id = fa.sample_id
+            JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
             WHERE s.dataset_id = %s
         """
     else:  # AHe
@@ -436,18 +438,18 @@ def load_qa_statistics(dataset_id: Optional[int] = None) -> pd.DataFrame:
         SELECT
             s.sample_id,
             s.igsn,
-            fa.central_age_ma,
-            fa.dispersion_pct as dispersion,
-            fa.p_chi2 as p_chi_squared,
-            fa.n_grains,
+            fd.central_age_ma,
+            fd.dispersion_pct as dispersion,
+            fd.p_chi2_pct / 100.0 as p_chi_squared,
+            fd.n_grains,
             d.dataset_name,
             CASE
-                WHEN fa.p_chi2 >= 0.05 THEN 'good'
-                WHEN fa.p_chi2 >= 0.01 THEN 'marginal'
+                WHEN (fd.p_chi2_pct / 100.0) >= 0.05 THEN 'good'
+                WHEN (fd.p_chi2_pct / 100.0) >= 0.01 THEN 'marginal'
                 ELSE 'poor'
             END as quality
         FROM samples s
-        JOIN ft_ages fa ON s.sample_id = fa.sample_id
+        JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
         JOIN datasets d ON s.dataset_id = d.id
     """
 
@@ -457,7 +459,7 @@ def load_qa_statistics(dataset_id: Optional[int] = None) -> pd.DataFrame:
         query += " WHERE d.id = %s"
         params.append(dataset_id)
 
-    query += " ORDER BY fa.dispersion DESC"
+    query += " ORDER BY fd.dispersion_pct DESC"
 
     return query_to_dataframe(query, tuple(params) if params else None)
 
@@ -506,13 +508,13 @@ def get_sample_info(sample_id: str) -> Dict[str, Any]:
         SELECT
             s.*,
             d.dataset_name,
-            fa.central_age_ma,
-            fa.central_age_error_ma,
-            fa.dispersion_pct as dispersion,
-            fa.p_chi2 as p_chi_squared
+            fd.central_age_ma,
+            fd.central_age_error_ma,
+            fd.dispersion_pct as dispersion,
+            fd.p_chi2_pct / 100.0 as p_chi_squared
         FROM samples s
         LEFT JOIN datasets d ON s.dataset_id = d.id
-        LEFT JOIN ft_ages fa ON s.sample_id = fa.sample_id
+        LEFT JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
         WHERE s.sample_id = %s
     """
 

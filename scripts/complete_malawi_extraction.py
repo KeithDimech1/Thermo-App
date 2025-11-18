@@ -150,59 +150,44 @@ samples_df = pd.DataFrame({
     'n_aft_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
 })
 
-# 2. FT Ages table (using cleaned data)
+# 2. FT Datapoints table (Schema v2 - using cleaned data)
 pooled_ages_clean = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[0])
 pooled_errors_clean = table1_clean['pooled_age_ma'].apply(lambda x: parse_age_error(x)[1])
 central_ages_clean = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[0])
 central_errors_clean = table1_clean['central_age_ma'].apply(lambda x: parse_age_error(x)[1])
 
-ft_ages_df = pd.DataFrame({
+ft_datapoints_df = pd.DataFrame({
     'sample_id': table1_clean['sample_id'],
+    'datapoint_key': table1_clean['sample_id'] + '_FT_001',  # Generate unique keys
     'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce'),
     'pooled_age_ma': pooled_ages_clean,
     'pooled_age_error_ma': pooled_errors_clean,
     'central_age_ma': central_ages_clean,
     'central_age_error_ma': central_errors_clean,
     'dispersion_pct': pd.to_numeric(table1_clean['dispersion_pct'], errors='coerce'),
-    'p_chi2': pd.to_numeric(table1_clean['p_chi2_pct'], errors='coerce') / 100,  # Convert % to fraction
-    'ft_age_type': 'central'
+    'p_chi2_pct': pd.to_numeric(table1_clean['p_chi2_pct'], errors='coerce'),  # Keep as percent
+    'ft_method': 'LA-ICP-MS',
+    'mineral_type': 'apatite'
 })
 
-# 3. FT Counts table (pooled data - using cleaned data)
-u_ppm_values_clean = table1_clean['u_ppm'].apply(lambda x: parse_age_error(x)[0])
-u_ppm_errors_clean = table1_clean['u_ppm'].apply(lambda x: parse_age_error(x)[1])
-th_ppm_values_clean = table1_clean['th_ppm'].apply(lambda x: parse_age_error(x)[0])
-th_ppm_errors_clean = table1_clean['th_ppm'].apply(lambda x: parse_age_error(x)[1])
-eu_ppm_values_clean = table1_clean['eu_ppm'].apply(lambda x: parse_age_error(x)[0])
-eu_ppm_errors_clean = table1_clean['eu_ppm'].apply(lambda x: parse_age_error(x)[1])
+# 3. FT Count Data table (Schema v2 - pooled data using cleaned data)
 dpar_values_clean = table1_clean['dpar_um'].apply(lambda x: parse_age_error(x)[0])
 dpar_errors_clean = table1_clean['dpar_um'].apply(lambda x: parse_age_error(x)[1])
 
-ft_counts_df = pd.DataFrame({
+ft_count_data_df = pd.DataFrame({
     'sample_id': table1_clean['sample_id'],
     'grain_id': table1_clean['sample_id'] + '_pooled',
     'ns': pd.to_numeric(table1_clean['ns'], errors='coerce').astype('Int64'),
     'rho_s_cm2': pd.to_numeric(table1_clean['ps_cm2'], errors='coerce'),
-    'u_ppm': u_ppm_values_clean,
-    'u_1sigma': u_ppm_errors_clean,
-    'th_ppm': th_ppm_values_clean,
-    'th_1sigma': th_ppm_errors_clean,
-    'eu_ppm': eu_ppm_values_clean,
-    'eu_1sigma': eu_ppm_errors_clean,
     'dpar_um': dpar_values_clean,
-    'dpar_sd_um': dpar_errors_clean,
-    'rmr0': pd.to_numeric(table1_clean['rmr0'], errors='coerce'),
-    'rmr0d': pd.to_numeric(table1_clean['rmr0d'], errors='coerce'),
-    'cl_wt_pct': pd.to_numeric(table1_clean['cl_wt_pct'], errors='coerce'),
-    'ecl_apfu': pd.to_numeric(table1_clean['ecl_apfu'], errors='coerce'),
-    'n_grains': pd.to_numeric(table1_clean['n_grains'], errors='coerce')
+    'dpar_sd_um': dpar_errors_clean
 })
 
-# 4. FT Track Lengths table (using cleaned data)
+# 4. FT Track Length Data table (Schema v2 - using cleaned data)
 mtl_values_clean = table1_clean['mtl_um'].apply(lambda x: parse_age_error(x)[0])
 mtl_errors_clean = table1_clean['mtl_um'].apply(lambda x: parse_age_error(x)[1])
 
-ft_lengths_df = pd.DataFrame({
+ft_track_length_data_df = pd.DataFrame({
     'sample_id': table1_clean['sample_id'],
     'grain_id': table1_clean['sample_id'] + '_pooled',
     'n_confined_tracks': pd.to_numeric(table1_clean['n_tracks'], errors='coerce').astype('Int64'),
@@ -212,11 +197,11 @@ ft_lengths_df = pd.DataFrame({
     'dpar_um': dpar_values_clean
 })
 
-print(f'✅ Transformed to FAIR schema')
+print(f'✅ Transformed to FAIR schema v2')
 print(f'   - samples: {len(samples_df)} rows')
-print(f'   - ft_ages: {len(ft_ages_df)} rows')
-print(f'   - ft_counts: {len(ft_counts_df)} rows')
-print(f'   - ft_track_lengths: {len(ft_lengths_df)} rows')
+print(f'   - ft_datapoints: {len(ft_datapoints_df)} rows')
+print(f'   - ft_count_data: {len(ft_count_data_df)} rows')
+print(f'   - ft_track_length_data: {len(ft_track_length_data_df)} rows')
 print()
 
 # ============================================================
@@ -227,21 +212,21 @@ print('STEP 6: Generating CSV files...')
 output_dir = Path('/Users/keithdimech/Pathway/Dev/Clair/Thermo-App/build-data/learning/thermo-papers/data')
 output_dir.mkdir(exist_ok=True, parents=True)
 
-# Save CSVs
+# Save CSVs (Schema v2)
 samples_df.to_csv(output_dir / 'Malawi-2024-samples.csv', index=False)
-ft_ages_df.to_csv(output_dir / 'Malawi-2024-ft_ages.csv', index=False)
-ft_counts_df.to_csv(output_dir / 'Malawi-2024-ft_counts.csv', index=False)
-ft_lengths_df.to_csv(output_dir / 'Malawi-2024-ft_track_lengths.csv', index=False)
+ft_datapoints_df.to_csv(output_dir / 'Malawi-2024-ft_datapoints.csv', index=False)
+ft_count_data_df.to_csv(output_dir / 'Malawi-2024-ft_count_data.csv', index=False)
+ft_track_length_data_df.to_csv(output_dir / 'Malawi-2024-ft_track_length_data.csv', index=False)
 
 # Also save Table A3 (U-Th/He data)
 table_a3 = results['Table A3'].copy()
 table_a3.to_csv(output_dir / 'Malawi-2024-ahe_raw.csv', index=False)
 
-print(f'✅ Generated CSV files:')
+print(f'✅ Generated CSV files (Schema v2):')
 print(f'   - Malawi-2024-samples.csv ({len(samples_df)} rows)')
-print(f'   - Malawi-2024-ft_ages.csv ({len(ft_ages_df)} rows)')
-print(f'   - Malawi-2024-ft_counts.csv ({len(ft_counts_df)} rows)')
-print(f'   - Malawi-2024-ft_track_lengths.csv ({len(ft_lengths_df)} rows)')
+print(f'   - Malawi-2024-ft_datapoints.csv ({len(ft_datapoints_df)} rows)')
+print(f'   - Malawi-2024-ft_count_data.csv ({len(ft_count_data_df)} rows)')
+print(f'   - Malawi-2024-ft_track_length_data.csv ({len(ft_track_length_data_df)} rows)')
 print(f'   - Malawi-2024-ahe_raw.csv ({len(table_a3)} rows)')
 print()
 

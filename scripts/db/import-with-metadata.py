@@ -101,97 +101,116 @@ try:
     print(f'✅ Imported {len(samples_df)} samples')
     print()
 
-    # STEP 3: Import FT ages
-    print('→ Step 3: Importing FT ages...')
+    # STEP 3: Import FT datapoints (Schema v2)
+    print('→ Step 3: Importing FT datapoints (Schema v2)...')
     ft_ages_df = pd.read_csv(DATA_DIR / 'Malawi-2024-ft_ages.csv')
 
+    # Map sample_id to ft_datapoint_id for later use
+    sample_to_datapoint = {}
+
     for _, row in ft_ages_df.iterrows():
+        # Generate unique datapoint key
+        datapoint_key = f"{row['sample_id']}_FT_001"
+
         cur.execute("""
-            INSERT INTO ft_ages (
-                sample_id, n_grains, pooled_age_ma, pooled_age_error_ma,
-                central_age_ma, central_age_error_ma, dispersion_pct, p_chi2, ft_age_type
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO ft_datapoints (
+                sample_id, datapoint_key, n_grains,
+                pooled_age_ma, pooled_age_error_ma,
+                central_age_ma, central_age_error_ma,
+                dispersion_pct, p_chi2_pct,
+                ft_method, mineral_type
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
-            row['sample_id'],
+            row['sample_id'], datapoint_key,
             int(row['n_grains']) if pd.notna(row['n_grains']) else None,
             float(row['pooled_age_ma']) if pd.notna(row['pooled_age_ma']) else None,
             float(row['pooled_age_error_ma']) if pd.notna(row['pooled_age_error_ma']) else None,
             float(row['central_age_ma']) if pd.notna(row['central_age_ma']) else None,
             float(row['central_age_error_ma']) if pd.notna(row['central_age_error_ma']) else None,
             float(row['dispersion_pct']) if pd.notna(row['dispersion_pct']) else None,
-            float(row['p_chi2']) if pd.notna(row['p_chi2']) else None,
-            row['ft_age_type']
+            float(row['p_chi2']) * 100 if pd.notna(row['p_chi2']) else None,  # Convert to percent
+            'LA-ICP-MS',  # Default method for Malawi dataset
+            'apatite'  # Default mineral for Malawi dataset
         ))
 
+        ft_datapoint_id = cur.fetchone()[0]
+        sample_to_datapoint[row['sample_id']] = ft_datapoint_id
+
     conn.commit()
-    print(f'✅ Imported {len(ft_ages_df)} FT ages')
+    print(f'✅ Imported {len(ft_ages_df)} FT datapoints')
     print()
 
-    # STEP 4: Import FT counts
-    print('→ Step 4: Importing FT counts...')
+    # STEP 4: Import FT count data (Schema v2)
+    print('→ Step 4: Importing FT count data (Schema v2)...')
     ft_counts_df = pd.read_csv(DATA_DIR / 'Malawi-2024-ft_counts.csv')
 
     for _, row in ft_counts_df.iterrows():
+        # Get ft_datapoint_id from mapping
+        sample_id = row['sample_id']
+        if sample_id not in sample_to_datapoint:
+            print(f"⚠️  Warning: No datapoint for sample {sample_id}, skipping count data")
+            continue
+
+        ft_datapoint_id = sample_to_datapoint[sample_id]
+
         cur.execute("""
-            INSERT INTO ft_counts (
-                sample_id, grain_id, ns, rho_s_cm2, u_ppm, u_1sigma,
-                th_ppm, th_1sigma, eu_ppm, eu_1sigma, dpar_um, dpar_sd_um,
-                rmr0, rmr0d, cl_wt_pct, ecl_apfu, n_grains
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO ft_count_data (
+                ft_datapoint_id, grain_id, ns, rho_s_cm2,
+                dpar_um, dpar_error_um
+            ) VALUES (%s, %s, %s, %s, %s, %s)
         """, (
-            row['sample_id'], row['grain_id'],
+            ft_datapoint_id, row['grain_id'],
             int(row['ns']) if pd.notna(row['ns']) else None,
             float(row['rho_s_cm2']) if pd.notna(row['rho_s_cm2']) else None,
-            float(row['u_ppm']) if pd.notna(row['u_ppm']) else None,
-            float(row['u_1sigma']) if pd.notna(row['u_1sigma']) else None,
-            float(row['th_ppm']) if pd.notna(row['th_ppm']) else None,
-            float(row['th_1sigma']) if pd.notna(row['th_1sigma']) else None,
-            float(row['eu_ppm']) if pd.notna(row['eu_ppm']) else None,
-            float(row['eu_1sigma']) if pd.notna(row['eu_1sigma']) else None,
             float(row['dpar_um']) if pd.notna(row['dpar_um']) else None,
-            float(row['dpar_sd_um']) if pd.notna(row['dpar_sd_um']) else None,
-            float(row['rmr0']) if pd.notna(row['rmr0']) else None,
-            float(row['rmr0d']) if pd.notna(row['rmr0d']) else None,
-            float(row['cl_wt_pct']) if pd.notna(row['cl_wt_pct']) else None,
-            float(row['ecl_apfu']) if pd.notna(row['ecl_apfu']) else None,
-            int(row['n_grains']) if pd.notna(row['n_grains']) else None
+            float(row['dpar_sd_um']) if pd.notna(row['dpar_sd_um']) else None
         ))
 
     conn.commit()
     print(f'✅ Imported {len(ft_counts_df)} FT count records')
     print()
 
-    # STEP 5: Import FT track lengths
-    print('→ Step 5: Importing FT track lengths...')
+    # STEP 5: Import FT track length data (Schema v2)
+    print('→ Step 5: Importing FT track length data (Schema v2)...')
     ft_lengths_df = pd.read_csv(DATA_DIR / 'Malawi-2024-ft_track_lengths.csv')
 
     for _, row in ft_lengths_df.iterrows():
+        # Get ft_datapoint_id from mapping
+        sample_id = row['sample_id']
+        if sample_id not in sample_to_datapoint:
+            print(f"⚠️  Warning: No datapoint for sample {sample_id}, skipping track length data")
+            continue
+
+        ft_datapoint_id = sample_to_datapoint[sample_id]
+
+        # Generate unique track_id (since we have summary stats, not individual tracks)
+        track_id = f"{row['grain_id']}_summary"
+
         cur.execute("""
-            INSERT INTO ft_track_lengths (
-                sample_id, grain_id, n_confined_tracks, mean_track_length_um,
-                mean_track_length_se_um, mean_track_length_sd_um, dpar_um
+            INSERT INTO ft_track_length_data (
+                ft_datapoint_id, grain_id, track_id, track_type,
+                true_length_um, dpar_um, dpar_error_um
             ) VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (
-            row['sample_id'], row['grain_id'],
-            int(row['n_confined_tracks']) if pd.notna(row['n_confined_tracks']) else None,
+            ft_datapoint_id, row['grain_id'], track_id, 'TINT',
             float(row['mean_track_length_um']) if pd.notna(row['mean_track_length_um']) else None,
-            float(row['mean_track_length_se_um']) if pd.notna(row['mean_track_length_se_um']) else None,
-            float(row['mean_track_length_sd_um']) if pd.notna(row['mean_track_length_sd_um']) else None,
-            float(row['dpar_um']) if pd.notna(row['dpar_um']) else None
+            float(row['dpar_um']) if pd.notna(row['dpar_um']) else None,
+            float(row['mean_track_length_se_um']) if pd.notna(row['mean_track_length_se_um']) else None
         ))
 
     conn.commit()
     print(f'✅ Imported {len(ft_lengths_df)} FT track length records')
     print()
 
-    # STEP 6: Register data files
-    print('→ Step 6: Registering data files...')
+    # STEP 6: Register data files (Schema v2)
+    print('→ Step 6: Registering data files (Schema v2)...')
 
     files = [
         ('fair_schema', 'Malawi-2024-samples.csv', f'/data/datasets/{dataset_id}/Malawi-2024-samples.csv', 'samples', 34),
-        ('fair_schema', 'Malawi-2024-ft_ages.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_ages.csv', 'ft_ages', 34),
-        ('fair_schema', 'Malawi-2024-ft_counts.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_counts.csv', 'ft_counts', 34),
-        ('fair_schema', 'Malawi-2024-ft_track_lengths.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_track_lengths.csv', 'ft_track_lengths', 34),
+        ('fair_schema', 'Malawi-2024-ft_datapoints.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_datapoints.csv', 'ft_datapoints', 34),
+        ('fair_schema', 'Malawi-2024-ft_count_data.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_count_data.csv', 'ft_count_data', 34),
+        ('fair_schema', 'Malawi-2024-ft_track_length_data.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ft_track_length_data.csv', 'ft_track_length_data', 34),
         ('original_table', 'Malawi-2024-ahe_raw.csv', f'/data/datasets/{dataset_id}/Malawi-2024-ahe_raw.csv', 'Table A3', 11),
         ('report', 'Malawi-2024-extraction-report.md', f'/data/datasets/{dataset_id}/Malawi-2024-extraction-report.md', None, None)
     ]

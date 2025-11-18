@@ -1,5 +1,5 @@
--- Import Malawi Rift 2024 Data
--- Simple import without metadata complexity
+-- Import Malawi Rift 2024 Data (Schema v2)
+-- Uses ft_datapoints, ft_count_data, ft_track_length_data
 
 BEGIN;
 
@@ -20,7 +20,7 @@ CREATE TEMP TABLE temp_samples (
     n_aft_grains INTEGER
 );
 
-\COPY temp_samples FROM 'build-data/learning/thermo-papers/data/Malawi-Rift-2024-samples.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+\COPY temp_samples FROM 'build-data/learning/thermo-papers/data/Malawi-2024-samples.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
 
 INSERT INTO samples (
     sample_id, dataset_id, latitude, longitude, elevation_m,
@@ -32,24 +32,67 @@ SELECT
 FROM temp_samples
 ON CONFLICT (sample_id) DO NOTHING;
 
--- Import FT ages
-\COPY ft_ages (sample_id, n_grains, pooled_age_ma, pooled_age_error_ma, central_age_ma, central_age_error_ma, dispersion_pct, p_chi2, ft_age_type) FROM 'build-data/learning/thermo-papers/data/Malawi-Rift-2024-ft_ages.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+-- Import FT datapoints (Schema v2)
+\COPY ft_datapoints (sample_id, datapoint_key, n_grains, pooled_age_ma, pooled_age_error_ma, central_age_ma, central_age_error_ma, dispersion_pct, p_chi2_pct, ft_method, mineral_type) FROM 'build-data/learning/thermo-papers/data/Malawi-2024-ft_datapoints.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
 
--- Import FT counts
-\COPY ft_counts (sample_id, grain_id, ns, rho_s_cm2, u_ppm, th_ppm, eu_ppm, dpar_um, rmr0, cl_wt_pct, n_grains) FROM 'build-data/learning/thermo-papers/data/Malawi-Rift-2024-ft_counts.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+-- Create temp table to map sample_id to ft_datapoint_id
+CREATE TEMP TABLE temp_sample_datapoint_map AS
+SELECT sample_id, id AS ft_datapoint_id
+FROM ft_datapoints
+WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1);
 
--- Import FT track lengths
-\COPY ft_track_lengths (sample_id, grain_id, n_confined_tracks, mean_track_length_um, mean_track_length_sd_um, dpar_um) FROM 'build-data/learning/thermo-papers/data/Malawi-Rift-2024-ft_track_lengths.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+-- Import FT count data (Schema v2) - requires ft_datapoint_id
+CREATE TEMP TABLE temp_ft_count_data (
+    sample_id VARCHAR(50),
+    grain_id VARCHAR(100),
+    ns INTEGER,
+    rho_s_cm2 NUMERIC,
+    dpar_um NUMERIC,
+    dpar_sd_um NUMERIC
+);
+
+\COPY temp_ft_count_data FROM 'build-data/learning/thermo-papers/data/Malawi-2024-ft_count_data.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+
+INSERT INTO ft_count_data (ft_datapoint_id, grain_id, ns, rho_s_cm2, dpar_um, dpar_error_um)
+SELECT
+    m.ft_datapoint_id, t.grain_id, t.ns, t.rho_s_cm2, t.dpar_um, t.dpar_sd_um
+FROM temp_ft_count_data t
+JOIN temp_sample_datapoint_map m ON t.sample_id = m.sample_id;
+
+-- Import FT track length data (Schema v2) - requires ft_datapoint_id
+CREATE TEMP TABLE temp_ft_track_length_data (
+    sample_id VARCHAR(50),
+    grain_id VARCHAR(100),
+    n_confined_tracks INTEGER,
+    mean_track_length_um NUMERIC,
+    mean_track_length_se_um NUMERIC,
+    mean_track_length_sd_um NUMERIC,
+    dpar_um NUMERIC
+);
+
+\COPY temp_ft_track_length_data FROM 'build-data/learning/thermo-papers/data/Malawi-2024-ft_track_length_data.csv' WITH (FORMAT CSV, HEADER TRUE, NULL '');
+
+INSERT INTO ft_track_length_data (ft_datapoint_id, grain_id, track_id, track_type, true_length_um, dpar_um, dpar_error_um)
+SELECT
+    m.ft_datapoint_id,
+    t.grain_id,
+    t.grain_id || '_summary' AS track_id,  -- Generate track_id
+    'TINT' AS track_type,
+    t.mean_track_length_um,
+    t.dpar_um,
+    t.mean_track_length_se_um
+FROM temp_ft_track_length_data t
+JOIN temp_sample_datapoint_map m ON t.sample_id = m.sample_id;
 
 -- Verify counts
 SELECT 'datasets' AS table_name, COUNT(*) AS count FROM datasets WHERE id = 1
 UNION ALL
 SELECT 'samples', COUNT(*) FROM samples WHERE dataset_id = 1
 UNION ALL
-SELECT 'ft_ages', COUNT(*) FROM ft_ages WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1)
+SELECT 'ft_datapoints', COUNT(*) FROM ft_datapoints WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1)
 UNION ALL
-SELECT 'ft_counts', COUNT(*) FROM ft_counts WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1)
+SELECT 'ft_count_data', COUNT(*) FROM ft_count_data WHERE ft_datapoint_id IN (SELECT id FROM ft_datapoints WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1))
 UNION ALL
-SELECT 'ft_track_lengths', COUNT(*) FROM ft_track_lengths WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1);
+SELECT 'ft_track_length_data', COUNT(*) FROM ft_track_length_data WHERE ft_datapoint_id IN (SELECT id FROM ft_datapoints WHERE sample_id IN (SELECT sample_id FROM samples WHERE dataset_id = 1));
 
 COMMIT;

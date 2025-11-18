@@ -1,0 +1,124 @@
+digraph ThermoDatabase_Simple {
+    // Graph settings
+    rankdir=LR;
+    splines=ortho;
+    nodesep=1.0;
+    ranksep=1.5;
+    bgcolor="#ffffff";
+    fontname="Helvetica Bold";
+    fontsize=16;
+
+    // Node defaults
+    node [
+        shape=box,
+        style="filled,rounded",
+        fontname="Helvetica",
+        fontsize=12,
+        margin=0.3,
+        height=0.8
+    ];
+
+    edge [
+        fontname="Helvetica",
+        fontsize=10,
+        arrowsize=1.0,
+        penwidth=2
+    ];
+
+    // ========================================
+    // SIMPLIFIED VIEW - CORE TABLES ONLY
+    // ========================================
+
+    datasets [
+        label="📦 datasets\n\nData packages\nDOI, privacy,\nembargo",
+        fillcolor="#E3F2FD",
+        penwidth=2
+    ];
+
+    samples [
+        label="🪨 samples\n\n★ PRIMARY TABLE\nIGSN, location,\nlithology, mineral",
+        fillcolor="#E8F5E9",
+        penwidth=3,
+        color="#2E7D32"
+    ];
+
+    people [
+        label="👤 people\n\nResearchers\nORCID tracking",
+        fillcolor="#FFF3E0"
+    ];
+
+    batches [
+        label="🧪 batches\n\nQC tracking\nReference materials",
+        fillcolor="#F3E5F5"
+    ];
+
+    ft_datapoints [
+        label="📊 ft_datapoints\n\nFT analyses\ncentral_age_ma\ndispersion, MTL",
+        fillcolor="#FFEBEE",
+        penwidth=2.5,
+        color="#C62828"
+    ];
+
+    ft_grain_data [
+        label="🔢 FT Grain Data\n\nft_count_data\nft_track_length_data\nft_single_grain_ages",
+        fillcolor="#FCE4EC",
+        shape=box3d
+    ];
+
+    he_datapoints [
+        label="📊 he_datapoints\n\n(U-Th)/He analyses\nmean_corr_age_ma\nMSWD",
+        fillcolor="#C8E6C9",
+        penwidth=2.5,
+        color="#2E7D32"
+    ];
+
+    he_grain_data [
+        label="💎 he_whole_grain_data\n\nU, Th, Sm, eU\nFT correction\ncorr_age_ma",
+        fillcolor="#A5D6A7",
+        shape=box3d
+    ];
+
+    // ========================================
+    // KEY RELATIONSHIPS
+    // ========================================
+
+    datasets -> samples [label="1:N", color="#1976D2", penwidth=2];
+
+    samples -> ft_datapoints [
+        label="1:N\n(multiple\nanalyses)",
+        color="#C62828",
+        penwidth=3,
+        style=bold
+    ];
+
+    samples -> he_datapoints [
+        label="1:N\n(multiple\nanalyses)",
+        color="#388E3C",
+        penwidth=3,
+        style=bold
+    ];
+
+    ft_datapoints -> ft_grain_data [label="1:N\n(grain-level)", color="#AD1457", penwidth=2];
+    he_datapoints -> he_grain_data [label="1:N\n(grain-level)", color="#2E7D32", penwidth=2];
+
+    people -> samples [label="via\nsample_people_roles", style=dashed, color="#666666"];
+    people -> ft_datapoints [label="via\ndatapoint_people_roles", style=dashed, color="#666666"];
+    people -> he_datapoints [label="via\ndatapoint_people_roles", style=dashed, color="#666666"];
+
+    batches -> ft_datapoints [label="QC\ntracking", style=dashed, color="#7B1FA2"];
+    batches -> he_datapoints [label="QC\ntracking", style=dashed, color="#7B1FA2"];
+
+    // ========================================
+    // LAYOUT HINTS
+    // ========================================
+
+    {rank=same; datasets; people; batches;}
+    {rank=same; samples;}
+    {rank=same; ft_datapoints; he_datapoints;}
+    {rank=same; ft_grain_data; he_grain_data;}
+
+    // Title
+    labelloc="t";
+    label="\n\nAusGeochem Thermochronology Database - Simplified View\n\n★ Key Concept: 1 sample → many datapoints (analytical sessions) → many grain-level records\n\nColor Key:  🔴 Fission-Track  🟢 (U-Th)/He  🔵 Core  🟡 People  🟣 QC\n";
+    fontsize=18;
+}

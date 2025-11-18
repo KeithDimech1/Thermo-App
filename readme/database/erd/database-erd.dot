@@ -1,0 +1,182 @@
+digraph ThermoDatabase {
+    // Graph settings
+    rankdir=TB;
+    splines=ortho;
+    nodesep=0.8;
+    ranksep=1.2;
+    bgcolor="#ffffff";
+    fontname="Helvetica";
+    fontsize=14;
+
+    // Node defaults
+    node [
+        shape=record,
+        style="filled,rounded",
+        fontname="Helvetica",
+        fontsize=11,
+        margin=0.2
+    ];
+
+    edge [
+        fontname="Helvetica",
+        fontsize=9,
+        color="#666666",
+        arrowsize=0.8
+    ];
+
+    // ========================================
+    // CORE INFRASTRUCTURE TABLES
+    // ========================================
+
+    datasets [
+        label="{<pk>datasets|id (PK)\ldataset_name\lpublication_doi\lstudy_area\lprivacy_status\lembargo_date\ldata_package_doi\llicense\l}",
+        fillcolor="#E3F2FD"
+    ];
+
+    people [
+        label="{<pk>people|id (PK)\lorcid (UK)\lname\lemail\laffiliation\l}",
+        fillcolor="#FFF3E0"
+    ];
+
+    samples [
+        label="{<pk>samples|sample_id (PK)\ldataset_id (FK)\ligsn (UK)\llatitude, longitude\lelevation_m\llithology\lmineral_type\lstratigraphic_unit\lsample_age_ma\lcollection_date\ln_aft_grains\ln_ahe_grains\l}",
+        fillcolor="#E8F5E9",
+        penwidth=2.5
+    ];
+
+    sample_people_roles [
+        label="{<pk>sample_people_roles|id (PK)\lsample_id (FK)\lperson_id (FK)\lrole\l}",
+        fillcolor="#FFFDE7"
+    ];
+
+    batches [
+        label="{<pk>batches|id (PK)\lbatch_name (UK)\lanalysis_date\llaboratory\lirradiation_reactor\lthermal_neutron_dose\l}",
+        fillcolor="#F3E5F5"
+    ];
+
+    reference_materials [
+        label="{<pk>reference_materials|id (PK)\lbatch_id (FK)\lmaterial_name\lmaterial_type\lexpected_age_ma\lmeasured_age_ma\l}",
+        fillcolor="#F3E5F5"
+    ];
+
+    mounts [
+        label="{<pk>mounts|id (PK)\lmount_id (UK)\lsample_id (FK)\letchant_chemical\letch_duration_s\letch_temperature_c\l}",
+        fillcolor="#E0F2F1"
+    ];
+
+    grains [
+        label="{<pk>grains|id (PK)\lgrain_id (UK)\lmount_id (FK)\lgrain_morphology\lgrain_quality\l}",
+        fillcolor="#E0F2F1"
+    ];
+
+    // ========================================
+    // FISSION-TRACK TABLES
+    // ========================================
+
+    ft_datapoints [
+        label="{<pk>ft_datapoints|id (PK)\lsample_id (FK)\ldatapoint_key (UK)\lbatch_id (FK)\llaboratory\lanalyst_orcid\lanalysis_date\lft_method\ln_grains\lcentral_age_ma ★\lcentral_age_error_ma\lpooled_age_ma\ldispersion_pct\lP_chi2_pct\lmean_track_length_um\lmean_Dpar_um\lzeta_yr_cm2\l}",
+        fillcolor="#FFEBEE",
+        penwidth=2
+    ];
+
+    ft_count_data [
+        label="{<pk>ft_count_data|id (PK)\lft_datapoint_id (FK)\lgrain_id\lcounting_area_cm2\lNs, Ni, Nd\lrho_s, rho_i, rho_d\lDpar_um\lcomments\l}",
+        fillcolor="#FCE4EC"
+    ];
+
+    ft_single_grain_ages [
+        label="{<pk>ft_single_grain_ages|id (PK)\lft_datapoint_id (FK)\lgrain_id\lU_ppm\lU_Ca_ratio\lrmr0, kappa\lgrain_age_ma\lgrain_age_error_ma\l}",
+        fillcolor="#FCE4EC"
+    ];
+
+    ft_track_length_data [
+        label="{<pk>ft_track_length_data|id (PK)\lft_datapoint_id (FK)\lgrain_id, track_id\ltrack_type\lapparent_length_um\ltrue_length_um\langle_to_c_axis_deg\lDpar_um\lrmr0\l}",
+        fillcolor="#FCE4EC"
+    ];
+
+    ft_binned_length_data [
+        label="{<pk>ft_binned_length_data|id (PK)\lft_datapoint_id (FK)\lbin_0_1_um ... bin_19_20_um\lDpar_um\lcomments\l}",
+        fillcolor="#FCE4EC"
+    ];
+
+    // ========================================
+    // (U-Th)/He TABLES
+    // ========================================
+
+    he_datapoints [
+        label="{<pk>he_datapoints|id (PK)\lsample_id (FK)\ldatapoint_key (UK)\lbatch_id (FK)\llaboratory\lanalyst_orcid\lanalysis_date\ln_aliquots\lmean_corr_age_ma ★\lmean_corr_age_error_ma\lweighted_mean_corr_age_ma\lmswd_corr\lft_correction_equation\leU_equation\l}",
+        fillcolor="#E8F5E9",
+        penwidth=2
+    ];
+
+    he_whole_grain_data [
+        label="{<pk>he_whole_grain_data|id (PK)\lhe_datapoint_id (FK)\llab_no (UK)\lgrain_identifier\laliquot_type\lcrystal_integrity\llength_um, width_um\lHe_ncc\lU_ppm, Th_ppm, Sm_ppm\leU_ppm\lmass_mg, volume_mm3\lRs_um\luncorr_age_ma\lcorr_age_ma ★\lFT\lterminations\l}",
+        fillcolor="#C8E6C9"
+    ];
+
+    // ========================================
+    // LINKING TABLE
+    // ========================================
+
+    datapoint_people_roles [
+        label="{<pk>datapoint_people_roles|id (PK)\ldatapoint_id (FK)\ldatapoint_type\lperson_id (FK)\lrole\l}",
+        fillcolor="#FFFDE7"
+    ];
+
+    // ========================================
+    // RELATIONSHIPS - Core Infrastructure
+    // ========================================
+
+    datasets:pk -> samples:pk [label="1:N", style=bold, color="#1976D2"];
+    samples:pk -> sample_people_roles:pk [label="1:N", color="#666666"];
+    people:pk -> sample_people_roles:pk [label="1:N", color="#666666"];
+
+    samples:pk -> mounts:pk [label="1:N", color="#00897B"];
+    mounts:pk -> grains:pk [label="1:N", color="#00897B"];
+
+    batches:pk -> reference_materials:pk [label="1:N", color="#7B1FA2"];
+
+    // ========================================
+    // RELATIONSHIPS - Fission-Track
+    // ========================================
+
+    samples:pk -> ft_datapoints:pk [label="1:N\n(multiple\nanalyses)", style=bold, color="#C62828"];
+    batches:pk -> ft_datapoints:pk [label="1:N", color="#7B1FA2"];
+
+    ft_datapoints:pk -> ft_count_data:pk [label="1:N", color="#AD1457"];
+    ft_datapoints:pk -> ft_single_grain_ages:pk [label="1:N", color="#AD1457"];
+    ft_datapoints:pk -> ft_track_length_data:pk [label="1:N", color="#AD1457"];
+    ft_datapoints:pk -> ft_binned_length_data:pk [label="1:N", color="#AD1457"];
+
+    // ========================================
+    // RELATIONSHIPS - (U-Th)/He
+    // ========================================
+
+    samples:pk -> he_datapoints:pk [label="1:N\n(multiple\nanalyses)", style=bold, color="#388E3C"];
+    batches:pk -> he_datapoints:pk [label="1:N", color="#7B1FA2"];
+
+    he_datapoints:pk -> he_whole_grain_data:pk [label="1:N", color="#2E7D32"];
+
+    // ========================================
+    // RELATIONSHIPS - Provenance
+    // ========================================
+
+    people:pk -> datapoint_people_roles:pk [label="1:N", color="#666666"];
+    ft_datapoints:pk -> datapoint_people_roles:pk [label="1:N", color="#666666", style=dashed];
+    he_datapoints:pk -> datapoint_people_roles:pk [label="1:N", color="#666666", style=dashed];
+
+    // ========================================
+    // SUBGRAPHS FOR LAYOUT
+    // ========================================
+
+    {rank=same; datasets; people; batches;}
+    {rank=same; samples; sample_people_roles;}
+    {rank=same; ft_datapoints; he_datapoints;}
+    {rank=same; mounts; reference_materials;}
+    {rank=same; grains; datapoint_people_roles;}
+
+    // Title
+    labelloc="t";
+    label="\n\nAusGeochem Thermochronology Database Schema v2.0\nEarthBank-Compatible Architecture\n16 Tables | 1 sample → many datapoints (analytical sessions)\n\nColor Key:\n■ Blue: Core Infrastructure  ■ Red: Fission-Track  ■ Green: (U-Th)/He  ■ Yellow: People/Roles  ■ Purple: QC/Batches  ■ Teal: Physical Samples\n★ = Primary age field\n";
+    fontsize=16;
+}

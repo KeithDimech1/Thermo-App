@@ -1,0 +1,527 @@
+// AusGeochem Thermochronology Database Schema
+// Version: 2.0.0 (EarthBank-Compatible)
+// Generated: 2025-11-18
+// Format: DBML (Database Markup Language)
+// View at: https://dbdiagram.io/
+
+Project AusGeochem {
+  database_type: 'PostgreSQL'
+  Note: '''
+    # AusGeochem Thermochronology Database
+
+    **Schema v2.0 - EarthBank Compatible**
+
+    Key Concept: 1 sample → many datapoints (analytical sessions)
+
+    - 16 production tables
+    - FAIR data principles
+    - EarthBank template compatible
+    - Kohn et al. (2024) compliant
+  '''
+}
+
+//////////////////////////////////////////////
+// CORE INFRASTRUCTURE
+//////////////////////////////////////////////
+
+Table datasets {
+  id serial [pk, increment]
+  dataset_name varchar(200) [not null]
+  description text
+  publication_reference text
+  publication_doi varchar(100)
+  study_area varchar(200)
+  privacy_status varchar(20) [default: 'public', note: 'public|embargo|private']
+  embargo_date date
+  data_package_doi varchar(100)
+  keywords text
+  data_owner varchar(200)
+  license varchar(100) [default: 'CC-BY-4.0']
+  submission_date date [default: `CURRENT_DATE`]
+  last_modified_date date [default: `CURRENT_DATE`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Data packages with privacy controls, embargo dates, and DOI assignment'
+  indexes {
+    privacy_status
+    data_package_doi
+  }
+}
+
+Table people {
+  id serial [pk, increment]
+  orcid varchar(50) [unique, note: '0000-0002-1825-0097']
+  name varchar(200) [not null]
+  email varchar(200)
+  affiliation varchar(300)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Researchers with ORCID identifiers'
+  indexes {
+    orcid
+    name
+  }
+}
+
+Table samples {
+  sample_id varchar(50) [pk]
+  dataset_id integer [ref: > datasets.id, default: 1]
+  igsn varchar(20) [unique, note: 'International Geo Sample Number']
+
+  // Sample classification
+  sample_kind varchar(100)
+  sample_collection_method varchar(100)
+
+  // Location
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  geodetic_datum varchar(20) [default: 'WGS84']
+  elevation_m decimal(8,2)
+  vertical_datum varchar(50) [default: 'mean sea level']
+
+  // Characteristics
+  lithology varchar(100)
+  mineral_type varchar(50)
+  stratigraphic_unit varchar(200)
+  sample_age_ma decimal(10,2)
+
+  // Collection
+  collection_date_exact date
+
+  // Data availability
+  n_aft_grains integer
+  n_ahe_grains integer
+
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: '⭐ PRIMARY TABLE - Geological samples (FAIR Table 4)'
+  indexes {
+    dataset_id
+    (latitude, longitude)
+    mineral_type
+    igsn
+    lithology
+  }
+}
+
+Table sample_people_roles {
+  id serial [pk, increment]
+  sample_id varchar(50) [ref: > samples.sample_id]
+  person_id integer [ref: > people.id]
+  role varchar(50) [not null, note: 'collector|chief_investigator|analyst']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Links samples to people with roles'
+  indexes {
+    sample_id
+    person_id
+    (sample_id, person_id, role) [unique]
+  }
+}
+
+Table batches {
+  id serial [pk, increment]
+  batch_name varchar(200) [unique, not null]
+  analysis_date date
+  laboratory varchar(200)
+  analytical_session varchar(200)
+  irradiation_id varchar(100)
+  irradiation_reactor varchar(100)
+  thermal_neutron_dose decimal(18,2)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Analytical batches for QC tracking'
+  indexes {
+    batch_name
+    analysis_date
+  }
+}
+
+Table reference_materials {
+  id serial [pk, increment]
+  batch_id integer [ref: > batches.id]
+  material_name varchar(100) [not null, note: 'Durango|Fish Canyon|etc']
+  material_type varchar(50) [note: 'primary|secondary']
+  expected_age_ma decimal(10,2)
+  expected_age_error_ma decimal(10,2)
+  measured_age_ma decimal(10,2)
+  measured_age_error_ma decimal(10,2)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'QC standards (Durango, Fish Canyon, etc.)'
+  indexes {
+    batch_id
+    material_name
+  }
+}
+
+Table mounts {
+  id serial [pk, increment]
+  mount_id varchar(50) [unique, not null]
+  mount_name varchar(200)
+  mount_date date
+  sample_id varchar(50) [ref: > samples.sample_id]
+  etchant_chemical varchar(100)
+  etch_duration_seconds integer
+  etch_temperature_c decimal(5,2)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Physical epoxy mounts containing grains'
+  indexes {
+    mount_id
+    sample_id
+  }
+}
+
+Table grains {
+  id serial [pk, increment]
+  grain_id varchar(100) [unique, not null]
+  mount_id varchar(50) [ref: > mounts.mount_id]
+  grain_identifier varchar(100)
+  grain_morphology varchar(50)
+  grain_quality varchar(50)
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Individual grains (enables cross-method linking: FT+He+U-Pb)'
+  indexes {
+    grain_id
+    mount_id
+  }
+}
+
+//////////////////////////////////////////////
+// FISSION-TRACK DATAPOINTS
+//////////////////////////////////////////////
+
+Table ft_datapoints {
+  id serial [pk, increment]
+  sample_id varchar(50) [ref: > samples.sample_id, not null]
+  datapoint_key varchar(100) [unique, not null, note: 'User-provided unique ID']
+  batch_id integer [ref: > batches.id]
+
+  // Provenance
+  laboratory varchar(200)
+  analyst_orcid varchar(50)
+  analysis_date timestamp
+  publication_doi varchar(100)
+
+  // Method
+  mineral_type varchar(50)
+  ft_method varchar(50) [note: 'EDM|LA-ICP-MS|Population']
+  ft_software varchar(100)
+
+  // Summary stats
+  n_grains integer
+  total_Ns integer
+  mean_rho_s decimal(12,2)
+  total_Ni integer
+  mean_U_ppm decimal(10,3)
+  mean_Dpar_um decimal(6,3)
+
+  // Statistical tests
+  chi_square decimal(12,6)
+  P_chi2_pct decimal(6,3)
+  dispersion_pct decimal(6,4)
+
+  // Ages
+  central_age_ma decimal(10,2) [note: '⭐ Primary age']
+  central_age_error_ma decimal(10,2)
+  pooled_age_ma decimal(10,2)
+  pooled_age_error_ma decimal(10,2)
+
+  // Track lengths
+  mean_track_length_um decimal(6,3)
+  se_mean_track_length_um decimal(6,3)
+  n_track_measurements integer
+
+  // Calibration (EDM)
+  zeta_yr_cm2 decimal(12,6)
+  zeta_error_yr_cm2 decimal(12,6)
+
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: '📊 FT analytical sessions (EarthBank FT Datapoints)'
+  indexes {
+    sample_id
+    datapoint_key
+    batch_id
+    central_age_ma
+  }
+}
+
+Table ft_count_data {
+  id serial [pk, increment]
+  ft_datapoint_id integer [ref: > ft_datapoints.id, not null]
+  grain_id varchar(100) [not null]
+
+  // Count data
+  counting_area_cm2 decimal(10,6)
+  Ns integer [note: 'Spontaneous tracks']
+  rho_s_cm2 decimal(12,2)
+  Ni integer [note: 'Induced tracks']
+  rho_i_cm2 decimal(12,2)
+  Nd integer [note: 'Dosimeter tracks']
+  rho_d_cm2 decimal(12,2)
+
+  // Kinetics
+  Dpar_um decimal(6,3)
+  Dpar_error_um decimal(6,3)
+  n_Dpar_measurements integer
+
+  comments text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Grain-by-grain count data (EarthBank FTCountData)'
+  indexes {
+    ft_datapoint_id
+    grain_id
+    (ft_datapoint_id, grain_id) [unique]
+  }
+}
+
+Table ft_single_grain_ages {
+  id serial [pk, increment]
+  ft_datapoint_id integer [ref: > ft_datapoints.id, not null]
+  grain_id varchar(100) [not null]
+  mount_id varchar(50)
+
+  // Chemistry
+  U_ppm decimal(10,3)
+  U_ppm_error decimal(10,3)
+  U_Ca_ratio decimal(10,6)
+
+  // Kinetics
+  rmr0 decimal(6,4)
+  kappa decimal(6,4)
+
+  // Age
+  grain_age_ma decimal(10,2)
+  grain_age_error_ma decimal(10,2)
+
+  comments text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Individual grain ages (EarthBank FTSingleGrain)'
+  indexes {
+    ft_datapoint_id
+    grain_id
+    (ft_datapoint_id, grain_id) [unique]
+  }
+}
+
+Table ft_track_length_data {
+  id serial [pk, increment]
+  ft_datapoint_id integer [ref: > ft_datapoints.id, not null]
+  grain_id varchar(100) [not null]
+  track_id varchar(100) [not null]
+
+  // Track classification
+  track_type varchar(20) [note: 'TINT|TINCLE|semi-track']
+  mount_id varchar(50)
+
+  // Length measurements
+  apparent_length_um decimal(6,3)
+  true_length_um decimal(6,3) [note: '3D corrected']
+  angle_to_c_axis_deg decimal(6,2)
+  c_axis_corrected_length_um decimal(6,3)
+
+  // Kinetics
+  Dpar_um decimal(6,3)
+  rmr0 decimal(6,4)
+
+  comments text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Individual track measurements (EarthBank FTLengthData)'
+  indexes {
+    ft_datapoint_id
+    grain_id
+    true_length_um
+    (ft_datapoint_id, grain_id, track_id) [unique]
+  }
+}
+
+Table ft_binned_length_data {
+  id serial [pk, increment]
+  ft_datapoint_id integer [ref: > ft_datapoints.id, not null]
+  mount_id varchar(50)
+
+  // Histogram bins (20 bins)
+  bin_0_1_um integer
+  bin_1_2_um integer
+  bin_2_3_um integer
+  bin_3_4_um integer
+  bin_5_6_um integer
+  bin_10_11_um integer
+  bin_15_16_um integer
+  bin_19_20_um integer
+
+  // Kinetics
+  Dpar_um decimal(6,3)
+
+  comments text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Binned length histograms (legacy format)'
+  indexes {
+    ft_datapoint_id
+  }
+}
+
+//////////////////////////////////////////////
+// (U-Th)/He DATAPOINTS
+//////////////////////////////////////////////
+
+Table he_datapoints {
+  id serial [pk, increment]
+  sample_id varchar(50) [ref: > samples.sample_id, not null]
+  datapoint_key varchar(100) [unique, not null]
+  batch_id integer [ref: > batches.id]
+
+  // Provenance
+  laboratory varchar(200)
+  analyst_orcid varchar(50)
+  analysis_date timestamp
+  publication_doi varchar(100)
+
+  // Method
+  mineral_type varchar(50)
+  mount_id varchar(50)
+  n_aliquots integer
+
+  // Corrected ages
+  mean_corr_age_ma decimal(10,2) [note: '⭐ Primary age (Ft-corrected)']
+  mean_corr_age_error_ma decimal(10,2)
+  weighted_mean_corr_age_ma decimal(10,2)
+  weighted_mean_corr_age_error_ma decimal(10,2)
+  mswd_corr decimal(8,4) [note: 'Mean squared weighted deviation']
+  conf95_corr_ma decimal(10,2)
+  chi2_corr_pct decimal(6,3)
+
+  // Uncorrected ages
+  mean_uncorr_age_ma decimal(10,2)
+  weighted_mean_uncorr_age_ma decimal(10,2)
+  mswd_uncorr decimal(8,4)
+
+  // Equations
+  ft_correction_equation varchar(100)
+  eU_equation varchar(100)
+  he_age_approach varchar(100)
+
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: '📊 (U-Th)/He analytical sessions (EarthBank He Datapoints)'
+  indexes {
+    sample_id
+    datapoint_key
+    batch_id
+  }
+}
+
+Table he_whole_grain_data {
+  id serial [pk, increment]
+  he_datapoint_id integer [ref: > he_datapoints.id, not null]
+  lab_no varchar(50) [unique]
+  grain_identifier varchar(100)
+
+  // Aliquot metadata
+  aliquot_type varchar(20) [note: 'single|multi|unknown']
+  n_grains_in_aliquot integer
+  crystal_integrity varchar(20) [note: 'whole|fragment|abraded']
+  grain_morphology varchar(50)
+
+  // Grain dimensions
+  length_um decimal(10,2)
+  half_width_um decimal(10,2)
+  height_um decimal(10,2)
+
+  // He measurement
+  He_ncc decimal(12,6)
+  He_measurement_method varchar(100)
+
+  // Chemistry
+  U_ppm decimal(10,3)
+  U_ppm_error decimal(10,3)
+  Th_ppm decimal(10,3)
+  Th_ppm_error decimal(10,3)
+  Sm_ppm decimal(10,3)
+  eU_ppm decimal(10,3) [note: 'Effective U (U + 0.235×Th)']
+
+  // Grain geometry
+  mass_mg decimal(10,6)
+  surface_area_mm2 decimal(10,6)
+  volume_mm3 decimal(10,6)
+  Rs_um decimal(10,2) [note: 'Equivalent sphere radius']
+
+  // Ages
+  uncorr_age_ma decimal(10,2)
+  uncorr_age_error_ma decimal(10,2)
+  corr_age_ma decimal(10,2) [note: '⭐ Ft-corrected age']
+  corr_age_error_ma decimal(10,2)
+  FT decimal(6,4) [note: 'Alpha ejection correction factor']
+
+  // Analytical details
+  terminations varchar(10) [note: '0T|1T|2T']
+
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Grain-level chemistry & ages (EarthBank HeWholeGrain)'
+  indexes {
+    he_datapoint_id
+    lab_no
+    corr_age_ma
+  }
+}
+
+//////////////////////////////////////////////
+// LINKING TABLE
+//////////////////////////////////////////////
+
+Table datapoint_people_roles {
+  id serial [pk, increment]
+  datapoint_id integer [not null, note: 'ft_datapoints.id or he_datapoints.id']
+  datapoint_type varchar(20) [not null, note: 'ft|he|upb|trace']
+  person_id integer [ref: > people.id]
+  role varchar(50) [not null, note: 'analyst|technician|operator']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Links datapoints to people (polymorphic)'
+  indexes {
+    (datapoint_id, datapoint_type)
+    person_id
+  }
+}
+
+//////////////////////////////////////////////
+// RELATIONSHIP GROUPS
+//////////////////////////////////////////////
+
+TableGroup core_infrastructure {
+  datasets
+  people
+  samples
+  sample_people_roles
+  batches
+  reference_materials
+  mounts
+  grains
+}
+
+TableGroup fission_track {
+  ft_datapoints
+  ft_count_data
+  ft_single_grain_ages
+  ft_track_length_data
+  ft_binned_length_data
+}
+
+TableGroup u_th_he {
+  he_datapoints
+  he_whole_grain_data
+}
+
+TableGroup linking {
+  sample_people_roles
+  datapoint_people_roles
+}

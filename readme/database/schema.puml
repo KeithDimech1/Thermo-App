@@ -1,0 +1,368 @@
+@startuml AusGeochem_Thermochronology_Database
+
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define primary_key(x) <b><color:red>PK: x</color></b>
+!define foreign_key(x) <color:blue>FK: x</color>
+!define unique(x) <color:green>UK: x</color>
+
+title AusGeochem Thermochronology Database Schema v2.0\nEarthBank-Compatible | 16 Tables | 1 sample → many datapoints
+
+' ============================================
+' CORE INFRASTRUCTURE
+' ============================================
+
+package "Core Infrastructure" #E3F2FD {
+
+  entity datasets {
+    primary_key(id): serial
+    --
+    dataset_name: varchar(200)
+    publication_doi: varchar
+    study_area: varchar
+    privacy_status: varchar
+    embargo_date: date
+    data_package_doi: varchar
+    license: varchar
+  }
+
+  entity people {
+    primary_key(id): serial
+    --
+    unique(orcid): varchar(50)
+    name: varchar(200)
+    email: varchar
+    affiliation: varchar
+  }
+
+  entity samples {
+    primary_key(sample_id): varchar(50)
+    --
+    foreign_key(dataset_id): integer
+    unique(igsn): varchar(20)
+    --
+    latitude, longitude: decimal
+    elevation_m: decimal
+    lithology: varchar
+    mineral_type: varchar
+    stratigraphic_unit: varchar
+    sample_age_ma: decimal
+    collection_date: date
+    --
+    n_aft_grains: integer
+    n_ahe_grains: integer
+    ..
+    ⭐ PRIMARY TABLE
+    FAIR Table 4
+  }
+
+  entity sample_people_roles {
+    primary_key(id): serial
+    --
+    foreign_key(sample_id): varchar
+    foreign_key(person_id): integer
+    role: varchar(50)
+  }
+
+  entity batches {
+    primary_key(id): serial
+    --
+    unique(batch_name): varchar(200)
+    analysis_date: date
+    laboratory: varchar
+    irradiation_reactor: varchar
+    thermal_neutron_dose: decimal
+  }
+
+  entity reference_materials {
+    primary_key(id): serial
+    --
+    foreign_key(batch_id): integer
+    material_name: varchar
+    material_type: varchar
+    expected_age_ma: decimal
+    measured_age_ma: decimal
+  }
+
+  entity mounts {
+    primary_key(id): serial
+    --
+    unique(mount_id): varchar(50)
+    foreign_key(sample_id): varchar
+    etchant_chemical: varchar
+    etch_duration_seconds: integer
+  }
+
+  entity grains {
+    primary_key(id): serial
+    --
+    unique(grain_id): varchar(100)
+    foreign_key(mount_id): varchar
+    grain_morphology: varchar
+    grain_quality: varchar
+  }
+}
+
+' ============================================
+' FISSION-TRACK DATA
+' ============================================
+
+package "Fission-Track Data" #FFEBEE {
+
+  entity ft_datapoints {
+    primary_key(id): serial
+    --
+    foreign_key(sample_id): varchar(50)
+    unique(datapoint_key): varchar(100)
+    foreign_key(batch_id): integer
+    --
+    laboratory: varchar
+    analyst_orcid: varchar
+    analysis_date: timestamp
+    --
+    ft_method: varchar
+    n_grains: integer
+    total_Ns, total_Ni: integer
+    mean_rho_s: decimal
+    mean_U_ppm: decimal
+    mean_Dpar_um: decimal
+    --
+    chi_square: decimal
+    P_chi2_pct: decimal
+    dispersion_pct: decimal
+    --
+    ⭐ central_age_ma: decimal
+    central_age_error_ma: decimal
+    pooled_age_ma: decimal
+    --
+    mean_track_length_um: decimal
+    zeta_yr_cm2: decimal
+    ..
+    EarthBank FT Datapoints
+  }
+
+  entity ft_count_data {
+    primary_key(id): serial
+    --
+    foreign_key(ft_datapoint_id): integer
+    grain_id: varchar(100)
+    --
+    counting_area_cm2: decimal
+    Ns, Ni, Nd: integer
+    rho_s, rho_i, rho_d: decimal
+    Dpar_um: decimal
+    ..
+    Grain-by-grain counts
+    EarthBank FTCountData
+  }
+
+  entity ft_single_grain_ages {
+    primary_key(id): serial
+    --
+    foreign_key(ft_datapoint_id): integer
+    grain_id: varchar(100)
+    --
+    U_ppm: decimal
+    U_Ca_ratio: decimal
+    rmr0, kappa: decimal
+    grain_age_ma: decimal
+    grain_age_error_ma: decimal
+    ..
+    EarthBank FTSingleGrain
+  }
+
+  entity ft_track_length_data {
+    primary_key(id): serial
+    --
+    foreign_key(ft_datapoint_id): integer
+    grain_id: varchar(100)
+    track_id: varchar(100)
+    --
+    track_type: varchar
+    apparent_length_um: decimal
+    true_length_um: decimal
+    angle_to_c_axis_deg: decimal
+    Dpar_um: decimal
+    rmr0: decimal
+    ..
+    Individual tracks
+    EarthBank FTLengthData
+  }
+
+  entity ft_binned_length_data {
+    primary_key(id): serial
+    --
+    foreign_key(ft_datapoint_id): integer
+    --
+    bin_0_1_um: integer
+    bin_1_2_um: integer
+    ...
+    bin_19_20_um: integer
+    Dpar_um: decimal
+    ..
+    Binned histograms
+  }
+}
+
+' ============================================
+' (U-Th)/He DATA
+' ============================================
+
+package "(U-Th)/He Data" #E8F5E9 {
+
+  entity he_datapoints {
+    primary_key(id): serial
+    --
+    foreign_key(sample_id): varchar(50)
+    unique(datapoint_key): varchar(100)
+    foreign_key(batch_id): integer
+    --
+    laboratory: varchar
+    analyst_orcid: varchar
+    analysis_date: timestamp
+    --
+    mineral_type: varchar
+    n_aliquots: integer
+    --
+    ⭐ mean_corr_age_ma: decimal
+    mean_corr_age_error_ma: decimal
+    weighted_mean_corr_age_ma: decimal
+    mswd_corr: decimal
+    --
+    mean_uncorr_age_ma: decimal
+    weighted_mean_uncorr_age_ma: decimal
+    --
+    ft_correction_equation: varchar
+    eU_equation: varchar
+    ..
+    EarthBank He Datapoints
+  }
+
+  entity he_whole_grain_data {
+    primary_key(id): serial
+    --
+    foreign_key(he_datapoint_id): integer
+    unique(lab_no): varchar(50)
+    --
+    aliquot_type: varchar
+    n_grains_in_aliquot: integer
+    crystal_integrity: varchar
+    --
+    length_um: decimal
+    half_width_um: decimal
+    height_um: decimal
+    --
+    He_ncc: decimal
+    U_ppm, Th_ppm, Sm_ppm: decimal
+    eU_ppm: decimal
+    --
+    mass_mg: decimal
+    volume_mm3: decimal
+    Rs_um: decimal
+    --
+    uncorr_age_ma: decimal
+    ⭐ corr_age_ma: decimal
+    FT: decimal
+    terminations: varchar
+    ..
+    Grain chemistry & ages
+    EarthBank HeWholeGrain
+  }
+}
+
+' ============================================
+' LINKING
+' ============================================
+
+package "People/Roles Linking" #FFF3E0 {
+
+  entity datapoint_people_roles {
+    primary_key(id): serial
+    --
+    datapoint_id: integer
+    datapoint_type: varchar(20)
+    foreign_key(person_id): integer
+    role: varchar(50)
+    ..
+    Polymorphic link to
+    ft/he datapoints
+  }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' Core infrastructure
+datasets ||--o{ samples : "contains"
+samples ||--o{ sample_people_roles : "has"
+people ||--o{ sample_people_roles : "involved in"
+
+samples ||--o{ mounts : "has"
+mounts ||--o{ grains : "contains"
+
+batches ||--o{ reference_materials : "contains"
+
+' Fission-Track
+samples ||--o{ ft_datapoints : "analyzed by\n(multiple analyses)"
+batches ||--o{ ft_datapoints : "includes"
+
+ft_datapoints ||--o{ ft_count_data : "has"
+ft_datapoints ||--o{ ft_single_grain_ages : "has"
+ft_datapoints ||--o{ ft_track_length_data : "has"
+ft_datapoints ||--o{ ft_binned_length_data : "has"
+
+' (U-Th)/He
+samples ||--o{ he_datapoints : "analyzed by\n(multiple analyses)"
+batches ||--o{ he_datapoints : "includes"
+
+he_datapoints ||--o{ he_whole_grain_data : "has"
+
+' People linking
+people ||--o{ datapoint_people_roles : "involved in"
+
+note right of samples
+  ⭐ PRIMARY TABLE
+
+  Key Concept:
+  1 sample → many datapoints
+  (analytical sessions)
+
+  Each datapoint can have
+  different lab, method,
+  date, analyst
+end note
+
+note right of ft_datapoints
+  ⭐ central_age_ma
+  Primary reported age
+
+  Accounts for
+  overdispersion using
+  random effects model
+end note
+
+note right of he_datapoints
+  ⭐ mean_corr_age_ma
+  Primary reported age
+
+  Ft-corrected for
+  alpha ejection based
+  on grain geometry
+end note
+
+legend right
+  **Schema v2.0 - EarthBank Compatible**
+
+  16 production tables
+  FAIR data principles
+  Nixon et al. (2025)
+  Kohn et al. (2024)
+
+  Color Key:
+  🔵 Blue: Core
+  🔴 Red: Fission-Track
+  🟢 Green: (U-Th)/He
+  🟡 Yellow: People/Roles
+end legend
+
+@enduml

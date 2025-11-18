@@ -1,0 +1,254 @@
+erDiagram
+    %% ============================================================================
+    %% CORE INFRASTRUCTURE
+    %% ============================================================================
+
+    datasets ||--o{ samples : "contains"
+    datasets {
+        int id PK
+        varchar dataset_name
+        text description
+        varchar publication_doi
+        varchar study_area
+        varchar privacy_status "public|embargo|private"
+        date embargo_date
+        varchar data_package_doi
+        varchar license
+        date submission_date
+    }
+
+    people {
+        int id PK
+        varchar orcid UK "0000-0002-..."
+        varchar name
+        varchar email
+        varchar affiliation
+    }
+
+    samples ||--o{ sample_people_roles : "has"
+    people ||--o{ sample_people_roles : "involved_in"
+    sample_people_roles {
+        int id PK
+        varchar sample_id FK
+        int person_id FK
+        varchar role "collector|investigator|analyst"
+    }
+
+    samples {
+        varchar sample_id PK
+        int dataset_id FK
+        varchar igsn UK "Global ID"
+        varchar sample_kind
+        decimal latitude
+        decimal longitude
+        varchar geodetic_datum
+        decimal elevation_m
+        varchar vertical_datum
+        varchar lithology
+        varchar mineral_type
+        varchar stratigraphic_unit
+        decimal sample_age_ma
+        date collection_date_exact
+        int n_aft_grains
+        int n_ahe_grains
+    }
+
+    batches {
+        int id PK
+        varchar batch_name UK
+        date analysis_date
+        varchar laboratory
+        varchar irradiation_id
+        varchar irradiation_reactor
+        decimal thermal_neutron_dose
+    }
+
+    batches ||--o{ reference_materials : "contains"
+    reference_materials {
+        int id PK
+        int batch_id FK
+        varchar material_name "Durango|FCT|etc"
+        varchar material_type "primary|secondary"
+        decimal expected_age_ma
+        decimal measured_age_ma
+        decimal measured_age_error_ma
+    }
+
+    samples ||--o{ mounts : "has"
+    mounts {
+        int id PK
+        varchar mount_id UK
+        varchar mount_name
+        varchar sample_id FK
+        varchar etchant_chemical
+        int etch_duration_seconds
+        decimal etch_temperature_c
+    }
+
+    mounts ||--o{ grains : "contains"
+    grains {
+        int id PK
+        varchar grain_id UK
+        varchar mount_id FK
+        varchar grain_identifier
+        varchar grain_morphology
+        varchar grain_quality
+    }
+
+    %% ============================================================================
+    %% FISSION-TRACK DATAPOINTS (1 sample → many datapoints)
+    %% ============================================================================
+
+    samples ||--o{ ft_datapoints : "analyzed_by"
+    batches ||--o{ ft_datapoints : "includes"
+    ft_datapoints {
+        int id PK
+        varchar sample_id FK
+        varchar datapoint_key UK "User-provided ID"
+        int batch_id FK
+        varchar laboratory
+        varchar analyst_orcid
+        timestamp analysis_date
+        varchar ft_method "EDM|LA-ICP-MS|Population"
+        varchar mineral_type
+        int n_grains
+        decimal mean_rho_s
+        int total_Ns
+        decimal mean_U_ppm
+        decimal mean_Dpar_um
+        decimal chi_square
+        decimal P_chi2_pct
+        decimal dispersion_pct
+        decimal central_age_ma "★ Primary Age"
+        decimal central_age_error_ma
+        decimal pooled_age_ma
+        decimal mean_track_length_um
+        decimal zeta_yr_cm2 "EDM calibration"
+    }
+
+    ft_datapoints ||--o{ ft_count_data : "has"
+    ft_count_data {
+        int id PK
+        int ft_datapoint_id FK
+        varchar grain_id
+        decimal counting_area_cm2
+        int Ns "Spontaneous tracks"
+        decimal rho_s_cm2
+        int Ni "Induced tracks"
+        decimal rho_i_cm2
+        int Nd "Dosimeter tracks"
+        decimal rho_d_cm2
+        decimal Dpar_um "Kinetic parameter"
+        text comments
+    }
+
+    ft_datapoints ||--o{ ft_single_grain_ages : "has"
+    ft_single_grain_ages {
+        int id PK
+        int ft_datapoint_id FK
+        varchar grain_id
+        varchar mount_id
+        decimal U_ppm
+        decimal U_Ca_ratio
+        decimal rmr0 "Annealing kinetics"
+        decimal kappa
+        decimal grain_age_ma
+        decimal grain_age_error_ma
+    }
+
+    ft_datapoints ||--o{ ft_track_length_data : "has"
+    ft_track_length_data {
+        int id PK
+        int ft_datapoint_id FK
+        varchar grain_id
+        varchar track_id
+        varchar track_type "TINT|TINCLE|semi-track"
+        decimal apparent_length_um
+        decimal true_length_um "3D corrected"
+        decimal angle_to_c_axis_deg
+        decimal c_axis_corrected_length_um
+        decimal Dpar_um
+        decimal rmr0
+    }
+
+    ft_datapoints ||--o{ ft_binned_length_data : "has"
+    ft_binned_length_data {
+        int id PK
+        int ft_datapoint_id FK
+        varchar mount_id
+        int bin_0_1_um
+        int bin_1_2_um
+        int bin_2_3_um
+        varchar bins_comment
+        int bin_19_20_um
+        decimal Dpar_um
+    }
+
+    %% ============================================================================
+    %% (U-Th)/He DATAPOINTS (1 sample → many datapoints)
+    %% ============================================================================
+
+    samples ||--o{ he_datapoints : "analyzed_by"
+    batches ||--o{ he_datapoints : "includes"
+    he_datapoints {
+        int id PK
+        varchar sample_id FK
+        varchar datapoint_key UK
+        int batch_id FK
+        varchar laboratory
+        varchar analyst_orcid
+        timestamp analysis_date
+        varchar mineral_type
+        int n_aliquots
+        decimal mean_uncorr_age_ma
+        decimal weighted_mean_uncorr_age_ma
+        decimal mswd_uncorr
+        decimal mean_corr_age_ma "★ Primary Age"
+        decimal mean_corr_age_error_ma
+        decimal weighted_mean_corr_age_ma
+        decimal mswd_corr
+        varchar ft_correction_equation
+        varchar eU_equation
+    }
+
+    he_datapoints ||--o{ he_whole_grain_data : "has"
+    he_whole_grain_data {
+        int id PK
+        int he_datapoint_id FK
+        varchar lab_no UK
+        varchar grain_identifier
+        varchar aliquot_type "single|multi|unknown"
+        int n_grains_in_aliquot
+        varchar crystal_integrity "whole|fragment|abraded"
+        decimal length_um "Grain dimensions"
+        decimal half_width_um
+        decimal height_um
+        decimal He_ncc "Helium amount"
+        decimal U_ppm "Chemistry"
+        decimal Th_ppm
+        decimal Sm_ppm
+        decimal eU_ppm "Effective U"
+        decimal mass_mg
+        decimal surface_area_mm2
+        decimal volume_mm3
+        decimal Rs_um "Sphere radius"
+        decimal uncorr_age_ma
+        decimal corr_age_ma "★ Ft-corrected age"
+        decimal FT "Alpha ejection factor"
+        varchar terminations "0T|1T|2T"
+    }
+
+    %% ============================================================================
+    %% DATAPOINT-PEOPLE LINKING
+    %% ============================================================================
+
+    ft_datapoints ||--o{ datapoint_people_roles : "has"
+    he_datapoints ||--o{ datapoint_people_roles : "has"
+    people ||--o{ datapoint_people_roles : "involved_in"
+    datapoint_people_roles {
+        int id PK
+        int datapoint_id FK "ft or he"
+        varchar datapoint_type "ft|he|upb|trace"
+        int person_id FK
+        varchar role "analyst|technician|operator"
+    }

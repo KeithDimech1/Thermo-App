@@ -115,12 +115,6 @@ export async function getSampleDetail(sampleID: string): Promise<EarthBankSample
   // Get He datapoints
   const heDatapoints = await getHeDatapointsBySample(sampleID);
 
-  // Get FT count data (if any)
-  const ftCountData = await query<EarthBankFTCountData>(
-    'SELECT * FROM "earthbank_ftCountData" WHERE "datapointName" IN (SELECT "datapointName" FROM "earthbank_ftDatapoints" WHERE "sampleID" = $1)',
-    [sampleID]
-  );
-
   // Get FT track length data
   const ftTrackLengthData = await query<EarthBankFTTrackLengthData>(
     'SELECT * FROM "earthbank_ftTrackLengthData" WHERE "datapointName" IN (SELECT "datapointName" FROM "earthbank_ftDatapoints" WHERE "sampleID" = $1)',
@@ -137,7 +131,7 @@ export async function getSampleDetail(sampleID: string): Promise<EarthBankSample
     sample,
     ftDatapoints,
     heDatapoints,
-    ftCountData,
+    ftCountData: [], // Table not yet created
     ftTrackLengthData,
     heWholeGrainData,
   };

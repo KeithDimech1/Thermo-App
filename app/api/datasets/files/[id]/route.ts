@@ -33,10 +33,19 @@ export async function GET(
     const file = files[0];
 
     // Resolve file path
-    // If path starts with /, it's absolute from project root
-    const filePath = file.file_path.startsWith('/')
-      ? path.join(process.cwd(), file.file_path)
-      : path.join(process.cwd(), file.file_path);
+    // Paths starting with /data/ are in the public directory
+    // Other paths starting with / are absolute from project root
+    let filePath: string;
+    if (file.file_path.startsWith('/data/')) {
+      // Convert /data/... to public/data/...
+      filePath = path.join(process.cwd(), 'public', file.file_path.substring(1));
+    } else if (file.file_path.startsWith('/')) {
+      // Absolute from project root
+      filePath = path.join(process.cwd(), file.file_path.substring(1));
+    } else {
+      // Relative path
+      filePath = path.join(process.cwd(), file.file_path);
+    }
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {

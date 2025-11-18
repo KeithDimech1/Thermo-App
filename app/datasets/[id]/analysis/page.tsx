@@ -1,25 +1,65 @@
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getDatasetById } from '@/lib/db/queries';
 import { AgeBarChart } from '@/components/AgeBarChart';
+import DatasetTabs from '@/components/datasets/DatasetTabs';
+import Breadcrumb from '@/components/ui/Breadcrumb';
 
-export const metadata: Metadata = {
-  title: 'Analysis & Visualization',
-  description: 'Interactive and Python CLI tools for statistical and spatial thermochronology analysis',
-};
+interface Props {
+  params: {
+    id: string;
+  };
+}
 
-export default function AnalysisPage() {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const dataset = await getDatasetById(parseInt(params.id));
+
+  if (!dataset) {
+    return {
+      title: 'Dataset Not Found',
+    };
+  }
+
+  return {
+    title: `Analysis - ${dataset.dataset_name}`,
+    description: `Interactive visualizations and analysis tools for ${dataset.dataset_name}`,
+  };
+}
+
+export default async function DatasetAnalysisPage({ params }: Props) {
+  const datasetId = parseInt(params.id);
+  const dataset = await getDatasetById(datasetId);
+
+  if (!dataset) {
+    notFound();
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">Analysis & Visualization</h1>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Datasets', href: '/datasets' },
+        { label: dataset.dataset_name, href: `/datasets/${datasetId}` },
+        { label: 'Analysis' }
+      ]} />
+
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-4xl font-bold text-slate-900 mb-2">
+          Analysis & Visualization
+        </h1>
         <p className="text-lg text-slate-600">
-          Interactive visualizations and Python CLI tools for thermochronology analysis
+          {dataset.dataset_name}
         </p>
       </div>
 
+      {/* Dataset Tabs */}
+      <DatasetTabs datasetId={datasetId} activeTab="analysis" />
+
       {/* Interactive Visualization */}
       <div className="mb-12">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Interactive Sample Age Plots</h2>
-        <AgeBarChart />
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">Sample Age Distribution</h2>
+        <AgeBarChart datasetId={datasetId} />
       </div>
 
       {/* Overview */}
@@ -52,7 +92,7 @@ export default function AnalysisPage() {
         <div className="grid md:grid-cols-2 gap-4">
           {/* Radial Plots */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">📊 Radial Plots (Galbraith)</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Radial Plots (Galbraith)</h3>
             <p className="text-sm text-slate-600 mb-3">
               Single-grain age distributions with standardized estimates. Visualize age dispersion
               and identify outliers.
@@ -68,7 +108,7 @@ export default function AnalysisPage() {
 
           {/* Age Histograms */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">📊 Age Histograms + KDE</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Age Histograms + KDE</h3>
             <p className="text-sm text-slate-600 mb-3">
               Age distributions with kernel density estimate overlays. Compare datasets and
               identify age populations.
@@ -76,7 +116,7 @@ export default function AnalysisPage() {
             <div className="bg-slate-50 rounded-md p-3 font-mono text-xs overflow-x-auto">
               <code className="text-slate-800">
                 python scripts/analysis/statistical_plots.py \<br/>
-                &nbsp;&nbsp;--dataset-id 1 --plot histogram \<br/>
+                &nbsp;&nbsp;--dataset-id {datasetId} --plot histogram \<br/>
                 &nbsp;&nbsp;--kde --output hist.pdf
               </code>
             </div>
@@ -84,7 +124,7 @@ export default function AnalysisPage() {
 
           {/* Probability Density */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">📊 Probability Density Plots</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Probability Density Plots</h3>
             <p className="text-sm text-slate-600 mb-3">
               Summed Gaussian PDFs for detrital thermochronology analysis. Ideal for
               multi-grain age populations.
@@ -100,7 +140,7 @@ export default function AnalysisPage() {
 
           {/* QA Plots */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">📊 P(χ²) vs Dispersion QA</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">P(χ²) vs Dispersion QA</h3>
             <p className="text-sm text-slate-600 mb-3">
               Quality assessment scatter plots for dataset-wide QA. Identify samples with
               high dispersion or poor statistics.
@@ -108,7 +148,7 @@ export default function AnalysisPage() {
             <div className="bg-slate-50 rounded-md p-3 font-mono text-xs overflow-x-auto">
               <code className="text-slate-800">
                 python scripts/analysis/statistical_plots.py \<br/>
-                &nbsp;&nbsp;--dataset-id 1 --plot qa \<br/>
+                &nbsp;&nbsp;--dataset-id {datasetId} --plot qa \<br/>
                 &nbsp;&nbsp;--output qa.png
               </code>
             </div>
@@ -122,7 +162,7 @@ export default function AnalysisPage() {
         <div className="grid md:grid-cols-2 gap-4">
           {/* Age-Elevation */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">⛰️ Age-Elevation Plots</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Age-Elevation Plots</h3>
             <p className="text-sm text-slate-600 mb-3">
               Calculate exhumation rates from age-elevation relationships. Automatic linear
               regression with 95% confidence intervals.
@@ -130,7 +170,7 @@ export default function AnalysisPage() {
             <div className="bg-slate-50 rounded-md p-3 font-mono text-xs overflow-x-auto">
               <code className="text-slate-800">
                 python scripts/analysis/spatial_plots.py \<br/>
-                &nbsp;&nbsp;--dataset-id 1 --plot age-elevation \<br/>
+                &nbsp;&nbsp;--dataset-id {datasetId} --plot age-elevation \<br/>
                 &nbsp;&nbsp;--method AFT --closure-temp 110 \<br/>
                 &nbsp;&nbsp;--geothermal-gradient 25 --output aer.pdf
               </code>
@@ -139,7 +179,7 @@ export default function AnalysisPage() {
 
           {/* Spatial Transects */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">🗺️ Spatial Transect Plots</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Spatial Transect Plots</h3>
             <p className="text-sm text-slate-600 mb-3">
               Age vs latitude/longitude with multi-method overlay (AFT + AHe). Visualize
               spatial age trends and thermal history.
@@ -147,7 +187,7 @@ export default function AnalysisPage() {
             <div className="bg-slate-50 rounded-md p-3 font-mono text-xs overflow-x-auto">
               <code className="text-slate-800">
                 python scripts/analysis/spatial_plots.py \<br/>
-                &nbsp;&nbsp;--dataset-id 1 --plot transect \<br/>
+                &nbsp;&nbsp;--dataset-id {datasetId} --plot transect \<br/>
                 &nbsp;&nbsp;--methods AFT,AHe --axis latitude \<br/>
                 &nbsp;&nbsp;--output transect.pdf
               </code>
@@ -156,7 +196,7 @@ export default function AnalysisPage() {
 
           {/* MTL Trends */}
           <div className="bg-white border border-slate-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">📏 MTL Spatial Trends</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">MTL Spatial Trends</h3>
             <p className="text-sm text-slate-600 mb-3">
               Mean track length analysis with spatial context. Identify cooling rate variations
               and thermal history patterns.
@@ -164,7 +204,7 @@ export default function AnalysisPage() {
             <div className="bg-slate-50 rounded-md p-3 font-mono text-xs overflow-x-auto">
               <code className="text-slate-800">
                 python scripts/analysis/spatial_plots.py \<br/>
-                &nbsp;&nbsp;--dataset-id 1 --plot mtl-trends \<br/>
+                &nbsp;&nbsp;--dataset-id {datasetId} --plot mtl-trends \<br/>
                 &nbsp;&nbsp;--axis latitude --output mtl.pdf
               </code>
             </div>
@@ -198,7 +238,7 @@ export default function AnalysisPage() {
 
       {/* Documentation */}
       <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-slate-900 mb-3">📚 Documentation & Setup</h2>
+        <h2 className="text-xl font-semibold text-slate-900 mb-3">Documentation & Setup</h2>
         <p className="text-slate-700 mb-4">
           Complete documentation is available in the <code className="bg-slate-200 px-2 py-1 rounded text-sm">scripts/analysis/README.md</code> file.
         </p>

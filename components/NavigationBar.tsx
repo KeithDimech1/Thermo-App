@@ -9,8 +9,6 @@ export default function NavigationBar() {
   const navItems = [
     { href: '/', label: 'Home', icon: '🏔️' },
     { href: '/datasets', label: 'Datasets', icon: '📄' },
-    { href: '/tables', label: 'Tables', icon: '📊' },
-    { href: '/analysis', label: 'Analysis', icon: '📈' },
     { href: '/samples', label: 'Samples', icon: '🔬' },
   ];
 

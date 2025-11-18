@@ -34,6 +34,7 @@ export interface Dataset {
   study_location: string | null;
   pdf_filename: string | null;
   pdf_url: string | null;
+  supplementary_files_url: string | null;
 
   // Geographic scope
   study_area: string | null;

@@ -10,7 +10,7 @@ interface Tab {
 
 interface DatasetTabsProps {
   datasetId: number;
-  activeTab: 'overview' | 'data' | 'fair';
+  activeTab: 'overview' | 'data' | 'fair' | 'tables' | 'analysis';
 }
 
 export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) {
@@ -20,6 +20,8 @@ export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', href: `/datasets/${datasetId}` },
     { id: 'data', label: 'Data Files', href: `/datasets/${datasetId}/data` },
+    { id: 'tables', label: 'Data Tables', href: `/datasets/${datasetId}/tables` },
+    { id: 'analysis', label: 'Analysis', href: `/datasets/${datasetId}/analysis` },
     { id: 'fair', label: 'FAIR Assessment', href: `/datasets/${datasetId}/fair` },
   ];
 

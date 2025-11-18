@@ -2,8 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import {
   getDatasetById,
-  getDataFilesByDataset,
-  getDatasetTotalFileSize
+  getDataFilesByDataset
 } from '@/lib/db/queries';
 import DownloadSection from '@/components/datasets/DownloadSection';
 import Breadcrumb from '@/components/ui/Breadcrumb';
@@ -48,10 +47,7 @@ export default async function DatasetDataPage({ params }: PageProps) {
     return notFound();
   }
 
-  const [files, totalSize] = await Promise.all([
-    getDataFilesByDataset(datasetId),
-    getDatasetTotalFileSize(datasetId)
-  ]);
+  const files = await getDataFilesByDataset(datasetId);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -73,7 +69,7 @@ export default async function DatasetDataPage({ params }: PageProps) {
       <DatasetTabs datasetId={datasetId} activeTab="data" />
 
       {/* Download Section */}
-      <DownloadSection files={files} datasetId={datasetId} totalSize={totalSize} />
+      <DownloadSection files={files} />
     </div>
   );
 }

@@ -193,17 +193,29 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* PDF Link */}
-        {dataset.pdf_url && (
-          <div className="mt-4 pt-4 border-t border-amber-200">
-            <a
-              href={dataset.pdf_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold"
-            >
-              📎 View Full PDF
-            </a>
+        {/* PDF Link and Supplementary Materials */}
+        {(dataset.pdf_url || dataset.supplementary_files_url) && (
+          <div className="mt-4 pt-4 border-t border-amber-200 flex flex-wrap gap-3">
+            {dataset.pdf_url && (
+              <a
+                href={dataset.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold"
+              >
+                📎 View Full PDF
+              </a>
+            )}
+            {dataset.supplementary_files_url && (
+              <a
+                href={dataset.supplementary_files_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+              >
+                📊 Supplementary Data
+              </a>
+            )}
           </div>
         )}
       </div>

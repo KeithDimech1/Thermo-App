@@ -42,6 +42,10 @@ __pycache__/
 .cache/
 Thumbs.db
 
+# Large data files
+public/data/papers/*.pdf
+public/data/papers/**/*.pdf
+
 # IDE
 .vscode/
 !.vscode/settings.json  # Track Pylance optimization settings

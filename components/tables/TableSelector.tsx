@@ -12,64 +12,36 @@ interface TableSelectorProps {
 }
 
 const TABLE_OPTIONS: TableOption[] = [
-  // FAIR EarthBank Core Tables (4 required tables)
+  // Core FAIR Tables - Universal access
+  {
+    value: 'datasets',
+    label: 'Datasets',
+    description: 'Published papers and data packages (DOI, authors, location)'
+  },
   {
     value: 'samples',
-    label: '⭐ Samples (FAIR Table)',
-    description: 'EarthBank Sample Template - Geosample metadata (IGSN, location, lithology)'
+    label: 'Samples',
+    description: 'Geosample metadata (IGSN, location, lithology, mineral)'
   },
   {
     value: 'ft-datapoints',
-    label: '⭐ FT Datapoints (FAIR Table)',
-    description: 'EarthBank FTDatapoint Template - Fission-track analytical sessions'
+    label: 'FT Datapoints',
+    description: 'Fission-track analytical results (ages, dispersion, n-grains)'
   },
-  {
-    value: 'ft-track-lengths',
-    label: '⭐ FT Track Lengths (FAIR Table)',
-    description: 'EarthBank FTLengthData - Individual track measurements'
-  },
-  {
-    value: 'he-grains',
-    label: '⭐ He Whole Grain Data (FAIR Table)',
-    description: 'EarthBank HeWholeGrain - Single grain (U-Th)/He results'
-  },
-  // Additional Fission-Track Data
-  {
-    value: 'ft-count-data',
-    label: 'FT Count Data',
-    description: 'Grain-by-grain track count data (Ns, Ni, Nd, Dpar)'
-  },
-  {
-    value: 'ft-single-grain-ages',
-    label: 'FT Single Grain Ages',
-    description: 'Individual grain ages (not just pooled/central)'
-  },
-  {
-    value: 'ft-binned-length-data',
-    label: 'FT Binned Length Data',
-    description: 'Binned track length histograms (legacy format)'
-  },
-  // (U-Th)/He Data
   {
     value: 'he-datapoints',
     label: 'He Datapoints',
-    description: '(U-Th)/He analytical sessions (mean ages, QC stats)'
-  },
-  // Infrastructure
-  {
-    value: 'batches',
-    label: 'Batches',
-    description: 'Analytical batches (linking samples to reference materials)'
+    description: '(U-Th)/He analytical results (mean ages, QC statistics)'
   },
   {
     value: 'people',
     label: 'People',
-    description: 'Researchers (ORCID-based provenance)'
+    description: 'Researchers and analysts (ORCID, affiliation)'
   },
   {
-    value: 'datasets',
-    label: 'Datasets',
-    description: 'Data packages with privacy controls and DOI'
+    value: 'batches',
+    label: 'Batches',
+    description: 'Analytical batches (QC reference materials, session metadata)'
   }
 ];
 

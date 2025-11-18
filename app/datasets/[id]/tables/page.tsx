@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import InteractiveTable from '@/components/tables/InteractiveTable';
 import TableSelector from '@/components/tables/TableSelector';
+import DatasetTabs from '@/components/datasets/DatasetTabs';
+import Breadcrumb from '@/components/ui/Breadcrumb';
 
 // Type for dynamic table data
 type TableData = Record<string, any>;
@@ -122,17 +124,6 @@ const FT_BINNED_LENGTH_DATA_COLUMNS: ColumnDef<TableData>[] = [
   { accessorKey: 'dpar_um', header: 'Dpar (μm)' },
 ];
 
-const DATASETS_COLUMNS: ColumnDef<TableData>[] = [
-  { accessorKey: 'id', header: 'ID' },
-  { accessorKey: 'dataset_name', header: 'Dataset Name' },
-  { accessorKey: 'publication_year', header: 'Year' },
-  { accessorKey: 'publication_journal', header: 'Journal' },
-  { accessorKey: 'study_location', header: 'Location' },
-  { accessorKey: 'mineral_analyzed', header: 'Mineral' },
-  { accessorKey: 'sample_count', header: 'Samples' },
-  { accessorKey: 'fair_score', header: 'FAIR Score' },
-];
-
 const TABLE_COLUMNS: Record<string, ColumnDef<TableData>[]> = {
   'samples': SAMPLES_COLUMNS,
   'ft-datapoints': FT_DATAPOINTS_COLUMNS,
@@ -144,7 +135,6 @@ const TABLE_COLUMNS: Record<string, ColumnDef<TableData>[]> = {
   'he-grains': HE_GRAINS_COLUMNS,
   'batches': BATCHES_COLUMNS,
   'people': PEOPLE_COLUMNS,
-  'datasets': DATASETS_COLUMNS,
 };
 
 interface Dataset {
@@ -152,70 +142,89 @@ interface Dataset {
   dataset_name: string;
 }
 
-export default function TablesPage() {
+interface Props {
+  params: {
+    id: string;
+  };
+}
+
+export default function DatasetTablesPage({ params }: Props) {
+  const datasetId = params.id;
   const [selectedTable, setSelectedTable] = useState('samples');
-  const [selectedDataset, setSelectedDataset] = useState<string>('all');
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const columns = TABLE_COLUMNS[selectedTable] || SAMPLES_COLUMNS;
 
-  // Fetch datasets on mount
+  // Fetch dataset info on mount
   useEffect(() => {
-    fetch('/api/datasets')
-      .then(res => res.json())
-      .then(json => {
-        if (json.success) {
-          setDatasets(json.data);
+    async function fetchDataset() {
+      try {
+        // For now, we'll use a simple approach - get from samples or other tables
+        // In a real app, you'd want a dedicated /api/datasets/[id] endpoint
+        const response = await fetch(`/api/tables/samples?dataset_id=${datasetId}&limit=1`);
+        const result = await response.json();
+
+        if (result.data && result.data.length > 0) {
+          // We have data for this dataset
+          setDataset({
+            id: parseInt(datasetId),
+            dataset_name: `Dataset ${datasetId}`
+          });
         }
-      })
-      .catch(err => console.error('Error loading datasets:', err));
-  }, []);
+      } catch (err) {
+        console.error('Error loading dataset:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchDataset();
+  }, [datasetId]);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-500">Loading dataset...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">📊 Data Tables</h1>
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Datasets', href: '/datasets' },
+        { label: `Dataset ${datasetId}`, href: `/datasets/${datasetId}` },
+        { label: 'Data Tables' }
+      ]} />
+
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-4xl font-bold text-slate-900 mb-2">Data Tables</h1>
         <p className="text-lg text-slate-600">
-          Excel-like interactive data tables with sorting and pagination
+          Browse FAIR-compliant thermochronology data - view samples, analytical results, and QC metadata
         </p>
       </div>
 
-      {/* Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Dataset Filter */}
-        <div className="space-y-2">
-          <label htmlFor="dataset-filter" className="block text-sm font-medium text-gray-700">
-            Filter by Dataset/Paper:
-          </label>
-          <select
-            id="dataset-filter"
-            value={selectedDataset}
-            onChange={(e) => setSelectedDataset(e.target.value)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="all">All Datasets</option>
-            {datasets.map(dataset => (
-              <option key={dataset.id} value={dataset.id}>
-                {dataset.dataset_name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Dataset Tabs */}
+      <DatasetTabs datasetId={parseInt(datasetId)} activeTab="tables" />
 
-        {/* Table Selector */}
-        <div>
-          <TableSelector
-            selectedTable={selectedTable}
-            onTableChange={setSelectedTable}
-          />
-        </div>
+      {/* Table Selector */}
+      <div className="mb-6">
+        <TableSelector
+          selectedTable={selectedTable}
+          onTableChange={setSelectedTable}
+        />
       </div>
 
       {/* Interactive Table */}
       <InteractiveTable
         tableName={selectedTable}
         columns={columns}
-        datasetFilter={selectedDataset}
+        datasetFilter={datasetId}
       />
     </div>
   );

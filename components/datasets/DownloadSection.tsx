@@ -2,8 +2,6 @@ import { DataFile } from '@/lib/types/thermo-data';
 
 interface DownloadSectionProps {
   files: DataFile[];
-  datasetId: number;
-  totalSize: number;
 }
 
 function formatFileSize(bytes: number | null): string {
@@ -21,11 +19,7 @@ interface FileGroup {
   colorClass: string;
 }
 
-export default function DownloadSection({
-  files,
-  datasetId,
-  totalSize
-}: DownloadSectionProps) {
+export default function DownloadSection({ files }: DownloadSectionProps) {
   // Group files by type
   const fileGroups: FileGroup[] = [
     {
@@ -60,7 +54,7 @@ export default function DownloadSection({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Download Data Files</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Download All</h2>
 
       {files.length === 0 ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
@@ -115,19 +109,6 @@ export default function DownloadSection({
               </div>
             </div>
           ))}
-
-          {/* Download All Button */}
-          <div className="pt-4 border-t border-gray-200">
-            <a
-              href={`/api/datasets/${datasetId}/download-all`}
-              className="block w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-center font-semibold"
-            >
-              Download All as ZIP ({formatFileSize(totalSize)})
-            </a>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Downloads all {files.length} files in a single ZIP archive
-            </p>
-          </div>
         </>
       )}
     </div>

@@ -43,12 +43,28 @@ export default function DatasetCard({
           {dataset.dataset_name}
         </h3>
 
+        {/* Laboratory */}
+        {dataset.laboratory && (
+          <p className="text-sm text-gray-600 mb-1">
+            <span className="font-semibold">🏛️ Laboratory:</span>{' '}
+            {dataset.laboratory}
+          </p>
+        )}
+
         {/* Publication info */}
         {(dataset.publication_year || dataset.publication_journal) && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">📄 Publication:</span>{' '}
             {dataset.publication_journal}
             {dataset.publication_year && ` (${dataset.publication_year})`}
+            {dataset.publication_volume_pages && `, ${dataset.publication_volume_pages}`}
+          </p>
+        )}
+
+        {/* Full Citation (if available and different from constructed one) */}
+        {dataset.full_citation && (
+          <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">
+            {dataset.full_citation}
           </p>
         )}
 

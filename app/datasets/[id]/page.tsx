@@ -1,16 +1,10 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import {
-  getDatasetById,
-  getDataFilesByDataset,
-  getDatasetTotalFileSize,
-  getFairScoreBreakdown
-} from '@/lib/db/queries';
+import { getDatasetById } from '@/lib/db/queries';
 import { query } from '@/lib/db/connection';
-import DownloadSection from '@/components/datasets/DownloadSection';
-import FairScoreCard from '@/components/datasets/FairScoreCard';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import DatasetTabs from '@/components/datasets/DatasetTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +25,6 @@ function parsePostgresArray(val: any): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val;
   if (typeof val === 'string') {
-    // Remove { and }, then split by comma and clean quotes
     return val
       .replace(/^\{/, '')
       .replace(/\}$/, '')
@@ -51,22 +44,8 @@ async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
     WHERE s.dataset_id = $1
   `;
 
-  const rows = await query<{
-    sample_count: string;
-    aft_grain_count: string;
-    ahe_grain_count: string;
-  }>(sql, [datasetId]);
-
-  if (rows.length === 0 || !rows[0]) {
-    return { sample_count: 0, aft_grain_count: 0, ahe_grain_count: 0 };
-  }
-
-  const row = rows[0];
-  return {
-    sample_count: parseInt(row.sample_count, 10),
-    aft_grain_count: parseInt(row.aft_grain_count, 10),
-    ahe_grain_count: parseInt(row.ahe_grain_count, 10)
-  };
+  const results = await query<DatasetStats>(sql, [datasetId]);
+  return results[0] || { sample_count: 0, aft_grain_count: 0, ahe_grain_count: 0 };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -76,22 +55,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!dataset) {
     return {
-      title: 'Dataset Not Found'
+      title: 'Dataset Not Found',
     };
   }
 
   return {
-    title: `${dataset.dataset_name} - Datasets`,
-    description: dataset.description || `Thermochronology data for ${dataset.dataset_name}`
+    title: `${dataset.dataset_name} - AusGeochem Thermochronology`,
+    description: dataset.description || `Thermochronology dataset: ${dataset.dataset_name}`,
   };
 }
 
-export default async function PaperDetailPage({ params }: PageProps) {
+export default async function DatasetOverviewPage({ params }: PageProps) {
   const { id } = await params;
   const datasetId = parseInt(id, 10);
 
   if (isNaN(datasetId)) {
-    notFound();
+    return notFound();
   }
 
   const dataset = await getDatasetById(datasetId);
@@ -100,12 +79,7 @@ export default async function PaperDetailPage({ params }: PageProps) {
     return notFound();
   }
 
-  const [files, totalSize, stats, fairBreakdown] = await Promise.all([
-    getDataFilesByDataset(datasetId),
-    getDatasetTotalFileSize(datasetId),
-    getDatasetStats(datasetId),
-    getFairScoreBreakdown(datasetId)
-  ]);
+  const stats = await getDatasetStats(datasetId);
 
   // Parse PostgreSQL array fields
   const authors = parsePostgresArray(dataset.authors);
@@ -144,207 +118,218 @@ export default async function PaperDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Paper Summary */}
-        {dataset.paper_summary && (
-          <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-            <p className="text-sm font-semibold text-blue-900 mb-2">Paper Summary</p>
-            <p className="text-sm text-gray-800 leading-relaxed">{dataset.paper_summary}</p>
+        {/* Laboratory Badge */}
+        {dataset.laboratory && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full mb-4">
+            <span className="text-sm font-semibold text-gray-700">🏛️ Laboratory</span>
+            <span className="text-sm text-gray-900">{dataset.laboratory}</span>
           </div>
         )}
+      </div>
 
-        {/* Key Findings */}
-        {keyFindings.length > 0 && (
-          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
-            <p className="text-sm font-semibold text-green-900 mb-3">Key Findings</p>
-            <ul className="space-y-2">
-              {keyFindings.map((finding, idx) => (
-                <li key={idx} className="text-sm text-gray-800 flex items-start">
-                  <span className="text-green-600 mr-2 font-bold">•</span>
-                  <span className="flex-1">{finding}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* Tab Navigation */}
+      <DatasetTabs datasetId={datasetId} activeTab="overview" />
 
-        {/* FAIR Reasoning */}
-        {dataset.fair_reasoning && (
-          <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg">
-            <p className="text-sm font-semibold text-amber-900 mb-2">FAIR Compliance Analysis</p>
-            <p className="text-sm text-gray-800 leading-relaxed">{dataset.fair_reasoning}</p>
-          </div>
-        )}
+      {/* Publication Information Card - Prominent at top */}
+      <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-l-4 border-amber-600 shadow-sm">
+        <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          📄 Publication Information
+        </h2>
 
         {/* Full Citation */}
         {dataset.full_citation && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 mb-2">📄 Citation</p>
-            <p className="text-sm text-gray-900 italic">{dataset.full_citation}</p>
-            {dataset.pdf_url && (
-              <a
-                href={dataset.pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block mt-2 text-sm text-amber-700 hover:text-amber-900 underline"
-              >
-                📎 View PDF
-              </a>
-            )}
+          <div className="mb-4 p-4 bg-white rounded-md">
+            <p className="text-sm font-semibold text-gray-700 mb-1">Citation</p>
+            <p className="text-gray-900 italic">{dataset.full_citation}</p>
           </div>
         )}
 
-        {/* Metadata Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Authors */}
-          {authors.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Journal */}
+          {dataset.publication_journal && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">👤 Authors</p>
-              <p className="text-sm text-gray-900">{authors.join(', ')}</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">Journal</p>
+              <p className="text-gray-900">{dataset.publication_journal}</p>
             </div>
           )}
 
-          {/* Publication Details */}
-          {(dataset.publication_year || dataset.publication_journal) && (
+          {/* Year */}
+          {dataset.publication_year && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📰 Publication</p>
-              <p className="text-sm text-gray-900">
-                {dataset.publication_journal}
-                {dataset.publication_year && ` (${dataset.publication_year})`}
-                {dataset.publication_volume_pages && `, ${dataset.publication_volume_pages}`}
-              </p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">Year</p>
+              <p className="text-gray-900">{dataset.publication_year}</p>
             </div>
           )}
 
-          {/* Study Location */}
-          {dataset.study_location && (
+          {/* Volume/Pages */}
+          {dataset.publication_volume_pages && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📍 Study Location</p>
-              <p className="text-sm text-gray-900">{dataset.study_location}</p>
-            </div>
-          )}
-
-          {/* Mineral Analyzed */}
-          {dataset.mineral_analyzed && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">🔬 Mineral</p>
-              <p className="text-sm text-gray-900">{dataset.mineral_analyzed}</p>
-            </div>
-          )}
-
-          {/* Sample Count */}
-          {dataset.sample_count && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📊 Total Samples</p>
-              <p className="text-sm text-gray-900">{dataset.sample_count}</p>
-            </div>
-          )}
-
-          {/* Age Range */}
-          {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">⏱️ Age Range</p>
-              <p className="text-sm text-gray-900">
-                {dataset.age_range_min_ma?.toFixed(1)}-{dataset.age_range_max_ma?.toFixed(1)} Ma
-              </p>
-            </div>
-          )}
-
-          {/* Laboratory */}
-          {dataset.laboratory && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">🏛️ Laboratory</p>
-              <p className="text-sm text-gray-900">{dataset.laboratory}</p>
-            </div>
-          )}
-
-          {/* Collection Date */}
-          {dataset.collection_date && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">📅 Collection Date</p>
-              <p className="text-sm text-gray-900">
-                {new Date(dataset.collection_date).toLocaleDateString()}
-              </p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">Volume & Pages</p>
+              <p className="text-gray-900">{dataset.publication_volume_pages}</p>
             </div>
           )}
 
           {/* DOI */}
           {dataset.doi && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">🔗 DOI</p>
+              <p className="text-sm font-semibold text-gray-700 mb-1">DOI</p>
               <a
                 href={`https://doi.org/${dataset.doi}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-amber-700 hover:text-amber-900 underline"
+                className="text-amber-700 hover:text-amber-900 underline break-all"
               >
                 {dataset.doi}
               </a>
             </div>
           )}
 
-          {/* Analyst */}
-          {dataset.analyst && (
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">👨‍🔬 Analyst</p>
-              <p className="text-sm text-gray-900">{dataset.analyst}</p>
+          {/* Laboratory */}
+          {dataset.laboratory && (
+            <div className="md:col-span-2">
+              <p className="text-sm font-semibold text-gray-700 mb-1">Laboratory</p>
+              <p className="text-gray-900">{dataset.laboratory}</p>
             </div>
           )}
         </div>
 
-        {/* Description */}
-        {dataset.description && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-700">{dataset.description}</p>
-          </div>
-        )}
-
-        {/* Statistics */}
-        <div className="flex flex-wrap gap-6 mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-          <div>
-            <p className="text-sm text-gray-600">Samples</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.sample_count}</p>
-          </div>
-          {stats.aft_grain_count > 0 && (
-            <div>
-              <p className="text-sm text-gray-600">AFT Grains</p>
-              <p className="text-2xl font-bold text-green-700">{stats.aft_grain_count}</p>
-            </div>
-          )}
-          {stats.ahe_grain_count > 0 && (
-            <div>
-              <p className="text-sm text-gray-600">AHe Grains</p>
-              <p className="text-2xl font-bold text-blue-700">{stats.ahe_grain_count}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Analysis Methods */}
-        {analysisMethods.length > 0 && (
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-700 mb-2">Analysis Methods</p>
-            <div className="flex flex-wrap gap-2">
-              {analysisMethods.map((method, idx) => (
-                <span
-                  key={idx}
-                  className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full"
-                >
-                  {method}
-                </span>
-              ))}
-            </div>
+        {/* PDF Link */}
+        {dataset.pdf_url && (
+          <div className="mt-4 pt-4 border-t border-amber-200">
+            <a
+              href={dataset.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold"
+            >
+              📎 View Full PDF
+            </a>
           </div>
         )}
       </div>
 
-      {/* FAIR Score Card */}
-      {dataset.fair_score !== null && dataset.fair_score !== undefined && (
-        <div className="mb-8">
-          <FairScoreCard fairScore={dataset.fair_score} fairBreakdown={fairBreakdown} />
+      {/* Description */}
+      {dataset.description && (
+        <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+          <h2 className="text-lg font-bold text-blue-900 mb-3">Description</h2>
+          <p className="text-gray-800 leading-relaxed">{dataset.description}</p>
         </div>
       )}
 
-      {/* Download Section */}
-      <DownloadSection files={files} datasetId={datasetId} totalSize={totalSize} />
+      {/* Study Area */}
+      {dataset.study_location && (
+        <div className="mb-8 p-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
+          <h2 className="text-lg font-bold text-green-900 mb-3">🌍 Study Area</h2>
+          <p className="text-gray-900">{dataset.study_location}</p>
+        </div>
+      )}
+
+      {/* Key Findings */}
+      {keyFindings.length > 0 && (
+        <div className="mb-8 p-6 bg-purple-50 border-l-4 border-purple-500 rounded-r-lg">
+          <h2 className="text-lg font-bold text-purple-900 mb-3">Key Findings</h2>
+          <ul className="space-y-2">
+            {keyFindings.map((finding, idx) => (
+              <li key={idx} className="text-gray-800 flex items-start">
+                <span className="text-purple-600 mr-2 font-bold">•</span>
+                <span className="flex-1">{finding}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Metadata Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Authors */}
+        {authors.length > 0 && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">👤 Authors</p>
+            <p className="text-sm text-gray-900">{authors.join(', ')}</p>
+          </div>
+        )}
+
+        {/* Mineral Analyzed */}
+        {dataset.mineral_analyzed && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">💎 Mineral Analyzed</p>
+            <p className="text-sm text-gray-900">{dataset.mineral_analyzed}</p>
+          </div>
+        )}
+
+        {/* Sample Count */}
+        {dataset.sample_count && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">📊 Total Samples</p>
+            <p className="text-sm text-gray-900">{dataset.sample_count}</p>
+          </div>
+        )}
+
+        {/* Age Range */}
+        {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">⏱️ Age Range</p>
+            <p className="text-sm text-gray-900">
+              {dataset.age_range_min_ma?.toFixed(1)}-{dataset.age_range_max_ma?.toFixed(1)} Ma
+            </p>
+          </div>
+        )}
+
+        {/* Collection Date */}
+        {dataset.collection_date && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">📅 Collection Date</p>
+            <p className="text-sm text-gray-900">
+              {new Date(dataset.collection_date).toLocaleDateString()}
+            </p>
+          </div>
+        )}
+
+        {/* Analyst */}
+        {dataset.analyst && (
+          <div className="p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm font-semibold text-gray-700 mb-2">👨‍🔬 Analyst</p>
+            <p className="text-sm text-gray-900">{dataset.analyst}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Statistics */}
+      <div className="flex flex-wrap gap-6 mb-8 p-6 bg-amber-50 rounded-lg border border-amber-200">
+        <div>
+          <p className="text-sm text-gray-600">Samples</p>
+          <p className="text-3xl font-bold text-gray-900">{stats.sample_count}</p>
+        </div>
+        {stats.aft_grain_count > 0 && (
+          <div>
+            <p className="text-sm text-gray-600">AFT Grains</p>
+            <p className="text-3xl font-bold text-green-700">{stats.aft_grain_count}</p>
+          </div>
+        )}
+        {stats.ahe_grain_count > 0 && (
+          <div>
+            <p className="text-sm text-gray-600">AHe Grains</p>
+            <p className="text-3xl font-bold text-blue-700">{stats.ahe_grain_count}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Analysis Methods */}
+      {analysisMethods.length > 0 && (
+        <div className="mb-8">
+          <p className="text-sm font-semibold text-gray-700 mb-3">Analysis Methods</p>
+          <div className="flex flex-wrap gap-2">
+            {analysisMethods.map((method, idx) => (
+              <span
+                key={idx}
+                className="text-sm bg-amber-100 text-amber-800 px-3 py-1 rounded-full"
+              >
+                {method}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* View Samples Link */}
       <div className="mt-8">

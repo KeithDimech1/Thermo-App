@@ -104,8 +104,8 @@ export default function DownloadSection({
                     </div>
 
                     <a
-                      href={file.file_path}
-                      download
+                      href={`/api/datasets/files/${file.id}`}
+                      download={file.file_name}
                       className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold whitespace-nowrap"
                     >
                       Download

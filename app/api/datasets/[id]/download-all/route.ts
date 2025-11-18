@@ -6,10 +6,11 @@ import JSZip from 'jszip';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const datasetId = parseInt(params.id, 10);
+    const { id } = await params;
+    const datasetId = parseInt(id, 10);
 
     if (isNaN(datasetId)) {
       return NextResponse.json(

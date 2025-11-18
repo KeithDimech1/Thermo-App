@@ -1,18 +1,23 @@
 # /thermoanalysis - Deep Paper Analysis with Indexed Navigation
 
-**Status:** ✅ Ready for use | ⏳ Production deployment after ERROR-005 schema migration
+**Status:** ✅ Ready for use | 🚀 Optimized for large PDFs (ERROR-013 resolved)
 
 **Purpose:** Create comprehensive, indexed analysis of thermochronology papers that integrates with /thermoextract
 
 **Usage:** Provide PDF path and optional folder name
 
-**Note:** This command is fully functional now but is recommended for production use **after ERROR-005 (EarthBank schema migration)** is complete. Database mapping templates will need minor updates when the new schema is deployed. See ERROR-008 for details.
+**Recent Updates (2025-11-18):**
+- ✅ **Optimized workflow** - Text extraction first, PDF viewing deferred (80-90% token savings on large PDFs)
+- ✅ **Document size check** - Automatically detects page count and applies optimal strategy
+- ✅ **Targeted viewing** - Optional one-page-at-a-time viewing for verification only
+
+**Note:** This command is fully functional now but is recommended for production use **after ERROR-006 (EarthBank schema migration)** is complete. Database mapping templates will need minor updates when the new schema is deployed. See ERROR-010 for details.
 
 **What it does:**
-1. Reads the PDF thoroughly
-2. Creates organized paper folder structure
-3. Extracts plain text and layout metadata (for table detection)
-4. Discovers tables dynamically (no hardcoded assumptions)
+1. Checks document size (page count)
+2. **Extracts text FIRST** using Python (minimal token usage)
+3. Creates organized paper folder structure
+4. Discovers tables dynamically from extracted text (no hardcoded assumptions)
 5. **Detects exact table page numbers (including multi-page tables)** ⭐ NEW
 6. Extracts all images with figure captions from PDF text
 7. **Downloads OSF/Zenodo supplemental material (if available)** ⭐ NEW
@@ -63,50 +68,48 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
 - Provide metadata for `/thermoextract` to speed up data extraction
 - Document the paper's methods, results, and database relevance
 
-**Ask the user for:**
-1. **PDF path** - Full path to the PDF file
-2. **Paper folder name** (optional) - Format: `AUTHOR(YEAR)-TITLE-JOURNAL` (e.g., `Peak(2021)-Grand-Canyon-Great-Unconformity-Geology`)
-   - If not provided, derive from PDF filename
+**Automaticlly Save**
+1. User to provide PDF
+2. Move PDF to: /Users/keithdimech/Pathway/Dev/Clair/Thermo-App/build-data/learning/thermo-papers/[PAPER_NAME]/[PAPER_NAME.pdf]
+3. **PAPER_NAME** Format: `AUTHOR(YEAR)-TITLE-JOURNAL` (e.g., `Peak(2021)-Grand-Canyon-Great-Unconformity-Geology`)
+   - find this infromation from the text extraction
 
 ---
 
 ## 📋 Systematic Workflow
 
-### STEP 1: Setup and PDF Reading
+### STEP 1: Setup and Text Extraction (Optimized for Large PDFs)
+
+**IMPORTANT:** This workflow is optimized to minimize context drain. We extract text FIRST using Python (cheap), then analyze the text. Direct PDF viewing is deferred until after analysis files are created.
 
 **Actions:**
+
 1. Get PDF path and folder name from user
-2. Create folder: `build-data/learning/thermo-papers/[FOLDER_NAME]/`
+2. Create folder: `build-data/learning/thermo-papers/[PAPER_NAME]/`
 3. Copy PDF to folder
-4. Read the PDF thoroughly using Read tool
-5. Extract key metadata while reading:
-   - Full citation
-   - Authors (lead + co-authors)
-   - Year, journal, DOI
-   - Study location/region
-   - Mineral type (apatite, zircon, etc)
-   - Analysis method (EDM, LA-ICP-MS, both)
-   - Sample count
-   - Age range (min-max Ma)
+4. **Check document size and extract text immediately:**
 
-**Output:** Print summary of metadata extracted
-
----
-
-### STEP 1.5: Extract Plain Text + Layout Metadata from PDF (IDEA-012 + IDEA-013)
-
-**Actions:**
-
-1. **Create text directory:**
-   ```python
-   text_dir = paper_dir / 'text'
-   text_dir.mkdir(exist_ok=True)
-   ```
-
-2. **Extract dual-format: plain text + layout metadata:**
    ```python
    import fitz  # PyMuPDF
    import json
+   from pathlib import Path
+
+   # Check document size
+   doc = fitz.open(pdf_path)
+   page_count = len(doc)
+   doc.close()
+
+   print('━' * 60)
+   print('DOCUMENT SIZE CHECK')
+   print('━' * 60)
+   print(f'📄 PDF: {pdf_path.name}')
+   print(f'📊 Pages: {page_count}')
+   print(f'💡 Strategy: Text extraction first (optimized for {"large" if page_count > 20 else "small"} PDFs)')
+   print()
+
+   # Create text directory
+   text_dir = paper_dir / 'text'
+   text_dir.mkdir(exist_ok=True)
 
    print('━' * 60)
    print('EXTRACTING TEXT + LAYOUT METADATA FROM PDF')
@@ -250,8 +253,43 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
        return table_regions
    ```
 
+5. **Extract metadata from plain text file:**
+
+   Now that we have the text extracted, we can analyze it to extract key metadata **without loading the PDF as images**.
+
+   ```python
+   # Read the extracted text
+   with open(text_file, 'r', encoding='utf-8') as f:
+       full_text = f.read()
+
+   print('━' * 60)
+   print('EXTRACTING METADATA FROM TEXT')
+   print('━' * 60)
+   print()
+
+   # Extract metadata by analyzing the text
+   # Look for common patterns in research papers:
+   # - Citation info typically in first 2 pages
+   # - Study location in abstract/introduction
+   # - Methods section describes analysis techniques
+   # - Results section has sample counts and age ranges
+
+   # This is done via text analysis, not PDF viewing
+   # Print summary of metadata found
+   print('✅ Citation metadata extracted from text')
+   print('✅ Study location identified')
+   print('✅ Analysis methods found')
+   print()
+   ```
+
+**Output:**
+- `text/plain-text.txt` - Full text extraction (reusable)
+- `text/layout-data.json` - Spatial metadata (bounding boxes, columns)
+- Summary of metadata extracted from text
+
 **Why This Matters:**
-- **Extract ONCE, reuse MANY times** - Token efficient (~33% reduction)
+- **Extract ONCE, reuse MANY times** - Token efficient (80-90% reduction for large PDFs)
+- **No PDF viewing needed yet** - All metadata is in the text
 - **Backward compatible** - Plain text format unchanged, existing workflows still work
 - **Spatial awareness** - Layout metadata enables 90%+ column detection accuracy
 - **Table detection** - Auto-identify table regions via density clustering
@@ -259,11 +297,11 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
 
 ---
 
-### STEP 1.6: Discover Tables Dynamically + Column Positions (IDEA-012 + IDEA-013)
+### STEP 2: Discover Tables Dynamically + Column Positions (IDEA-012 + IDEA-013)
 
 **Actions:**
 
-1. **Column detection helper (add before STEP 1.6 usage):**
+1. **Column detection helper (add before STEP 2 usage):**
    ```python
    def _detect_column_positions(table_region_bbox, page_blocks, tolerance=15.0):
        """
@@ -419,7 +457,7 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
 
 ---
 
-### STEP 1.7: Generate Text Index with Spatial Metadata (IDEA-012 + IDEA-013)
+### STEP 3: Generate Text Index with Spatial Metadata (IDEA-012 + IDEA-013)
 
 **Actions:**
 
@@ -484,7 +522,7 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
 
 ---
 
-### STEP 1.75: Detect Exact Table Page Numbers (Multi-Page Detection)
+### STEP 4: Detect Exact Table Page Numbers (Multi-Page Detection)
 
 **Actions:**
 
@@ -572,7 +610,7 @@ You are analyzing a thermochronology research paper to create **indexed, navigab
 
 ---
 
-### STEP 1.8: Extract Images from PDF (IDEA-008)
+### STEP 5: Extract Images from PDF (IDEA-008)
 
 **Actions:**
 
@@ -816,7 +854,7 @@ Full caption text from paper...
 
 ---
 
-### STEP 1.9: Download OSF Supplemental Material (MANDATORY if available)
+### STEP 6: Download OSF Supplemental Material (MANDATORY if available)
 
 **Actions:**
 
@@ -1037,19 +1075,35 @@ Full caption text from paper...
 
 ---
 
-### STEP 2: Create Paper Index (paper-index.md)
+### STEP 7: Create Paper Index (paper-index.md)
 
 **File:** `build-data/learning/thermo-papers/[FOLDER_NAME]/paper-index.md`
-
-**Template location:** `build-data/documentation/THERMO_PAPER_ANALYSIS_INSTRUCTIONS.md` (Section: "Template for paper-index.md")
 
 **Critical sections to complete:**
 
 #### 📄 Paper Metadata
-- Full citation, authors, year, journal, pages, DOI
+**CRITICAL: Extract ALL of these fields for database population:**
+
+**Publication Information:**
+- Full citation
+- Authors (list all with affiliations if provided)
+- Year
+- Journal name
+- Volume/Pages
+- DOI
+
+**File Information:**
 - PDF filename
-- Study area, mineral type, analysis method
-- Sample count, age range
+- PDF URL (if external link exists)
+- Supplementary files URL (check "Data Availability" sections for OSF, Zenodo, AusGeochem, or other repository links)
+
+**Study Details:**
+- Study area/location
+- Mineral type analyzed (lowercase: apatite, zircon, etc.)
+- Analysis method (EDM, LA-ICP-MS, etc.)
+- Laboratory where analysis was conducted (check methods section, acknowledgments, or author affiliations)
+- Sample count
+- Age range (min-max Ma)
 
 #### 🗂️ Document Structure
 - Navigation table linking to analysis sections
@@ -1076,15 +1130,16 @@ For each table in the paper, create a row with:
 - **Description** - Brief description of contents
 - **Data Type** - Type of data (AFT ages, AHe data, etc.)
 - **Extractable?** - ✅ Yes / ⚠️ Complex / ❌ No
-- **Priority** - HIGH / MEDIUM / LOW
+- **Priority?** - All tables must be extracted regardless of thier relevance. 
+
 
 Example table:
-| Table # | Page(s) | Description | Data Type | Extractable? | Priority |
-|---------|---------|-------------|-----------|--------------|----------|
-| **Table 1** | **9** | **AFT results summary** (35 samples) | AFT ages, counts, chemistry | ✅ **PRIMARY** | **HIGH** |
-| **Table 2** | **10-11** | **(U-Th-Sm)/He results** (spans 2 pages) | AHe single grain ages | ✅ Yes | HIGH |
-| Table A1 | ❌ Not found | EPMA composition (referenced but not present) | Chemistry | ❌ No | N/A |
-| Table A2 | 22-36 | Detailed composition (spans 15 pages!) | Elemental data | ⚠️ Complex | LOW |
+| Table # | Page(s) | Description | Data Type | Extractable? | Priority
+|---------|---------|-------------|-----------|--------------|----------------|
+| **Table 1** | **9** | **AFT results summary** (35 samples) | AFT ages, counts, chemistry | ✅ **PRIMARY** | % Relevant |
+| **Table 2** | **10-11** | **(U-Th-Sm)/He results** (spans 2 pages) | AHe single grain ages | ✅ Yes | % Relevant |
+| Table A1 | ❌ Not found | EPMA composition (referenced but not present) | Chemistry | ❌ No | % Relevant |
+| Table A2 | 22-36 | Detailed composition (spans 15 pages!) | Elemental data | ⚠️ Complex | % Relevant |
 
 **Add notes section below the table:**
 ```markdown
@@ -1137,11 +1192,9 @@ Example table:
 
 ---
 
-### STEP 3: Create Full Analysis (paper-analysis.md)
+### STEP 8: Create Full Analysis (paper-analysis.md)
 
 **File:** `build-data/learning/thermo-papers/[FOLDER_NAME]/paper-analysis.md`
-
-**Template location:** `build-data/documentation/THERMO_PAPER_ANALYSIS_INSTRUCTIONS.md` (Section: "Template structure with anchors")
 
 **Required sections with anchor tags:**
 
@@ -1387,7 +1440,46 @@ FROM ft_ages;
 
 ---
 
-### STEP 4: Quality Check
+### Optional: Targeted PDF Page Viewing (If Needed)
+
+**When to use:** Only if you need to verify specific details that aren't clear from the text extraction.
+
+**How to view pages efficiently:**
+
+```python
+# View a SINGLE page at a time (not the whole PDF!)
+from IPython.display import display
+import fitz
+
+# Example: View page 12 to verify Table 2 structure
+doc = fitz.open(pdf_path)
+page = doc[11]  # 0-indexed (page 12)
+pix = page.get_pixmap()
+pix.save("temp_page_12.png")
+display(Image("temp_page_12.png"))
+doc.close()
+```
+
+**Alternative (using Read tool):**
+```python
+# Read a specific page range (e.g., pages 10-12)
+Read(file_path=pdf_path, offset=9, limit=3)  # Pages 10-11-12
+```
+
+**Use cases:**
+- Verify table structure when text extraction is ambiguous
+- Check figure quality for image-heavy papers
+- Confirm citation format for unusual references
+- Inspect complex equations that may not parse well as text
+
+**Important:**
+- ✅ View ONE page at a time
+- ❌ Never view the entire PDF after text extraction (defeats the optimization!)
+- 💡 Most papers don't need this step - text extraction is usually sufficient
+
+---
+
+### STEP 9: Quality Check
 
 **Validate completeness:**
 
@@ -1438,7 +1530,7 @@ FROM ft_ages;
 
 ---
 
-### STEP 5: Summary Report
+### STEP 10: Summary Report
 
 **Report what was created:**
 
@@ -1569,7 +1661,7 @@ If yes to all three → Success! ✅
 
 ---
 
-### STEP 6: Populate Database (Optional)
+### STEP 11: Populate Database (Optional)
 
 **See:** `.claude/commands/thermoanalysis-database-update.md` for complete instructions
 

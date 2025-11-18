@@ -889,4 +889,359 @@ npx tsx scripts/import_mcmillan_2024.ts
 
 ---
 
-**Ready to extract!** Run `/thermoextract` to start the workflow.
+---
+
+## Step 13: Generate Database Metadata SQL Scripts
+
+**Task:** After successful extraction and import, generate SQL scripts to populate `datasets` table metadata and FAIR scores
+
+**Process:**
+
+### 13.1 Extract Metadata from Analysis Files
+
+```python
+import re
+from pathlib import Path
+
+print()
+print('━' * 60)
+print('STEP 13: GENERATING DATABASE METADATA SQL SCRIPTS')
+print('━' * 60)
+print()
+
+# Read paper-index.md to extract metadata
+index_file = paper_dir / 'paper-index.md'
+with open(index_file, 'r', encoding='utf-8') as f:
+    index_content = f.read()
+
+# Read extraction-report.md if exists (for FAIR scores)
+extraction_report = paper_dir / 'extraction-report.md'
+fair_breakdown_data = None
+
+if extraction_report.exists():
+    with open(extraction_report, 'r', encoding='utf-8') as f:
+        extraction_content = f.read()
+
+    # Parse FAIR scores from extraction-report.md
+    # Extract Table 4-10 scores
+    table4_match = re.search(r'Table 4.*?(\d+)/15', extraction_content, re.DOTALL)
+    table5_match = re.search(r'Table 5.*?(\d+)/15', extraction_content, re.DOTALL)
+    table6_match = re.search(r'Table 6.*?(\d+)/10', extraction_content, re.DOTALL)
+    table10_match = re.search(r'Table 10.*?(\d+)/10', extraction_content, re.DOTALL)
+
+    # Extract FAIR category scores
+    findable_match = re.search(r'Findable.*?(\d+)/25', extraction_content, re.DOTALL)
+    accessible_match = re.search(r'Accessible.*?(\d+)/25', extraction_content, re.DOTALL)
+    interoperable_match = re.search(r'Interoperable.*?(\d+)/25', extraction_content, re.DOTALL)
+    reusable_match = re.search(r'Reusable.*?(\d+)/25', extraction_content, re.DOTALL)
+
+    # Extract total score and grade
+    total_score_match = re.search(r'Total FAIR Score:\s*(\d+)/100', extraction_content)
+    grade_match = re.search(r'Grade:\s*([A-F])', extraction_content)
+
+    if all([table4_match, table5_match, table6_match, table10_match,
+            findable_match, accessible_match, interoperable_match, reusable_match,
+            total_score_match, grade_match]):
+        fair_breakdown_data = {
+            'table4_score': int(table4_match.group(1)),
+            'table5_score': int(table5_match.group(1)),
+            'table6_score': int(table6_match.group(1)),
+            'table10_score': int(table10_match.group(1)),
+            'findable_score': int(findable_match.group(1)),
+            'accessible_score': int(accessible_match.group(1)),
+            'interoperable_score': int(interoperable_match.group(1)),
+            'reusable_score': int(reusable_match.group(1)),
+            'total_score': int(total_score_match.group(1)),
+            'grade': grade_match.group(1)
+        }
+
+        print(f'✅ Extracted FAIR score breakdown from extraction-report.md')
+        print(f'   Overall Score: {fair_breakdown_data["total_score"]}/100 (Grade {fair_breakdown_data["grade"]})')
+    else:
+        print('⚠️  Could not extract complete FAIR scores from extraction-report.md')
+        print('   SQL scripts will include basic metadata only')
+else:
+    print('ℹ️  No extraction-report.md found')
+    print('   SQL scripts will include basic metadata only')
+
+print()
+```
+
+### 13.2 Generate SQL Script for Dataset Metadata
+
+```python
+# Extract metadata from paper-index.md
+full_citation = re.search(r'\*\*Full Citation:\*\*\s*(.+)', index_content)
+authors_match = re.search(r'\*\*Authors:\*\*\s*(.+)', index_content)
+year_match = re.search(r'\*\*Year:\*\*\s*(\d{4})', index_content)
+journal_match = re.search(r'\*\*Journal:\*\*\s*(.+)', index_content)
+volume_pages_match = re.search(r'\*\*Volume/Pages:\*\*\s*(.+)', index_content)
+doi_match = re.search(r'\*\*DOI:\*\*\s*(https?://[^\s]+|10\.\d{4,}/[^\s]+)', index_content)
+location_match = re.search(r'\*\*(?:Study Location|Region):\*\*\s*(.+)', index_content)
+laboratory_match = re.search(r'\*\*Laboratory:\*\*\s*(.+)', index_content)
+mineral_match = re.search(r'\*\*Mineral Type:\*\*\s*(\w+)', index_content)
+sample_count_match = re.search(r'\*\*Sample Count:\*\*\s*(\d+)', index_content)
+age_range_match = re.search(r'\*\*Age Range:\*\*\s*([\d.]+)\s*-\s*([\d.]+)\s*Ma', index_content)
+paper_summary_match = re.search(r'## Executive Summary\n\n(.+?)\n\n', index_content, re.DOTALL)
+supplementary_url_match = re.search(r'\*\*Supplementary Files URL:\*\*\s*(https?://[^\s]+)', index_content)
+pdf_url_match = re.search(r'\*\*PDF URL:\*\*\s*(https?://[^\s]+)', index_content)
+
+# Build metadata dictionary
+metadata = {
+    'full_citation': full_citation.group(1).strip() if full_citation else None,
+    'publication_year': int(year_match.group(1)) if year_match else None,
+    'publication_journal': journal_match.group(1).strip() if journal_match else None,
+    'publication_volume_pages': volume_pages_match.group(1).strip() if volume_pages_match else None,
+    'doi': doi_match.group(1).strip() if doi_match else None,
+    'study_location': location_match.group(1).strip() if location_match else None,
+    'laboratory': laboratory_match.group(1).strip() if laboratory_match else None,
+    'mineral_analyzed': mineral_match.group(1).strip().lower() if mineral_match else None,
+    'sample_count': int(sample_count_match.group(1)) if sample_count_match else None,
+    'age_range_min_ma': float(age_range_match.group(1)) if age_range_match else None,
+    'age_range_max_ma': float(age_range_match.group(2)) if age_range_match else None,
+    'paper_summary': paper_summary_match.group(1).strip() if paper_summary_match else None,
+    'pdf_filename': pdf_path.name if pdf_path else None,
+    'pdf_url': pdf_url_match.group(1).strip() if pdf_url_match else None,
+    'supplementary_files_url': supplementary_url_match.group(1).strip() if supplementary_url_match else None
+}
+
+# Generate SQL update script
+sql_script = paper_dir / 'update-database-metadata.sql'
+dataset_name = paper_dir.name  # Use folder name as dataset identifier
+
+with open(sql_script, 'w') as f:
+    f.write(f"-- Database metadata update for {dataset_name}\n")
+    f.write(f"-- Generated by /thermoextract command\n")
+    f.write(f"-- Run with: psql \"$DATABASE_URL\" -f {sql_script.name}\n\n")
+
+    f.write("-- Update datasets table\n")
+    f.write("UPDATE datasets SET\n")
+
+    updates = []
+    if metadata['full_citation']:
+        updates.append(f"  full_citation = '{metadata['full_citation'].replace(\"'\", \"''\")}',\n")
+    if metadata['publication_year']:
+        updates.append(f"  publication_year = {metadata['publication_year']},\n")
+    if metadata['publication_journal']:
+        updates.append(f"  publication_journal = '{metadata['publication_journal'].replace(\"'\", \"''\")}',\n")
+    if metadata['publication_volume_pages']:
+        updates.append(f"  publication_volume_pages = '{metadata['publication_volume_pages'].replace(\"'\", \"''\")}',\n")
+    if metadata['doi']:
+        updates.append(f"  doi = '{metadata['doi'].replace(\"'\", \"''\")}',\n")
+    if metadata['study_location']:
+        updates.append(f"  study_location = '{metadata['study_location'].replace(\"'\", \"''\")}',\n")
+    if metadata['laboratory']:
+        updates.append(f"  laboratory = '{metadata['laboratory'].replace(\"'\", \"''\")}',\n")
+    if metadata['pdf_filename']:
+        updates.append(f"  pdf_filename = '{metadata['pdf_filename']}',\n")
+    if metadata['pdf_url']:
+        updates.append(f"  pdf_url = '{metadata['pdf_url']}',\n")
+    if metadata['supplementary_files_url']:
+        updates.append(f"  supplementary_files_url = '{metadata['supplementary_files_url']}',\n")
+    if metadata['mineral_analyzed']:
+        updates.append(f"  mineral_analyzed = '{metadata['mineral_analyzed']}',\n")
+    if metadata['sample_count']:
+        updates.append(f"  sample_count = {metadata['sample_count']},\n")
+    if metadata['age_range_min_ma']:
+        updates.append(f"  age_range_min_ma = {metadata['age_range_min_ma']},\n")
+    if metadata['age_range_max_ma']:
+        updates.append(f"  age_range_max_ma = {metadata['age_range_max_ma']},\n")
+    if metadata['paper_summary']:
+        summary_escaped = metadata['paper_summary'].replace("'", "''").replace("\n", " ")
+        updates.append(f"  paper_summary = '{summary_escaped}',\n")
+
+    if updates:
+        f.write(''.join(updates))
+        f.write("  last_modified_date = CURRENT_DATE\n")
+        f.write(f"WHERE dataset_name = '{dataset_name}';\n\n")
+
+    # Add FAIR score breakdown if available
+    if fair_breakdown_data:
+        f.write("-- Insert or update FAIR score breakdown\n")
+        f.write("INSERT INTO fair_score_breakdown (\n")
+        f.write("  dataset_id,\n")
+        f.write("  table4_score, table5_score, table6_score, table10_score,\n")
+        f.write("  findable_score, accessible_score, interoperable_score, reusable_score,\n")
+        f.write("  total_score, grade\n")
+        f.write(") VALUES (\n")
+        f.write(f"  (SELECT id FROM datasets WHERE dataset_name = '{dataset_name}'),\n")
+        f.write(f"  {fair_breakdown_data['table4_score']}, {fair_breakdown_data['table5_score']}, ")
+        f.write(f"{fair_breakdown_data['table6_score']}, {fair_breakdown_data['table10_score']},\n")
+        f.write(f"  {fair_breakdown_data['findable_score']}, {fair_breakdown_data['accessible_score']}, ")
+        f.write(f"{fair_breakdown_data['interoperable_score']}, {fair_breakdown_data['reusable_score']},\n")
+        f.write(f"  {fair_breakdown_data['total_score']}, '{fair_breakdown_data['grade']}'\n")
+        f.write(")\n")
+        f.write("ON CONFLICT (dataset_id) DO UPDATE SET\n")
+        f.write("  table4_score = EXCLUDED.table4_score,\n")
+        f.write("  table5_score = EXCLUDED.table5_score,\n")
+        f.write("  table6_score = EXCLUDED.table6_score,\n")
+        f.write("  table10_score = EXCLUDED.table10_score,\n")
+        f.write("  findable_score = EXCLUDED.findable_score,\n")
+        f.write("  accessible_score = EXCLUDED.accessible_score,\n")
+        f.write("  interoperable_score = EXCLUDED.interoperable_score,\n")
+        f.write("  reusable_score = EXCLUDED.reusable_score,\n")
+        f.write("  total_score = EXCLUDED.total_score,\n")
+        f.write("  grade = EXCLUDED.grade,\n")
+        f.write("  updated_at = CURRENT_TIMESTAMP;\n\n")
+
+    # Add verification queries
+    f.write("-- Verify the update\n")
+    f.write("SELECT id, dataset_name, publication_year, publication_journal, study_location, ")
+    f.write("mineral_analyzed, sample_count, age_range_min_ma, age_range_max_ma\n")
+    f.write("FROM datasets\n")
+    f.write(f"WHERE dataset_name = '{dataset_name}';\n\n")
+
+    if fair_breakdown_data:
+        f.write("-- Verify FAIR score\n")
+        f.write("SELECT dataset_id, table4_score, table5_score, table6_score, table10_score, ")
+        f.write("findable_score, accessible_score, interoperable_score, reusable_score, total_score, grade\n")
+        f.write("FROM fair_score_breakdown\n")
+        f.write(f"WHERE dataset_id = (SELECT id FROM datasets WHERE dataset_name = '{dataset_name}');\n")
+
+print(f'✅ Created SQL script: {sql_script.name}')
+print()
+```
+
+### 13.3 Generate SQL Script for Data Files
+
+```python
+# Generate SQL for data_files table
+files_sql = paper_dir / 'populate-data-files.sql'
+
+with open(files_sql, 'w') as f:
+    f.write("-- Populate data_files table with extracted files\n")
+    f.write(f"-- Dataset: {dataset_name}\n")
+    f.write(f"-- Generated by /thermoextract command\n\n")
+
+    # Get list of all files created
+    raw_files = list((paper_dir / 'RAW').glob('*.csv')) if (paper_dir / 'RAW').exists() else []
+    fair_files = list((paper_dir / 'FAIR').glob('*.csv')) if (paper_dir / 'FAIR').exists() else []
+
+    dataset_id_expr = f"(SELECT id FROM datasets WHERE dataset_name = '{dataset_name}')"
+
+    # Insert RAW files
+    if raw_files:
+        f.write("-- Insert RAW CSV files\n")
+        for file_path in raw_files:
+            file_size = file_path.stat().st_size
+            file_name = file_path.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/RAW/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'RAW', {file_size})\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert FAIR files
+    if fair_files:
+        f.write("-- Insert FAIR/EarthBank CSV files\n")
+        for file_path in fair_files:
+            file_size = file_path.stat().st_size
+            file_name = file_path.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/FAIR/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'EarthBank', {file_size})\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert PDF if path is known
+    if metadata.get('pdf_filename'):
+        f.write("-- Insert main paper PDF\n")
+        # Try to find the PDF file
+        pdf_candidates = list(paper_dir.glob('*.pdf'))
+        if pdf_candidates:
+            pdf_file = pdf_candidates[0]  # Take first PDF found
+            file_size = pdf_file.stat().st_size
+            file_name = pdf_file.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes, display_name)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'PDF', {file_size}, 'Main Paper PDF')\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert images folder if exists
+    images_dir = paper_dir / 'images'
+    if images_dir.exists():
+        relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/images'
+        f.write("-- Insert images folder\n")
+        f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, is_folder, folder_path, display_name)\n")
+        f.write(f"VALUES ({dataset_id_expr}, 'images-archive', '{relative_path}', 'Images', TRUE, '{relative_path}', 'Extracted Figures')\n")
+        f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Add verification query
+    f.write("-- Verify files were inserted\n")
+    f.write("SELECT file_name, file_type, file_size_bytes, display_name\n")
+    f.write("FROM data_files\n")
+    f.write(f"WHERE dataset_id = {dataset_id_expr}\n")
+    f.write("ORDER BY file_type, file_name;\n")
+
+print(f'✅ Created data files SQL script: {files_sql.name}')
+print()
+```
+
+### 13.4 Summary of Generated Scripts
+
+```python
+print('━' * 60)
+print('DATABASE METADATA SQL SCRIPTS GENERATED')
+print('━' * 60)
+print()
+print(f'📁 Location: {paper_dir}')
+print()
+print('📄 Files created:')
+print(f'   1. {sql_script.name} - Dataset metadata + FAIR scores')
+print(f'   2. {files_sql.name} - Data files tracking')
+print()
+print('📋 To populate the database:')
+print(f'   cd {paper_dir}')
+print(f'   psql "$DATABASE_URL" -f {sql_script.name}')
+print(f'   psql "$DATABASE_URL" -f {files_sql.name}')
+print()
+print('✅ Extraction and SQL generation complete!')
+print()
+```
+
+**Output Files:**
+- `update-database-metadata.sql` - Updates `datasets` table with paper metadata and FAIR scores
+- `populate-data-files.sql` - Inserts file records into `data_files` table
+
+**Benefits:**
+- ✅ No manual placeholder replacement needed (uses actual dataset name from folder)
+- ✅ Automatically includes FAIR scores if extraction-report.md exists
+- ✅ Tracks all RAW, FAIR, PDF, and image files
+- ✅ Includes verification queries to check results
+- ✅ Ready to execute immediately after generation
+
+---
+
+## Updated Output Directory Structure
+
+**After successful extraction, the paper directory will contain:**
+
+```
+build-data/learning/thermo-papers/PAPER_NAME/
+├── paper-index.md                          # From /thermoanalysis
+├── paper-analysis.md                       # From /thermoanalysis
+├── paper.pdf                               # Original PDF
+├── extracted/
+│   ├── table-1-page-9.pdf                  # Isolated PDF pages
+│   ├── table-1-page-9-raw-text.txt         # pdfplumber output
+│   ├── extract_table_1.py                  # Custom extraction script
+│   ├── table-1-extracted.csv               # Final validated CSV
+│   ├── table-2-pages-10-11.pdf
+│   ├── table-2-pages-10-11-raw-text.txt
+│   ├── extract_table_2.py
+│   └── table-2-extracted.csv
+├── FAIR/
+│   ├── earthbank_samples.csv               # EarthBank format (XX samples)
+│   ├── earthbank_ft_datapoints.csv         # EarthBank format (XX datapoints)
+│   ├── earthbank_ft_count_data.csv         # EarthBank format (XX grains)
+│   └── earthbank_ft_length_data.csv        # EarthBank format (XX tracks)
+├── extraction-report.md                    # FAIR score & completeness
+├── update-database-metadata.sql            # NEW: Dataset metadata SQL
+└── populate-data-files.sql                 # NEW: File tracking SQL
+
+```
+
+---
+
+**Ready to extract!** Run `/thermoextract` to start the complete workflow from PDF → Database.

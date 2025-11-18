@@ -118,31 +118,31 @@ export default async function SampleDetailPage({
         {/* Main Content Grid */}
         <div className="space-y-8">
           {/* Fission-Track Datapoints */}
-          {ftDatapoints.length > 0 && (
+          {ft_datapoints.length > 0 && (
             <section>
               <h2 className="text-3xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span>🔬</span> Fission-Track Analyses ({ftDatapoints.length})
+                <span>🔬</span> Fission-Track Analyses ({ft_datapoints.length})
               </h2>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {ftDatapoints.map((datapoint: EarthBankFTDatapoint, idx: number) => {
-                  const counts = countDataByDatapoint.get(datapoint.datapointName) || [];
+                {ft_datapoints.map((datapoint: FTDatapoint, idx: number) => {
+                  const counts = countDataByDatapoint.get(datapoint.id) || [];
 
                   return (
-                    <div key={datapoint.datapointName} className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-blue-100">
+                    <div key={datapoint.id} className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-blue-100">
                       {/* Datapoint Header */}
                       <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-5">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm opacity-90 mb-1">Analysis #{idx + 1}</p>
-                            <h3 className="text-xl font-bold">{datapoint.datapointName}</h3>
+                            <h3 className="text-xl font-bold">{datapoint.datapoint_key}</h3>
                             {datapoint.laboratory && (
                               <p className="text-sm mt-1 opacity-90">{datapoint.laboratory}</p>
                             )}
                           </div>
-                          {datapoint.ftMethod && (
+                          {datapoint.ft_method && (
                             <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-semibold">
-                              {datapoint.ftMethod}
+                              {datapoint.ft_method}
                             </span>
                           )}
                         </div>
@@ -151,26 +151,26 @@ export default async function SampleDetailPage({
                       {/* Age Results */}
                       <div className="p-6">
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                          {datapoint.centralAgeMa && (
+                          {datapoint.central_age_ma && (
                             <div className="bg-blue-50 rounded-lg p-4">
                               <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Central Age</p>
                               <p className="text-3xl font-bold text-blue-700">
-                                {datapoint.centralAgeMa.toFixed(1)}
+                                {datapoint.central_age_ma.toFixed(1)}
                               </p>
                               <p className="text-sm text-gray-600 mt-1">
-                                ± {datapoint.centralAgeUncertaintyMa?.toFixed(1)} Ma
+                                ± {datapoint.central_age_error_ma?.toFixed(1)} Ma
                               </p>
                             </div>
                           )}
 
-                          {datapoint.pooledAgeMa && (
+                          {datapoint.pooled_age_ma && (
                             <div className="bg-green-50 rounded-lg p-4">
                               <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Pooled Age</p>
                               <p className="text-3xl font-bold text-green-700">
-                                {datapoint.pooledAgeMa.toFixed(1)}
+                                {datapoint.pooled_age_ma.toFixed(1)}
                               </p>
                               <p className="text-sm text-gray-600 mt-1">
-                                ± {datapoint.pooledAgeUncertaintyMa?.toFixed(1)} Ma
+                                ± {datapoint.pooled_age_error_ma?.toFixed(1)} Ma
                               </p>
                             </div>
                           )}
@@ -180,31 +180,31 @@ export default async function SampleDetailPage({
                         <div className="grid grid-cols-3 gap-3 text-center">
                           <div>
                             <p className="text-xs text-gray-600">Grains</p>
-                            <p className="text-lg font-bold text-gray-900">{datapoint.nGrains || 0}</p>
+                            <p className="text-lg font-bold text-gray-900">{datapoint.n_grains || 0}</p>
                           </div>
                           <div>
                             <p className="text-xs text-gray-600">Dispersion</p>
                             <p className="text-lg font-bold text-gray-900">
-                              {datapoint.dispersion?.toFixed(1)}%
+                              {datapoint.dispersion_pct?.toFixed(1)}%
                             </p>
                           </div>
                           <div>
                             <p className="text-xs text-gray-600">P(χ²)</p>
                             <p className="text-lg font-bold text-gray-900">
-                              {datapoint.pChi2?.toFixed(1)}%
+                              {datapoint.P_chi2_pct?.toFixed(1)}%
                             </p>
                           </div>
                         </div>
 
                         {/* Mean Track Length */}
-                        {datapoint.mtl && (
+                        {datapoint.mean_track_length_um && (
                           <div className="mt-4 p-3 bg-purple-50 rounded-lg">
                             <p className="text-xs text-gray-600 mb-1">Mean Track Length</p>
                             <p className="text-lg font-bold text-purple-700">
-                              {datapoint.mtl.toFixed(2)} ± {datapoint.mtlStdDev?.toFixed(2)} μm
+                              {datapoint.mean_track_length_um.toFixed(2)} ± {datapoint.sd_track_length_um?.toFixed(2)} μm
                             </p>
                             <p className="text-xs text-gray-600 mt-1">
-                              {datapoint.nTracks || 0} tracks measured
+                              {datapoint.n_track_measurements || 0} tracks measured
                             </p>
                           </div>
                         )}
@@ -230,11 +230,11 @@ export default async function SampleDetailPage({
                                 <tbody className="divide-y divide-gray-200">
                                   {counts.map(count => (
                                     <tr key={count.id} className="hover:bg-gray-50">
-                                      <td className="px-3 py-2 font-mono text-xs">{count.grainName}</td>
-                                      <td className="px-3 py-2 text-right">{count.ns}</td>
-                                      <td className="px-3 py-2 text-right">{count.ni}</td>
-                                      <td className="px-3 py-2 text-right">{count.rhoS?.toFixed(0)}</td>
-                                      <td className="px-3 py-2 text-right">{count.dPar?.toFixed(2)}</td>
+                                      <td className="px-3 py-2 font-mono text-xs">{count.grain_id}</td>
+                                      <td className="px-3 py-2 text-right">{count.Ns}</td>
+                                      <td className="px-3 py-2 text-right">{count.Ni}</td>
+                                      <td className="px-3 py-2 text-right">{count.rho_s_cm2?.toFixed(0)}</td>
+                                      <td className="px-3 py-2 text-right">{count.Dpar_um?.toFixed(2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -251,31 +251,31 @@ export default async function SampleDetailPage({
           )}
 
           {/* (U-Th)/He Datapoints */}
-          {heDatapoints.length > 0 && (
+          {he_datapoints.length > 0 && (
             <section>
               <h2 className="text-3xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <span>⚛️</span> (U-Th)/He Analyses ({heDatapoints.length})
+                <span>⚛️</span> (U-Th)/He Analyses ({he_datapoints.length})
               </h2>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {heDatapoints.map((datapoint: EarthBankEarthBankHeDatapoint, idx: number) => {
-                  const grains = grainDataByDatapoint.get(datapoint.datapointName) || [];
+                {he_datapoints.map((datapoint: HeDatapoint, idx: number) => {
+                  const grains = grainDataByDatapoint.get(datapoint.id) || [];
 
                   return (
-                    <div key={datapoint.datapointName} className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-green-100">
+                    <div key={datapoint.id} className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-green-100">
                       {/* Datapoint Header */}
                       <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-5">
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="text-sm opacity-90 mb-1">Analysis #{idx + 1}</p>
-                            <h3 className="text-xl font-bold">{datapoint.datapointName}</h3>
+                            <h3 className="text-xl font-bold">{datapoint.datapoint_key}</h3>
                             {datapoint.laboratory && (
                               <p className="text-sm mt-1 opacity-90">{datapoint.laboratory}</p>
                             )}
                           </div>
-                          {datapoint.heAnalysisMethod && (
+                          {datapoint.he_analysis_method && (
                             <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-semibold">
-                              {datapoint.heAnalysisMethod}
+                              {datapoint.he_analysis_method}
                             </span>
                           )}
                         </div>
@@ -283,14 +283,14 @@ export default async function SampleDetailPage({
 
                       {/* Age Results */}
                       <div className="p-6">
-                        {datapoint.meanCorrectedAgeMa && (
+                        {datapoint.mean_he4_corr_age_ma && (
                           <div className="bg-green-50 rounded-lg p-4 mb-6">
                             <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Mean Corrected Age</p>
                             <p className="text-4xl font-bold text-green-700">
-                              {datapoint.meanCorrectedAgeMa.toFixed(1)}
+                              {datapoint.mean_he4_corr_age_ma.toFixed(1)}
                             </p>
                             <p className="text-sm text-gray-600 mt-1">
-                              ± {datapoint.meanCorrectedAgeUncertaintyMa?.toFixed(1)} Ma (SE)
+                              ± {datapoint.se_mean_he4_corr_age_ma?.toFixed(1)} Ma (SE)
                             </p>
                           </div>
                         )}
@@ -299,13 +299,13 @@ export default async function SampleDetailPage({
                         <div className="grid grid-cols-3 gap-3 text-center mb-4">
                           <div>
                             <p className="text-xs text-gray-600">Aliquots</p>
-                            <p className="text-lg font-bold text-gray-900">{datapoint.nGrains || 0}</p>
+                            <p className="text-lg font-bold text-gray-900">{datapoint.n_aliquots || 0}</p>
                           </div>
-                          {datapoint.chi2pct && (
+                          {datapoint.chi_square && (
                             <div>
                               <p className="text-xs text-gray-600">χ²</p>
                               <p className="text-lg font-bold text-gray-900">
-                                {datapoint.chi2pct.toFixed(2)}
+                                {datapoint.chi_square.toFixed(2)}
                               </p>
                             </div>
                           )}
@@ -340,15 +340,15 @@ export default async function SampleDetailPage({
                                 <tbody className="divide-y divide-gray-200">
                                   {grains.map(grain => (
                                     <tr key={grain.id} className="hover:bg-gray-50">
-                                      <td className="px-3 py-2 font-mono text-xs">{grain.grainName}</td>
+                                      <td className="px-3 py-2 font-mono text-xs">{grain.grain_id}</td>
                                       <td className="px-3 py-2 text-right font-semibold text-green-700">
-                                        {grain.correctedHeAge?.toFixed(1)}
+                                        {grain.he4_corr_age_ma?.toFixed(1)}
                                       </td>
                                       <td className="px-3 py-2 text-right text-gray-600">
-                                        {grain.correctedHeAgeUncertainty?.toFixed(1)}
+                                        {grain.he4_corr_age_error_ma?.toFixed(1)}
                                       </td>
-                                      <td className="px-3 py-2 text-right">{grain.eU?.toFixed(0)}</td>
-                                      <td className="px-3 py-2 text-right">{grain.ft?.toFixed(2)}</td>
+                                      <td className="px-3 py-2 text-right">{grain.eU_ppm?.toFixed(0)}</td>
+                                      <td className="px-3 py-2 text-right">{grain.Ft_value?.toFixed(2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -365,7 +365,7 @@ export default async function SampleDetailPage({
           )}
 
           {/* No Data Message */}
-          {ftDatapoints.length === 0 && heDatapoints.length === 0 && (
+          {ft_datapoints.length === 0 && he_datapoints.length === 0 && (
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-8 text-center">
               <p className="text-2xl mb-2">📭</p>
               <p className="text-lg font-semibold text-gray-700">No analytical data available for this sample</p>

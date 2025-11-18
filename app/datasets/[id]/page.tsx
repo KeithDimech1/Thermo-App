@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getDatasetById } from '@/lib/db/queries';
+import { getDatasetById } from '@/lib/db/earthbank-queries';
 import { query } from '@/lib/db/connection';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
@@ -9,6 +9,7 @@ import SupplementaryFilesSection from '@/components/datasets/SupplementaryFilesS
 
 export const dynamic = 'force-dynamic';
 
+// MIGRATED TO EARTHBANK SCHEMA (camelCase)
 interface PageProps {
   params: {
     id: string;
@@ -16,9 +17,9 @@ interface PageProps {
 }
 
 interface DatasetStats {
-  sample_count: number;
-  aft_grain_count: number;
-  ahe_grain_count: number;
+  sampleCount: number;
+  aftGrainCount: number;
+  aheGrainCount: number;
 }
 
 // Helper to parse PostgreSQL array strings
@@ -35,24 +36,28 @@ function parsePostgresArray(val: any): string[] {
   return [];
 }
 
-async function getDatasetStats(datasetId: number): Promise<DatasetStats> {
+async function getDatasetStats(datasetID: string): Promise<DatasetStats> {
   const sql = `
     SELECT
-      COUNT(DISTINCT s.sample_id) as sample_count,
-      COALESCE(SUM(s.n_aft_grains), 0) as aft_grain_count,
-      COALESCE(SUM(s.n_ahe_grains), 0) as ahe_grain_count
-    FROM samples s
-    WHERE s.dataset_id = $1
+      COUNT(DISTINCT s."sampleID") as sample_count,
+      COALESCE(SUM(s."nAFTGrains"), 0) as aft_grain_count,
+      COALESCE(SUM(s."nAHeGrains"), 0) as ahe_grain_count
+    FROM earthbank_samples s
+    WHERE s."datasetID" = $1
   `;
 
-  const results = await query<DatasetStats>(sql, [datasetId]);
-  return results[0] || { sample_count: 0, aft_grain_count: 0, ahe_grain_count: 0 };
+  const results = await query<{sample_count: string; aft_grain_count: string; ahe_grain_count: string}>(sql, [datasetID]);
+  const row = results[0];
+  return row ? {
+    sampleCount: parseInt(row.sample_count, 10),
+    aftGrainCount: parseInt(row.aft_grain_count, 10),
+    aheGrainCount: parseInt(row.ahe_grain_count, 10)
+  } : { sampleCount: 0, aftGrainCount: 0, aheGrainCount: 0 };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
-  const dataset = await getDatasetById(datasetId);
+  const dataset = await getDatasetById(id);
 
   if (!dataset) {
     return {
@@ -61,58 +66,53 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `${dataset.dataset_name} - AusGeochem Thermochronology`,
-    description: dataset.description || `Thermochronology dataset: ${dataset.dataset_name}`,
+    title: `${dataset.datasetName} - AusGeochem Thermochronology`,
+    description: dataset.description || `Thermochronology dataset: ${dataset.datasetName}`,
   };
 }
 
 export default async function DatasetOverviewPage({ params }: PageProps) {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
 
-  if (isNaN(datasetId)) {
-    return notFound();
-  }
-
-  const dataset = await getDatasetById(datasetId);
+  const dataset = await getDatasetById(id);
 
   if (!dataset) {
     return notFound();
   }
 
-  const stats = await getDatasetStats(datasetId);
+  const stats = await getDatasetStats(id);
 
   // Parse PostgreSQL array fields
   const authors = parsePostgresArray(dataset.authors);
-  const analysisMethods = parsePostgresArray(dataset.analysis_methods);
-  const keyFindings = parsePostgresArray(dataset.key_findings);
+  const analysisMethods = parsePostgresArray(dataset.analysisMethods);
+  const keyFindings = parsePostgresArray(dataset.keyFindings);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Datasets', href: '/datasets' },
-        { label: dataset.dataset_name }
+        { label: dataset.datasetName }
       ]} />
 
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-start justify-between mb-4">
           <h1 className="text-4xl font-bold text-gray-900 flex-1">
-            {dataset.dataset_name}
+            {dataset.datasetName}
           </h1>
 
           {/* FAIR Score Badge */}
-          {dataset.fair_score !== null && dataset.fair_score !== undefined && (
+          {dataset.fairScore !== null && dataset.fairScore !== undefined && (
             <div className="ml-4 flex flex-col items-center">
               <div className={`
                 text-5xl font-bold px-6 py-3 rounded-lg
-                ${dataset.fair_score >= 90 ? 'bg-green-100 text-green-800' :
-                  dataset.fair_score >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                  dataset.fair_score >= 60 ? 'bg-orange-100 text-orange-800' :
+                ${dataset.fairScore >= 90 ? 'bg-green-100 text-green-800' :
+                  dataset.fairScore >= 75 ? 'bg-yellow-100 text-yellow-800' :
+                  dataset.fairScore >= 60 ? 'bg-orange-100 text-orange-800' :
                   'bg-red-100 text-red-800'}
               `}>
-                {dataset.fair_score}
+                {dataset.fairScore}
               </div>
               <p className="text-xs text-gray-600 mt-1 font-semibold">FAIR Score</p>
             </div>
@@ -129,7 +129,7 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
       </div>
 
       {/* Tab Navigation */}
-      <DatasetTabs datasetId={datasetId} activeTab="overview" />
+      <DatasetTabs datasetId={id} activeTab="overview" />
 
       {/* Publication Information Card - Prominent at top */}
       <div className="mb-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-l-4 border-amber-600 shadow-sm">
@@ -138,35 +138,35 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
         </h2>
 
         {/* Full Citation */}
-        {dataset.full_citation && (
+        {dataset.fullCitation && (
           <div className="mb-4 p-4 bg-white rounded-md">
             <p className="text-sm font-semibold text-gray-700 mb-1">Citation</p>
-            <p className="text-gray-900 italic">{dataset.full_citation}</p>
+            <p className="text-gray-900 italic">{dataset.fullCitation}</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Journal */}
-          {dataset.publication_journal && (
+          {dataset.publicationJournal && (
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-1">Journal</p>
-              <p className="text-gray-900">{dataset.publication_journal}</p>
+              <p className="text-gray-900">{dataset.publicationJournal}</p>
             </div>
           )}
 
           {/* Year */}
-          {dataset.publication_year && (
+          {dataset.publicationYear && (
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-1">Year</p>
-              <p className="text-gray-900">{dataset.publication_year}</p>
+              <p className="text-gray-900">{dataset.publicationYear}</p>
             </div>
           )}
 
           {/* Volume/Pages */}
-          {dataset.publication_volume_pages && (
+          {dataset.publicationVolumePages && (
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-1">Volume & Pages</p>
-              <p className="text-gray-900">{dataset.publication_volume_pages}</p>
+              <p className="text-gray-900">{dataset.publicationVolumePages}</p>
             </div>
           )}
 
@@ -195,11 +195,11 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
         </div>
 
         {/* PDF Link and Supplementary Materials */}
-        {(dataset.pdf_url || dataset.supplementary_files_url) && (
+        {(dataset.pdfUrl || dataset.supplementaryFilesUrl) && (
           <div className="mt-4 pt-4 border-t border-amber-200 flex flex-wrap gap-3">
-            {dataset.pdf_url && (
+            {dataset.pdfUrl && (
               <a
-                href={dataset.pdf_url}
+                href={dataset.pdfUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold"
@@ -207,9 +207,9 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
                 📎 View Full PDF
               </a>
             )}
-            {dataset.supplementary_files_url && (
+            {dataset.supplementaryFilesUrl && (
               <a
-                href={dataset.supplementary_files_url}
+                href={dataset.supplementaryFilesUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
@@ -223,8 +223,8 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
 
       {/* Supplementary Files Section */}
       <SupplementaryFilesSection
-        datasetId={datasetId}
-        supplementaryFilesUrl={dataset.supplementary_files_url}
+        datasetId={id}
+        supplementaryFilesUrl={dataset.supplementaryFilesUrl}
       />
 
       {/* Description */}
@@ -236,10 +236,10 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
       )}
 
       {/* Study Area */}
-      {dataset.study_location && (
+      {dataset.studyLocation && (
         <div className="mb-8 p-6 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
           <h2 className="text-lg font-bold text-green-900 mb-3">🌍 Study Area</h2>
-          <p className="text-gray-900">{dataset.study_location}</p>
+          <p className="text-gray-900">{dataset.studyLocation}</p>
         </div>
       )}
 
@@ -269,37 +269,37 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
         )}
 
         {/* Mineral Analyzed */}
-        {dataset.mineral_analyzed && (
+        {dataset.mineralAnalyzed && (
           <div className="p-4 bg-white rounded-lg border border-gray-200">
             <p className="text-sm font-semibold text-gray-700 mb-2">💎 Mineral Analyzed</p>
-            <p className="text-sm text-gray-900">{dataset.mineral_analyzed}</p>
+            <p className="text-sm text-gray-900">{dataset.mineralAnalyzed}</p>
           </div>
         )}
 
         {/* Sample Count */}
-        {dataset.sample_count && (
+        {dataset.sampleCount && (
           <div className="p-4 bg-white rounded-lg border border-gray-200">
             <p className="text-sm font-semibold text-gray-700 mb-2">📊 Total Samples</p>
-            <p className="text-sm text-gray-900">{dataset.sample_count}</p>
+            <p className="text-sm text-gray-900">{dataset.sampleCount}</p>
           </div>
         )}
 
         {/* Age Range */}
-        {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
+        {(dataset.ageRangeMinMa || dataset.ageRangeMaxMa) && (
           <div className="p-4 bg-white rounded-lg border border-gray-200">
             <p className="text-sm font-semibold text-gray-700 mb-2">⏱️ Age Range</p>
             <p className="text-sm text-gray-900">
-              {dataset.age_range_min_ma?.toFixed(1)}-{dataset.age_range_max_ma?.toFixed(1)} Ma
+              {dataset.ageRangeMinMa?.toFixed(1)}-{dataset.ageRangeMaxMa?.toFixed(1)} Ma
             </p>
           </div>
         )}
 
         {/* Collection Date */}
-        {dataset.collection_date && (
+        {dataset.collectionDate && (
           <div className="p-4 bg-white rounded-lg border border-gray-200">
             <p className="text-sm font-semibold text-gray-700 mb-2">📅 Collection Date</p>
             <p className="text-sm text-gray-900">
-              {new Date(dataset.collection_date).toLocaleDateString()}
+              {new Date(dataset.collectionDate).toLocaleDateString()}
             </p>
           </div>
         )}
@@ -317,18 +317,18 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
       <div className="flex flex-wrap gap-6 mb-8 p-6 bg-amber-50 rounded-lg border border-amber-200">
         <div>
           <p className="text-sm text-gray-600">Samples</p>
-          <p className="text-3xl font-bold text-gray-900">{stats.sample_count}</p>
+          <p className="text-3xl font-bold text-gray-900">{stats.sampleCount}</p>
         </div>
-        {stats.aft_grain_count > 0 && (
+        {stats.aftGrainCount > 0 && (
           <div>
             <p className="text-sm text-gray-600">AFT Grains</p>
-            <p className="text-3xl font-bold text-green-700">{stats.aft_grain_count}</p>
+            <p className="text-3xl font-bold text-green-700">{stats.aftGrainCount}</p>
           </div>
         )}
-        {stats.ahe_grain_count > 0 && (
+        {stats.aheGrainCount > 0 && (
           <div>
             <p className="text-sm text-gray-600">AHe Grains</p>
-            <p className="text-3xl font-bold text-blue-700">{stats.ahe_grain_count}</p>
+            <p className="text-3xl font-bold text-blue-700">{stats.aheGrainCount}</p>
           </div>
         )}
       </div>

@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { getAllSamples } from '@/lib/db/queries';
+import { getAllSamples } from '@/lib/db/earthbank-queries';
 
 export const dynamic = 'force-dynamic';
 
+// MIGRATED TO EARTHBANK SCHEMA (camelCase)
 export default async function SamplesPage() {
-  const { data: samples, total } = await getAllSamples({}, 100, 0, 'sample_id', 'asc');
+  const { data: samples, total } = await getAllSamples({}, 100, 0, 'sampleID', 'asc');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,45 +25,45 @@ export default async function SamplesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {samples.map((sample) => (
             <Link
-              key={sample.sample_id}
-              href={`/samples/${sample.sample_id}`}
+              key={sample.sampleID}
+              href={`/samples/${sample.sampleID}`}
               className="card bg-white shadow-md hover:shadow-lg transition-shadow"
             >
               {/* Sample Header */}
               <div className="flex justify-between items-start mb-3">
-                <h3 className="text-xl font-bold text-gray-900">{sample.sample_id}</h3>
+                <h3 className="text-xl font-bold text-gray-900">{sample.sampleID}</h3>
                 <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">
-                  {sample.mineral_type || 'Apatite'}
+                  {sample.mineralType || 'Apatite'}
                 </span>
               </div>
 
               {/* Analysis Method */}
-              {sample.analysis_method && (
+              {sample.analysisMethod && (
                 <p className="text-sm text-gray-600 mb-3">
-                  <span className="font-semibold">Method:</span> {sample.analysis_method}
+                  <span className="font-semibold">Method:</span> {sample.analysisMethod}
                 </p>
               )}
 
               {/* Data Availability */}
               <div className="flex gap-3 mb-3">
-                {sample.n_aft_grains && sample.n_aft_grains > 0 && (
+                {sample.nAFTGrains && sample.nAFTGrains > 0 && (
                   <div className="flex items-center gap-1 text-sm">
                     <span className="text-green-600">✓</span>
-                    <span className="text-gray-700">{sample.n_aft_grains} AFT</span>
+                    <span className="text-gray-700">{sample.nAFTGrains} AFT</span>
                   </div>
                 )}
-                {sample.n_ahe_grains && sample.n_ahe_grains > 0 && (
+                {sample.nAHeGrains && sample.nAHeGrains > 0 && (
                   <div className="flex items-center gap-1 text-sm">
                     <span className="text-blue-600">✓</span>
-                    <span className="text-gray-700">{sample.n_ahe_grains} AHe</span>
+                    <span className="text-gray-700">{sample.nAHeGrains} AHe</span>
                   </div>
                 )}
               </div>
 
               {/* Location */}
-              {sample.sampling_location_information && (
+              {sample.samplingLocationInformation && (
                 <p className="text-xs text-gray-500 mb-2">
-                  📍 {sample.sampling_location_information}
+                  📍 {sample.samplingLocationInformation}
                 </p>
               )}
 

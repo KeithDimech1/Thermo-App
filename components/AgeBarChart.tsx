@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
+// MIGRATED TO EARTHBANK SCHEMA (camelCase)
 interface SampleAgeData {
-  sample_id: string;
-  central_age_ma: number;
-  central_age_error_ma: number;
-  n_grains: number;
-  elevation_m: number | null;
+  sampleID: string;
+  centralAgeMa: number;
+  centralAgeUncertaintyMa: number;
+  nGrains: number;
+  elevationM: number | null;
 }
 
 interface AgeBarChartProps {
@@ -61,7 +62,7 @@ export function AgeBarChart({ datasetId }: AgeBarChartProps) {
     );
   }
 
-  const maxAge = Math.max(...data.map(d => d.central_age_ma + d.central_age_error_ma));
+  const maxAge = Math.max(...data.map(d => d.centralAgeMa + d.centralAgeUncertaintyMa));
   const chartHeight = 400;
   const chartWidth = Math.max(800, data.length * 50);
   const barWidth = Math.floor(chartWidth / data.length * 0.7);
@@ -141,15 +142,15 @@ export function AgeBarChart({ datasetId }: AgeBarChartProps) {
           {/* Bars and error bars */}
           {data.map((sample, i) => {
             const x = padding.left + (i * chartWidth / data.length) + (chartWidth / data.length - barWidth) / 2;
-            const barHeight = (sample.central_age_ma / maxAge) * chartHeight;
+            const barHeight = (sample.centralAgeMa / maxAge) * chartHeight;
             const y = padding.top + chartHeight - barHeight;
 
-            const errorBarHeight = (sample.central_age_error_ma / maxAge) * chartHeight;
+            const errorBarHeight = (sample.centralAgeUncertaintyMa / maxAge) * chartHeight;
             const errorBarY = y - errorBarHeight;
             const errorBarBottomY = y + barHeight + errorBarHeight;
 
             return (
-              <g key={sample.sample_id}>
+              <g key={sample.sampleID}>
                 {/* Bar */}
                 <rect
                   x={x}
@@ -161,9 +162,9 @@ export function AgeBarChart({ datasetId }: AgeBarChartProps) {
                   className="hover:opacity-100 cursor-pointer"
                 >
                   <title>
-                    {sample.sample_id}
-{'\n'}Age: {sample.central_age_ma.toFixed(1)} ± {sample.central_age_error_ma.toFixed(1)} Ma
-{'\n'}Grains: {sample.n_grains}
+                    {sample.sampleID}
+{'\n'}Age: {sample.centralAgeMa.toFixed(1)} ± {sample.centralAgeUncertaintyMa.toFixed(1)} Ma
+{'\n'}Grains: {sample.nGrains}
                   </title>
                 </rect>
 
@@ -201,7 +202,7 @@ export function AgeBarChart({ datasetId }: AgeBarChartProps) {
                   transform={`rotate(-45 ${x + barWidth / 2} ${padding.top + chartHeight + 15})`}
                   className="text-xs fill-slate-600"
                 >
-                  {sample.sample_id}
+                  {sample.sampleID}
                 </text>
               </g>
             );

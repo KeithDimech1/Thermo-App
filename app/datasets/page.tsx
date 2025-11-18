@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { getAllDatasets } from '@/lib/db/queries';
+import { getAllDatasets } from '@/lib/db/earthbank-queries';
 import { query } from '@/lib/db/connection';
 import DatasetCard from '@/components/datasets/DatasetCard';
 
@@ -10,38 +10,39 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
+// MIGRATED TO EARTHBANK SCHEMA (camelCase)
 interface DatasetStats {
-  dataset_id: number;
-  sample_count: number;
-  aft_grain_count: number;
-  ahe_grain_count: number;
+  datasetID: string;
+  sampleCount: number;
+  aftGrainCount: number;
+  aheGrainCount: number;
 }
 
-async function getDatasetStats(): Promise<Map<number, DatasetStats>> {
+async function getDatasetStats(): Promise<Map<string, DatasetStats>> {
   const sql = `
     SELECT
-      s.dataset_id,
-      COUNT(DISTINCT s.sample_id) as sample_count,
-      COALESCE(SUM(s.n_aft_grains), 0) as aft_grain_count,
-      COALESCE(SUM(s.n_ahe_grains), 0) as ahe_grain_count
-    FROM samples s
-    GROUP BY s.dataset_id
+      s."datasetID",
+      COUNT(DISTINCT s."sampleID") as sample_count,
+      COALESCE(SUM(s."nAFTGrains"), 0) as aft_grain_count,
+      COALESCE(SUM(s."nAHeGrains"), 0) as ahe_grain_count
+    FROM earthbank_samples s
+    GROUP BY s."datasetID"
   `;
 
   const rows = await query<{
-    dataset_id: number;
+    datasetID: string;
     sample_count: string;
     aft_grain_count: string;
     ahe_grain_count: string;
   }>(sql);
 
-  const statsMap = new Map<number, DatasetStats>();
+  const statsMap = new Map<string, DatasetStats>();
   rows.forEach(row => {
-    statsMap.set(row.dataset_id, {
-      dataset_id: row.dataset_id,
-      sample_count: parseInt(row.sample_count, 10),
-      aft_grain_count: parseInt(row.aft_grain_count, 10),
-      ahe_grain_count: parseInt(row.ahe_grain_count, 10)
+    statsMap.set(row.datasetID, {
+      datasetID: row.datasetID,
+      sampleCount: parseInt(row.sample_count, 10),
+      aftGrainCount: parseInt(row.aft_grain_count, 10),
+      aheGrainCount: parseInt(row.ahe_grain_count, 10)
     });
   });
 
@@ -82,9 +83,9 @@ export default async function PapersPage() {
               <DatasetCard
                 key={dataset.id}
                 dataset={dataset}
-                sampleCount={stats?.sample_count || 0}
-                aftGrainCount={stats?.aft_grain_count || 0}
-                aheGrainCount={stats?.ahe_grain_count || 0}
+                sampleCount={stats?.sampleCount || 0}
+                aftGrainCount={stats?.aftGrainCount || 0}
+                aheGrainCount={stats?.aheGrainCount || 0}
               />
             );
           })}

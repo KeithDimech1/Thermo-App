@@ -18,7 +18,10 @@
     "db:verify": "tsx scripts/db/verify-import.ts",
     "db:reset": "tsx scripts/db/reset-database.ts",
     "db:setup": "npm run db:schema && npm run db:import && npm run db:verify",
-    "db:console": "psql $DATABASE_URL"
+    "db:console": "psql $DATABASE_URL",
+    "db:psql": "./scripts/db/psql-direct.sh",
+    "db:psql-pooled": "./scripts/db/psql-pooled.sh",
+    "db:verify-connection": "./scripts/db/psql-direct.sh -c 'SELECT current_database(), current_user, version();'"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.3",

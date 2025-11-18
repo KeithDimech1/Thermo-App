@@ -93,12 +93,31 @@ Project has been initialized with `/setupproject`. The following global commands
 **Environment Setup:**
 ```bash
 # .env.local (REQUIRED for migrations and scripts)
-DATABASE_URL="postgresql://user:pass@host:port/db?sslmode=require"  # Pooled (Neon serverless)
-DIRECT_URL="postgresql://user:pass@host:port/db?sslmode=require"    # Direct (migrations only)
+DATABASE_URL="postgresql://user:pass@host:port/neondb?sslmode=require"  # Pooled (Neon serverless)
+DIRECT_URL="postgresql://user:pass@host:port/neondb?sslmode=require"    # Direct (migrations only)
+```
+
+**⚠️ CRITICAL: Never use `psql "$DIRECT_URL"` directly!**
+
+`.env.local` variables are **NOT exported to shell** - `$DIRECT_URL` will be empty and psql will connect to the WRONG database!
+
+**✅ ALWAYS use these safe wrapper scripts:**
+```bash
+# Direct connection (migrations, imports, DDL)
+npm run db:psql
+./scripts/db/psql-direct.sh
+
+# Pooled connection (queries, DML)
+npm run db:psql-pooled
+./scripts/db/psql-pooled.sh
+
+# Verify you're connected to neondb
+npm run db:verify-connection
 ```
 
 **Connection Pattern:**
-- **Use `lib/db/connection.ts` for all database access**
+- **Use `lib/db/connection.ts` for TypeScript database access**
+- **Use `scripts/db/psql-*.sh` for shell/psql commands**
 - Auto-loads `.env.local` (works in Next.js AND standalone TypeScript scripts)
 - Connection pool with SSL for Neon
 - Helpers: `query()`, `queryOne()`, `transaction()`
@@ -107,6 +126,8 @@ DIRECT_URL="postgresql://user:pass@host:port/db?sslmode=require"    # Direct (mi
 **Why both URLs?**
 - `DATABASE_URL` - Pooled for serverless (faster cold starts)
 - `DIRECT_URL` - Direct for migrations (Prisma requirement)
+
+**See:** `scripts/db/README.md` for full documentation
 
 ---
 

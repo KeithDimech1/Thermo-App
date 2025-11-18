@@ -7,12 +7,15 @@
 -- NOTE: PostgreSQL requires double-quotes to preserve camelCase identifiers
 -- All table and column names use exact EarthBank technical names
 
+-- Enable UUID extension for primary keys
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- ============================================================================
 -- 1. SAMPLES TABLE (30 fields from Sample.template.v2025-04-16.xlsx)
 -- ============================================================================
 
 CREATE TABLE "earthbank_samples" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "sampleName" VARCHAR(255) NOT NULL UNIQUE,
   "igsn" VARCHAR(9) UNIQUE,
   "sampleKind" VARCHAR(100),
@@ -57,7 +60,7 @@ COMMENT ON TABLE "earthbank_samples" IS 'Sample metadata from EarthBank Sample t
 -- ============================================================================
 
 CREATE TABLE "earthbank_ftDatapoints" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL UNIQUE,
   "sampleName" VARCHAR(255) NOT NULL REFERENCES "earthbank_samples"("sampleName") ON DELETE CASCADE,
   "literature" TEXT,
@@ -141,7 +144,7 @@ COMMENT ON TABLE "earthbank_ftDatapoints" IS 'Fission-track datapoints from Eart
 -- ============================================================================
 
 CREATE TABLE "earthbank_ftCountData" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL REFERENCES "earthbank_ftDatapoints"("datapointName") ON DELETE CASCADE,
   "grainName" VARCHAR(100) NOT NULL,
   "area" NUMERIC(12, 6),
@@ -170,7 +173,7 @@ COMMENT ON TABLE "earthbank_ftCountData" IS 'FT grain-by-grain count data from E
 -- ============================================================================
 
 CREATE TABLE "earthbank_ftSingleGrainAges" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL REFERENCES "earthbank_ftDatapoints"("datapointName") ON DELETE CASCADE,
   "mountID" VARCHAR(100),
   "grainName" VARCHAR(100) NOT NULL,
@@ -199,7 +202,7 @@ COMMENT ON TABLE "earthbank_ftSingleGrainAges" IS 'FT single grain ages from Ear
 -- ============================================================================
 
 CREATE TABLE "earthbank_ftTrackLengthData" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL REFERENCES "earthbank_ftDatapoints"("datapointName") ON DELETE CASCADE,
   "mountID" VARCHAR(100),
   "etchingTime" NUMERIC(10, 2),
@@ -236,7 +239,7 @@ COMMENT ON TABLE "earthbank_ftTrackLengthData" IS 'FT track-by-track length meas
 -- ============================================================================
 
 CREATE TABLE "earthbank_ftBinnedLengthData" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL REFERENCES "earthbank_ftDatapoints"("datapointName") ON DELETE CASCADE,
   "mountID" VARCHAR(100),
   "etchingTime" NUMERIC(10, 2),
@@ -281,7 +284,7 @@ COMMENT ON TABLE "earthbank_ftBinnedLengthData" IS 'FT binned track length histo
 -- ============================================================================
 
 CREATE TABLE "earthbank_heDatapoints" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL UNIQUE,
   "datapackageName" VARCHAR(255),
   "sampleName" VARCHAR(255) NOT NULL REFERENCES "earthbank_samples"("sampleName") ON DELETE CASCADE,
@@ -342,7 +345,7 @@ COMMENT ON TABLE "earthbank_heDatapoints" IS '(U-Th)/He datapoints from EarthBan
 -- ============================================================================
 
 CREATE TABLE "earthbank_heWholeGrainData" (
-  "id" SERIAL PRIMARY KEY,
+  "id" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   "datapointName" VARCHAR(255) NOT NULL REFERENCES "earthbank_heDatapoints"("datapointName") ON DELETE CASCADE,
   "aliquotID" VARCHAR(100) NOT NULL,
   "aliquotType" VARCHAR(100),
@@ -441,14 +444,7 @@ GRANT ALL ON "earthbank_ftBinnedLengthData" TO neondb_owner;
 GRANT ALL ON "earthbank_heDatapoints" TO neondb_owner;
 GRANT ALL ON "earthbank_heWholeGrainData" TO neondb_owner;
 
-GRANT ALL ON SEQUENCE "earthbank_samples_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_ftDatapoints_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_ftCountData_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_ftSingleGrainAges_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_ftTrackLengthData_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_ftBinnedLengthData_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_heDatapoints_id_seq" TO neondb_owner;
-GRANT ALL ON SEQUENCE "earthbank_heWholeGrainData_id_seq" TO neondb_owner;
+-- Note: UUID primary keys don't use sequences, no sequence grants needed
 
 -- ============================================================================
 -- MIGRATION COMPLETE

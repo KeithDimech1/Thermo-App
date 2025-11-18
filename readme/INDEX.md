@@ -27,9 +27,9 @@
 
 **CRITICAL CHANGE:** The database evolved from single-analysis-per-sample to multiple-analyses-per-sample.
 
-**Old (Schema v1):**
+**Old (Schema v1 - DEPRECATED):**
 ```
-1 sample → 1 AFT analysis → stored in ft_ages table
+1 sample → 1 AFT analysis → stored in ft_ages table (REMOVED)
 ```
 
 **New (Schema v2):**
@@ -122,7 +122,7 @@
   - `getAHeGrainsBySample()` - (U-Th)/He data
   - `getDatasetStats()` - Statistics
   - `searchSamplesByLocation()` - Spatial queries
-- **Tables accessed:** samples, ft_ages, ft_counts, ft_track_lengths, ahe_grain_data, datasets
+- **Tables accessed (v2):** samples, ft_datapoints, ft_count_data, ft_track_length_data, he_whole_grain_data, ahe_grain_data, datasets
 
 ### 📦 Type Definitions (1 file)
 
@@ -148,7 +148,7 @@
 
 **[`app/api/samples/[id]/route.ts`](app/api/samples/[id]/route.md)** (documented)
 - GET `/api/samples/[id]` - Get single sample with all data
-- Returns: sample + ft_ages + ft_counts + ft_track_lengths + ahe_grain_data
+- Returns (v2): sample + ft_datapoints + ft_count_data + ft_track_length_data + he_whole_grain_data + ahe_grain_data
 
 **[`app/api/tables/[name]/route.ts`](app/api/tables/[name]/route.md)** ⭐ **NEW**
 - GET `/api/tables/[name]` - Generic paginated table data endpoint
@@ -209,7 +209,7 @@
 
 **`scripts/db/import-thermo-data.ts`**
 - Import CSV data into database
-- Handles: samples, ft_ages, ft_counts, ft_track_lengths, ahe_grain_data
+- Handles (v2): samples, ft_datapoints, ft_count_data, ft_track_length_data, he_whole_grain_data
 - Transaction-safe imports
 
 **`scripts/db/schema-thermo.sql`**
@@ -304,13 +304,19 @@ readme/
 │   └── query-mcmillan-data.md
 └── database/
     ├── SCHEMA_CHANGES.md                       ← Schema migration log
-    └── tables/                                 ← Table documentation (6 files)
+    └── tables/                                 ← Table documentation (v2 schema)
         ├── samples.md
-        ├── ft_ages.md
-        ├── ft_counts.md
-        ├── ft_track_lengths.md
-        ├── ahe_grain_data.md
-        └── datasets.md
+        ├── datasets.md
+        ├── ft_datapoints.md                    ← NEW (v2)
+        ├── ft_count_data.md                    ← NEW (v2)
+        ├── ft_track_length_data.md             ← NEW (v2)
+        ├── he_datapoints.md                    ← NEW (v2)
+        ├── he_whole_grain_data.md              ← NEW (v2)
+        ├── ahe_grain_data.md                   ← DEPRECATED (v1 legacy)
+        └── deprecated/                         ← Archived v1 docs
+            ├── ft_ages.md
+            ├── ft_counts.md
+            └── ft_track_lengths.md
 ```
 
 **Reference Documentation:**

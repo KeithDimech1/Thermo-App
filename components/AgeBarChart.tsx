@@ -11,8 +11,9 @@ interface SampleAgeData {
   elevationM: number | null;
 }
 
+// MIGRATED TO EARTHBANK SCHEMA - IDEA-014
 interface AgeBarChartProps {
-  datasetId: number;
+  datasetId: string;  // Changed from number to string for URL param compatibility
 }
 
 export function AgeBarChart({ datasetId }: AgeBarChartProps) {

@@ -414,3 +414,148 @@ export async function getAgeDistribution(
 
   return query<{ ageBinMa: number; count: number }>(sql);
 }
+
+// =============================================================================
+// DATASET QUERIES (datasets table - supporting table, not migrated to earthbank_*)
+// =============================================================================
+
+export interface EarthBankDataset {
+  id: string;
+  datasetName: string;
+  description: string | null;
+  publicationReference: string | null;
+  doi: string | null;
+  fullCitation: string | null;
+  publicationYear: number | null;
+  publicationJournal: string | null;
+  publicationVolumePages: string | null;
+  studyLocation: string | null;
+  pdfFilename: string | null;
+  pdfUrl: string | null;
+  supplementaryFilesUrl: string | null;
+  studyArea: string | null;
+  mineralAnalyzed: string | null;
+  sampleCount: number | null;
+  ageRangeMinMa: number | null;
+  ageRangeMaxMa: number | null;
+  authors: string[] | null;
+  collectionDate: Date | null;
+  analyst: string | null;
+  laboratory: string | null;
+  analysisMethods: string[] | null;
+  keyFindings: string[] | null;
+  fairScore: number | null;
+  fairNotes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function getAllDatasets(): Promise<EarthBankDataset[]> {
+  const sql = `
+    SELECT
+      d.*,
+      COALESCE(
+        (
+          SELECT array_agg(p.name ORDER BY dpr.author_order)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
+      ) as authors
+    FROM datasets d
+    ORDER BY d.id ASC
+  `;
+
+  const rows = await query<any>(sql);
+  
+  // Transform snake_case to camelCase
+  return rows.map(row => ({
+    id: row.id.toString(),
+    datasetName: row.dataset_name,
+    description: row.description,
+    publicationReference: row.publication_reference,
+    doi: row.doi,
+    fullCitation: row.full_citation,
+    publicationYear: row.publication_year,
+    publicationJournal: row.publication_journal,
+    publicationVolumePages: row.publication_volume_pages,
+    studyLocation: row.study_location,
+    pdfFilename: row.pdf_filename,
+    pdfUrl: row.pdf_url,
+    supplementaryFilesUrl: row.supplementary_files_url,
+    studyArea: row.study_area,
+    mineralAnalyzed: row.mineral_analyzed,
+    sampleCount: row.sample_count,
+    ageRangeMinMa: row.age_range_min_ma,
+    ageRangeMaxMa: row.age_range_max_ma,
+    authors: row.authors,
+    collectionDate: row.collection_date,
+    analyst: row.analyst,
+    laboratory: row.laboratory,
+    analysisMethods: row.analysis_methods,
+    keyFindings: row.key_findings,
+    fairScore: row.fair_score,
+    fairNotes: row.fair_notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function getDatasetById(id: string): Promise<EarthBankDataset | null> {
+  const sql = `
+    SELECT
+      d.*,
+      COALESCE(
+        (
+          SELECT array_agg(p.name ORDER BY dpr.author_order)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
+      ) as authors
+    FROM datasets d
+    WHERE d.id = $1
+  `;
+
+  const rows = await query<any>(sql, [parseInt(id, 10)]);
+  
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const row = rows[0];
+  
+  // Transform snake_case to camelCase
+  return {
+    id: row.id.toString(),
+    datasetName: row.dataset_name,
+    description: row.description,
+    publicationReference: row.publication_reference,
+    doi: row.doi,
+    fullCitation: row.full_citation,
+    publicationYear: row.publication_year,
+    publicationJournal: row.publication_journal,
+    publicationVolumePages: row.publication_volume_pages,
+    studyLocation: row.study_location,
+    pdfFilename: row.pdf_filename,
+    pdfUrl: row.pdf_url,
+    supplementaryFilesUrl: row.supplementary_files_url,
+    studyArea: row.study_area,
+    mineralAnalyzed: row.mineral_analyzed,
+    sampleCount: row.sample_count,
+    ageRangeMinMa: row.age_range_min_ma,
+    ageRangeMaxMa: row.age_range_max_ma,
+    authors: row.authors,
+    collectionDate: row.collection_date,
+    analyst: row.analyst,
+    laboratory: row.laboratory,
+    analysisMethods: row.analysis_methods,
+    keyFindings: row.key_findings,
+    fairScore: row.fair_score,
+    fairNotes: row.fair_notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}

@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getDatasetById } from '@/lib/db/queries';
+import { getDatasetById } from '@/lib/db/earthbank-queries';
 import { AgeBarChart } from '@/components/AgeBarChart';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
 import Breadcrumb from '@/components/ui/Breadcrumb';
@@ -13,7 +13,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
+  const datasetId = id;
   const dataset = await getDatasetById(datasetId);
 
   if (!dataset) {
@@ -23,18 +23,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `Analysis - ${dataset.dataset_name}`,
-    description: `Interactive visualizations and analysis tools for ${dataset.dataset_name}`,
+    title: `Analysis - ${dataset.datasetName}`,
+    description: `Interactive visualizations and analysis tools for ${dataset.datasetName}`,
   };
 }
 
 export default async function DatasetAnalysisPage({ params }: Props) {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
-
-  if (isNaN(datasetId)) {
-    return notFound();
-  }
+  const datasetId = id;
 
   const dataset = await getDatasetById(datasetId);
 
@@ -47,7 +43,7 @@ export default async function DatasetAnalysisPage({ params }: Props) {
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Datasets', href: '/datasets' },
-        { label: dataset.dataset_name, href: `/datasets/${datasetId}` },
+        { label: dataset.datasetName, href: `/datasets/${datasetId}` },
         { label: 'Analysis' }
       ]} />
 
@@ -57,7 +53,7 @@ export default async function DatasetAnalysisPage({ params }: Props) {
           Analysis & Visualization
         </h1>
         <p className="text-lg text-slate-600">
-          {dataset.dataset_name}
+          {dataset.datasetName}
         </p>
       </div>
 

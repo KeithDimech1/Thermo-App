@@ -8,8 +8,9 @@ interface Tab {
   href: string;
 }
 
+// MIGRATED TO EARTHBANK SCHEMA - IDEA-014
 interface DatasetTabsProps {
-  datasetId: number;
+  datasetId: string;  // Changed from number to string for URL param compatibility
   activeTab: 'overview' | 'data' | 'fair' | 'tables' | 'analysis';
 }
 

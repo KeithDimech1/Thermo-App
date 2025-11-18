@@ -21,7 +21,7 @@ export default async function DatasetTablesPage({ params }: Props) {
       ]} />
 
       {/* Dataset Tabs */}
-      <DatasetTabs datasetId={parseInt(datasetId)} activeTab="tables" />
+      <DatasetTabs datasetId={datasetId} activeTab="tables" />
 
       {/* Tables View - Client Component */}
       <TablesView datasetId={datasetId} />

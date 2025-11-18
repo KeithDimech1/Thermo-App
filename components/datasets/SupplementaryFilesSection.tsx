@@ -16,8 +16,9 @@ interface SupplementaryFile {
   upload_notes: string | null;
 }
 
+// MIGRATED TO EARTHBANK SCHEMA - IDEA-014
 interface SupplementaryFilesSectionProps {
-  datasetId: number;
+  datasetId: string;  // Changed from number to string for URL param compatibility
   supplementaryFilesUrl?: string | null;
 }
 

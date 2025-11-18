@@ -11,7 +11,20 @@
 - ✅ **Document size check** - Automatically detects page count and applies optimal strategy
 - ✅ **Targeted viewing** - Optional one-page-at-a-time viewing for verification only
 
-**Note:** This command is fully functional now but is recommended for production use **after ERROR-006 (EarthBank schema migration)** is complete. Database mapping templates will need minor updates when the new schema is deployed. See ERROR-010 for details.
+---
+
+## ⚠️ SCHEMA MIGRATION WARNING (IDEA-014)
+
+**This command will need updates for new camelCase schema:**
+- **Current:** References old snake_case tables (`ft_datapoints`, `samples`)
+- **Target:** Should reference new camelCase tables (`earthbank_ftDatapoints`, `earthbank_samples`)
+- **Status:** Command not yet updated - database queries may fail
+- **Impact:** Text extraction and analysis still work, only database integration affected
+
+**Migration Branch:** `idea-014-earthbank-schema-migration`
+**See:** `.claude/CLAUDE.md` for current migration status
+
+---
 
 **What it does:**
 1. Checks document size (page count)

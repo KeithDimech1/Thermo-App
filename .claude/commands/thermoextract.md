@@ -6,6 +6,19 @@
 
 ---
 
+## ⚠️ SCHEMA MIGRATION WARNING (IDEA-014)
+
+**This command will need updates for new camelCase schema:**
+- **Current:** Outputs snake_case CSVs (`sample_id`, `central_age_ma`)
+- **Target:** Should output camelCase CSVs (`sampleName`, `centralAgeMa`)
+- **Status:** Command not yet updated - outputs may need manual header transformation
+- **Workaround:** Use `scripts/db/transform-fair-csv-headers.ts` to convert output CSVs
+
+**Migration Branch:** `idea-014-earthbank-schema-migration`
+**See:** `.claude/CLAUDE.md` for current migration status
+
+---
+
 ## Workflow Overview
 
 ```

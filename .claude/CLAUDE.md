@@ -7,6 +7,33 @@
 
 ---
 
+## ⚠️ SCHEMA MIGRATION IN PROGRESS (IDEA-014)
+
+**Status:** Migrating from snake_case → EarthBank-native camelCase schema
+
+**Current State (2025-11-18):**
+- ✅ New tables created: `earthbank_samples`, `earthbank_ftDatapoints`, etc.
+- ✅ All tables use exact EarthBank camelCase field names (e.g., `sampleName`, `centralAgeMa`, `pooledAgeMa`)
+- ✅ UUID primary keys implemented (`id UUID DEFAULT uuid_generate_v4()`)
+- 🚧 CSV import in progress
+- ⏳ Application code not yet updated
+
+**What's Changing:**
+- **OLD:** `ft_datapoints.central_age_ma`, `samples.sample_id`
+- **NEW:** `earthbank_ftDatapoints."centralAgeMa"`, `earthbank_samples."sampleName"`
+- **Note:** Double-quotes required for camelCase in SQL queries
+
+**Impact on Commands:**
+- `/thermoextract` - Will need to output camelCase CSVs (not yet updated)
+- `/thermoanalysis` - Will need to query new schema (not yet updated)
+- Import scripts - Will be simplified (zero field translation needed)
+
+**Branch:** `idea-014-earthbank-schema-migration`
+
+**See:** `build-data/ideas/debug/IDEA-014-migrate-to-earthbank-native-schema-camelcase-1-1-template-mapping.md`
+
+---
+
 ## 🎯 Project Identity
 
 ### What This Does

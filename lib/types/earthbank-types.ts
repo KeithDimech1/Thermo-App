@@ -20,10 +20,42 @@
 // EARTHBANK CORE TYPES (camelCase - Schema v3)
 // =============================================================================
 
+/**
+ * EarthBank Dataset (HYBRID - queries old datasets table, returns camelCase)
+ * Note: Dataset table has NOT been migrated to earthbank_datasets yet
+ * This type is used for transformed data from old snake_case schema
+ */
+export interface EarthBankDataset {
+  id: string; // Integer ID converted to string
+  datasetName: string;
+  description?: string | null;
+  publicationReference?: string | null;
+  doi?: string | null;
+  fullCitation?: string | null;
+  publicationYear?: number | null;
+  publicationJournal?: string | null;
+  publicationVolumePages?: string | null;
+  studyLocation?: string | null;
+  pdfFilename?: string | null;
+  pdfUrl?: string | null;
+  supplementaryFilesUrl?: string | null;
+  studyArea?: string | null;
+  mineralAnalyzed?: string | null;
+  sampleCount?: number | null;
+  ageRangeMinMa?: number | null;
+  ageRangeMaxMa?: number | null;
+  authors?: string[] | string | null; // Can be array or PostgreSQL array string
+  collectionDate?: Date | string | null;
+  analyst?: string | null;
+  laboratory?: string | null;
+  analysisMethods?: string[] | string | null; // Can be array or PostgreSQL array string
+  createdAt?: Date | string | null;
+}
+
 export interface EarthBankSample {
   id: string; // UUID primary key
   sampleID: string; // Natural key (unique)
-  datasetID?: number | null;
+  datasetID?: string | null; // Changed to string for UUID compatibility
 
   // Sample identification
   IGSN?: string | null;
@@ -60,6 +92,10 @@ export interface EarthBankSample {
   lithology?: string | null;
   mineralType?: string | null;
   mineral?: string | null; // Alias
+
+  // Analytical summary (grain counts from datapoints)
+  nAFTGrains?: number | null; // Total AFT grains analyzed
+  nAHeGrains?: number | null; // Total AHe grains analyzed
 
   // Stratigraphic context
   stratigraphicUnit?: string | null;

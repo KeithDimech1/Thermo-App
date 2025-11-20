@@ -1,4 +1,14 @@
--- Create Peak et al. (2021) samples with complete metadata
+-- ⚠️ HISTORICAL/DEPRECATED - Uses OLD snake_case schema (IDEA-014)
+--
+-- This script uses the OLD 'samples' table and has NOT been migrated to the
+-- new EarthBank camelCase schema (earthbank_samples).
+--
+-- Status: If already run, keep as historical record. If needs re-running, update first.
+-- See: build-data/ideas/debug/IDEA-014-INDEX.md
+--
+-- ---
+--
+-- Create Peak et al. (2021) samples with complete metadata (LEGACY)
 -- Run this to add the samples if they don't exist yet
 
 -- First, ensure we have a Peak dataset

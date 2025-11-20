@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 interface Tab {
   id: string;
@@ -16,7 +16,6 @@ interface DatasetTabsProps {
 
 export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) {
   const router = useRouter();
-  const pathname = usePathname();
 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', href: `/datasets/${datasetId}` },

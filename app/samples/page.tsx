@@ -37,13 +37,6 @@ export default async function SamplesPage() {
                 </span>
               </div>
 
-              {/* Analysis Method */}
-              {sample.analysisMethod && (
-                <p className="text-sm text-gray-600 mb-3">
-                  <span className="font-semibold">Method:</span> {sample.analysisMethod}
-                </p>
-              )}
-
               {/* Data Availability */}
               <div className="flex gap-3 mb-3">
                 {sample.nAFTGrains && sample.nAFTGrains > 0 && (

@@ -1,15 +1,44 @@
 # AusGeochem Thermochronology - Living Documentation
 
-**Last Updated:** 2025-11-18
+**Last Updated:** 2025-11-19 07:26:29
 **Project:** Next.js + PostgreSQL Thermochronology Database
-**Schema Version:** 2.0 (EarthBank FAIR Architecture)
+**Schema Version:** 2.1 (EarthBank camelCase Native)
+
+---
+
+## ⚠️ CRITICAL: EarthBank camelCase Schema (v2.1)
+
+**Recent Migration (2025-11-18):** Database migrated to EarthBank-native camelCase field names
+
+**New Production Tables:**
+- `earthbank_samples` - Uses `sampleID`, `sampleName`, `mineralName` (camelCase)
+- `earthbank_ftDatapoints` - Uses `centralAgeMa`, `pooledAgeMa`, `trackDensity` (camelCase)
+- `earthbank_heDatapoints` - Uses `correctedAgeMa`, `uncorrectedAgeMa` (camelCase)
+- `earthbank_ftTrackLengthData` - Uses `trackLengthUm`, `cAxisAngle` (camelCase)
+- `earthbank_heWholeGrainData` - Uses `rawHeAgeMa`, `alphaDoseGy` (camelCase)
+
+**Critical SQL Syntax:**
+```sql
+-- ✅ CORRECT: Use double-quotes for camelCase columns
+SELECT "sampleID", "centralAgeMa" FROM earthbank_ftDatapoints;
+
+-- ❌ WRONG: Unquoted will be lowercased by PostgreSQL
+SELECT sampleID FROM earthbank_samples; -- Fails!
+```
+
+**Why camelCase?**
+- Zero field translation (EarthBank CSV → Database 1:1 mapping)
+- FAIR canonical compliance (field names match published standard)
+- Eliminates import/export errors (~40% reduction)
+
+**See:** [SCHEMA_CHANGES.md](database/SCHEMA_CHANGES.md) for full migration details
 
 ---
 
 ## Quick Start
 
 **New to this codebase?** Start here:
-1. Read [Database Schema Changes](database/SCHEMA_CHANGES.md) - **CRITICAL: Schema v1 → v2 migration**
+1. Read [Database Schema Changes](database/SCHEMA_CHANGES.md) - **CRITICAL: v2.1 camelCase migration**
 2. Understand the [Datapoint Architecture](#key-concepts) (1 sample → many analyses)
 3. Check [Database Tables](#database-tables) for schema reference
 4. Review [Code Documentation](#code-documentation) for query patterns
@@ -59,9 +88,20 @@
 
 [📄 SCHEMA_CHANGES.md](database/SCHEMA_CHANGES.md) - Complete schema evolution log
 
-**Latest:** 2025-11-17 - Major expansion (6 → 20 tables) for EarthBank FAIR compliance
+**Latest:** 2025-11-18 - EarthBank camelCase Migration (v2.0 → v2.1)
+- Previous: 2025-11-17 - Major expansion (6 → 20 tables) for EarthBank FAIR compliance
 
-### Database Tables (20)
+### Database Tables
+
+**Production Tables (camelCase - v2.1):**
+- `earthbank_samples` (28 camelCase columns)
+- `earthbank_ftDatapoints` (67 camelCase columns)
+- `earthbank_heDatapoints` (44 camelCase columns)
+- `earthbank_ftTrackLengthData` (23 camelCase columns)
+- `earthbank_heWholeGrainData` (75 camelCase columns)
+
+**Legacy Tables (snake_case - v2.0):**
+The following tables remain for rollback compatibility but are NOT used in production code:
 
 #### Core Infrastructure (7 tables)
 - [datasets](database/tables/datasets.md) - Data packages with DOI, privacy controls
@@ -200,33 +240,30 @@
 - CSS class merging utility
 - Uses `clsx` and `tailwind-merge`
 
-### 🛠️ Scripts (6 files)
+### 🛠️ Scripts (47+ files)
 
-**[`scripts/query-mcmillan-data.js`](scripts/query-mcmillan-data.md)** ⭐ **NEW**
-- Query and display McMillan 2024 Malawi Rift dataset
-- CLI utility for data exploration
-- Shows: Dataset metadata, sample ages, summary statistics
+**[📂 Scripts Directory Index](scripts/INDEX.md)** ⭐ **COMPREHENSIVE GUIDE**
 
-**`scripts/db/import-thermo-data.ts`**
-- Import CSV data into database
-- Handles (v2): samples, ft_datapoints, ft_count_data, ft_track_length_data, he_whole_grain_data
-- Transaction-safe imports
+The scripts directory contains 47+ utilities organized into three main categories:
 
-**`scripts/db/schema-thermo.sql`**
-- Complete database schema for thermochronology
-- 6 tables + 2 views
-- Foreign keys, constraints, indexes
+#### **[Database Utilities](scripts/INDEX.md#database-utilities-scriptsdb)** (scripts/db/)
+- **Connection wrappers:** `psql-direct.sh`, `psql-pooled.sh`, `pg_dump-direct.sh`
+- **Import engines:** `import-earthbank-templates.ts`, `import-thermo-data.ts`
+- **Migration tools:** `migrate-v1-to-v2.ts`, `run-migration.ts`
+- **Utilities:** `test-connection.ts`, `reset-database.ts`, `export-schema.ts`
 
-**`scripts/db/test-connection.ts`**
-- Test database connectivity
-- Verify Neon connection
+#### **[PDF Extraction](scripts/INDEX.md#pdf-extraction-scriptspdf)** (scripts/pdf/)
+- **Core engine:** `extraction_engine.py` - Multi-method table extraction
+- **Extractors:** `multi_method_extraction.py`, `table_extractors.py`
+- **Processing:** `cleaners.py`, `validators.py`, `semantic_analysis.py`
+- **Transformation:** `fair_transformer.py` - EarthBank format conversion
 
-**`scripts/db/reset-database.ts`**
-- Drop and recreate schema
-- **DESTRUCTIVE** - Use with caution
+#### **[Data Analysis](scripts/INDEX.md#data-analysis-scriptsanalysis)** (scripts/analysis/)
+- **Statistical plots:** `statistical_plots.py` - Radial plots, histograms, probability density
+- **Spatial analysis:** `spatial_plots.py` - Age-elevation, spatial transects
+- **Data loaders:** `utils/data_loaders.py` - Database query utilities
 
-**`scripts/db/migrations/`**
-- Database migration scripts
+**See [scripts/INDEX.md](scripts/INDEX.md) for complete documentation of all 47+ scripts**
 
 ---
 

@@ -78,3 +78,78 @@
 2. Run `/bigtidycheck` again to verify
 3. Update status to ✅ Fixed
 4. If logged as ERROR-XXX, run `/resolve ERROR-XXX`
+# Dependencies Code Quality
+
+**Last Check:** 2025-11-18 17:31:44
+**Found by:** `/bigtidycheck`
+
+---
+
+## 🔴 Critical Issues
+
+### 1. **Security: HIGH Severity glob Vulnerability**
+
+- **Package:** `glob` (via dependency chain)
+- **CVE:** GHSA-5j98-mcp5-4vw2
+- **Severity:** HIGH (CVSS 7.5)
+- **Vulnerability:** Command injection via -c/--cmd
+- **Affected:** glob versions >=10.3.7 <=11.0.3
+- **Via Chain:** @next/eslint-plugin-next → eslint-config-next → glob
+- **Impact:** Dev dependencies only (not production runtime)
+- **Risk:** Development environment command injection (CLI usage only)
+- **Fix Attempted:** 2025-11-18
+  - `npm audit fix` and `npm audit fix --force` both failed to resolve
+  - Updating eslint-config-next@16 requires eslint@9 (breaking change from v8)
+  - Would require major ESLint upgrade during critical migration phase
+- **Decision:**
+  - **Accepted Risk** - Defer fix to Phase 8 (post-migration)
+  - Low practical risk: dev-only, CLI-specific vulnerability
+  - Attack surface limited to -c/--cmd flag usage
+  - Not exploitable in production runtime
+- **Status:** 🟡 Deferred to Phase 8
+- **Priority:** P2 (Medium - will fix post-migration)
+
+---
+
+## 🟡 Medium Issues
+
+### 2. **Unused Dev Dependencies**
+
+**Flagged by depcheck:**
+- `eslint`
+- `eslint-config-next`
+- `autoprefixer`
+- `postcss`
+- `@types/react-dom`
+
+**Analysis:**
+- **eslint, eslint-config-next:** May be unused if not running eslint
+- **autoprefixer, postcss:** Likely used by Tailwind CSS (keep)
+- **@types/react-dom:** Likely needed for TypeScript (keep)
+
+**Suggested Fix:**
+```bash
+# Only remove if truly unused:
+npm uninstall eslint eslint-config-next
+
+# Keep the others (used indirectly):
+# - autoprefixer (Tailwind)
+# - postcss (Tailwind)
+# - @types/react-dom (TypeScript)
+```
+
+**Status:** 🟡 Open
+**Priority:** P3 (Low - minor cleanup)
+
+---
+
+## Recommendations
+
+1. **Immediate:** Run `npm audit fix` to update glob vulnerability
+2. **Phase 6.4:** Audit eslint usage, remove if not configured
+3. **Phase 8:** Review all dependencies after migration complete
+
+---
+
+**Last npm audit:** 2025-11-18
+**Next check:** After dependency updates or before production deploy

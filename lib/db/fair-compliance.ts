@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { logger } from '@/lib/utils/logger';
 
 const PAPERS_DIR = path.join(process.cwd(), 'build-data', 'learning', 'thermo-papers');
 
@@ -96,7 +97,7 @@ export async function loadFairCompliance(datasetName: string): Promise<FairCompl
 
     return null;
   } catch (error) {
-    console.error(`Error loading FAIR compliance for ${datasetName}:`, error);
+    logger.error({ err: error, datasetName }, 'Error loading FAIR compliance');
     return null;
   }
 }
@@ -123,7 +124,7 @@ export async function listFairCompliances(): Promise<string[]> {
 
     return withCompliance;
   } catch (error) {
-    console.error('Error listing FAIR compliances:', error);
+    logger.error({ err: error }, 'Error listing FAIR compliances');
     return [];
   }
 }

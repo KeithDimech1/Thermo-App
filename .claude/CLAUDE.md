@@ -7,30 +7,63 @@
 
 ---
 
-## ⚠️ SCHEMA MIGRATION IN PROGRESS (IDEA-014)
+## ✅ SCHEMA MIGRATION COMPLETE (IDEA-014)
 
-**Status:** Migrating from snake_case → EarthBank-native camelCase schema
+**Status:** ✅ EarthBank-native camelCase schema migration COMPLETE (2025-11-18)
 
-**Current State (2025-11-18):**
-- ✅ New tables created: `earthbank_samples`, `earthbank_ftDatapoints`, etc.
-- ✅ All tables use exact EarthBank camelCase field names (e.g., `sampleName`, `centralAgeMa`, `pooledAgeMa`)
+**Schema Version:** v2.1 (EarthBank-Inspired camelCase)
+
+**Current State (2025-11-18 23:50 - Phase 7):**
+- ✅ New tables created: `earthbank_samples`, `earthbank_ftDatapoints`, `earthbank_heDatapoints`, `earthbank_ftTrackLengthData`, `earthbank_heWholeGrainData`
+- ✅ All tables use EarthBank-inspired camelCase field names (e.g., `sampleID`, `centralAgeMa`, `pooledAgeMa`)
+- ⚠️ **Note:** Field names are inspired by but don't exactly match EarthBank templates (see IDEA-015)
 - ✅ UUID primary keys implemented (`id UUID DEFAULT uuid_generate_v4()`)
-- 🚧 CSV import in progress
-- ⏳ Application code not yet updated
+- ✅ Application code updated (Phase 5-6: all API routes and UI components)
+- ✅ TypeScript compilation: 0 errors
+- ✅ Data integrity: 100% validated (1,238 records migrated, zero data loss)
+- ✅ Testing complete (Phase 6: all integrity checks passed)
+- ✅ Documentation updated (Phase 7: SCHEMA_CHANGES.md complete)
 
-**What's Changing:**
-- **OLD:** `ft_datapoints.central_age_ma`, `samples.sample_id`
-- **NEW:** `earthbank_ftDatapoints."centralAgeMa"`, `earthbank_samples."sampleName"`
+**Schema:**
+- **Tables:** `earthbank_samples`, `earthbank_ftDatapoints`, `earthbank_heDatapoints`, `earthbank_ftTrackLengthData`, `earthbank_heWholeGrainData`
 - **Note:** Double-quotes required for camelCase in SQL queries
+- **Foreign Keys:** String-based (`sampleID`, `datapointName`)
+- **Primary Keys:** UUID with `uuid_generate_v4()`
 
-**Impact on Commands:**
-- `/thermoextract` - Will need to output camelCase CSVs (not yet updated)
-- `/thermoanalysis` - Will need to query new schema (not yet updated)
-- Import scripts - Will be simplified (zero field translation needed)
+**Critical SQL Syntax:**
+```sql
+-- ✅ CORRECT: Use double-quotes for camelCase columns
+SELECT "sampleID", "centralAgeMa" FROM earthbank_ftDatapoints;
+
+-- ❌ WRONG: Unquoted will be lowercased by PostgreSQL
+SELECT sampleID, centralAgeMa FROM earthbank_ftDatapoints;
+```
+
+**What Changed:**
+- **OLD:** `ft_datapoints.central_age_ma`, `samples.sample_id`
+- **NEW:** `earthbank_ftDatapoints."centralAgeMa"`, `earthbank_samples."sampleID"`
+
+**Import/Export:**
+- Minimal field translation needed (camelCase → camelCase with name differences)
+- `/thermoextract` - Outputs camelCase CSVs (field mapping may be needed for EarthBank templates)
+- Import scripts - Use `earthbank_*` tables directly
+- Export scripts - Direct column mapping (no snake_case conversion)
+- **Note:** Our field names differ from EarthBank templates (e.g., `numGrains` vs `noOfGrains`) - see IDEA-015
+
+**Migration Stats:**
+- 1,238 records migrated (75 samples, 67 FT datapoints, 975 track lengths, 8 He datapoints, 113 He grains)
+- 98 camelCase columns across 5 tables
+- 0 data loss, 100% referential integrity
 
 **Branch:** `idea-014-earthbank-schema-migration`
 
-**See:** `build-data/ideas/debug/IDEA-014-migrate-to-earthbank-native-schema-camelcase-1-1-template-mapping.md`
+**Documentation:**
+- **Quick Reference:** `build-data/ideas/debug/IDEA-014-INDEX.md`
+- **Full Implementation Log:** `build-data/ideas/debug/IDEA-014-migrate-to-earthbank-native-schema-camelcase-1-1-template-mapping.md`
+- **Schema Changes:** `readme/database/SCHEMA_CHANGES.md` (migration documented)
+- **Migration Guide:** See SCHEMA_CHANGES.md "Migration Guide" section
+
+**Next Phase:** Phase 8 - Cutover & Cleanup (optional - old tables can remain for rollback)
 
 ---
 
@@ -62,19 +95,32 @@ A **datapoint** = one analytical session (specific lab, date, method, analyst). 
 
 ---
 
-## 📖 Documentation Hierarchy (ALWAYS START HERE)
+## 📖 Documentation Hierarchy (MANDATORY - ENFORCED BY HOOK)
 
-**Before ANY code changes:**
-1. **Read `readme/INDEX.md`** - Living architectural documentation
-2. Navigate to specific docs referenced
-3. Only then search code if needed
+**🚨 CRITICAL: This is ENFORCED via user-prompt-submit hook - NOT optional! 🚨**
+
+**BEFORE using Grep/Glob/search OR making ANY code changes:**
+
+1. **MUST READ `readme/INDEX.md` FIRST** - Living architectural documentation (explains "why" and relationships)
+2. **MUST CHECK `PROJECT_INDEX.json`** - Current state snapshot (1,238 records, EarthBank schema status)
+3. **Navigate to specific docs referenced** (SCHEMA_CHANGES.md, definitions.md, etc.)
+4. **ONLY THEN use code search tools** (Grep/Glob) if still needed
+
+**WHY THIS IS MANDATORY:**
+- Direct code search wastes tokens and misses critical context
+- Documentation explains architectural decisions and relationships
+- PROJECT_INDEX.json contains current schema state (critical for IDEA-014 migration)
+- Prevents breaking changes and redundant work
 
 **Key Documentation:**
 - `readme/INDEX.md` - Complete architecture, workflows, decisions (⭐ PRIMARY SOURCE)
+- `PROJECT_INDEX.json` - Automated snapshot of current codebase state (⭐ CURRENT STATE)
 - `readme/database/SCHEMA_CHANGES.md` - Schema evolution log
 - `documentation/definitions.md` - Field glossary (Pooled Age, Dpar, MTL, Ft, etc.)
 - `build-data/documentation/foundation/` - Research papers (Kohn 2024, Nixon 2025)
 - `build-data/assets/schemas/AusGeochem_ERD.md` - Full ERD specification
+
+**Hook Location:** `.claude/hooks/user-prompt-submit.sh` (runs before every prompt)
 
 ---
 

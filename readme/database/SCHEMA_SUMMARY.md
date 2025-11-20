@@ -1,8 +1,8 @@
 # Database Schema Summary
 
-**Last Updated:** 2025-11-18 01:24:40
+**Last Updated:** 2025-11-19 07:24:26
 **Database:** AusGeochem Thermochronology (Neon PostgreSQL)
-**Total Tables:** 19
+**Total Tables:** 25 (19 original + 5 new EarthBank tables + 1 linking table)
 
 Auto-generated overview of all database tables.
 

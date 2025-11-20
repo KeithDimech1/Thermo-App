@@ -14,9 +14,9 @@
 import { query, queryOne } from './connection';
 import {
   EarthBankSample,
+  EarthBankDataset,
   EarthBankFTDatapoint,
   EarthBankHeDatapoint,
-  EarthBankFTCountData,
   EarthBankFTTrackLengthData,
   EarthBankHeWholeGrainData,
   EarthBankPaginatedResponse,
@@ -418,37 +418,7 @@ export async function getAgeDistribution(
 // =============================================================================
 // DATASET QUERIES (datasets table - supporting table, not migrated to earthbank_*)
 // =============================================================================
-
-export interface EarthBankDataset {
-  id: string;
-  datasetName: string;
-  description: string | null;
-  publicationReference: string | null;
-  doi: string | null;
-  fullCitation: string | null;
-  publicationYear: number | null;
-  publicationJournal: string | null;
-  publicationVolumePages: string | null;
-  studyLocation: string | null;
-  pdfFilename: string | null;
-  pdfUrl: string | null;
-  supplementaryFilesUrl: string | null;
-  studyArea: string | null;
-  mineralAnalyzed: string | null;
-  sampleCount: number | null;
-  ageRangeMinMa: number | null;
-  ageRangeMaxMa: number | null;
-  authors: string[] | null;
-  collectionDate: Date | null;
-  analyst: string | null;
-  laboratory: string | null;
-  analysisMethods: string[] | null;
-  keyFindings: string[] | null;
-  fairScore: number | null;
-  fairNotes: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Note: EarthBankDataset interface is now imported from @/lib/types/earthbank-types
 
 export async function getAllDatasets(): Promise<EarthBankDataset[]> {
   const sql = `
@@ -494,11 +464,7 @@ export async function getAllDatasets(): Promise<EarthBankDataset[]> {
     analyst: row.analyst,
     laboratory: row.laboratory,
     analysisMethods: row.analysis_methods,
-    keyFindings: row.key_findings,
-    fairScore: row.fair_score,
-    fairNotes: row.fair_notes,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
   }));
 }
 
@@ -552,10 +518,6 @@ export async function getDatasetById(id: string): Promise<EarthBankDataset | nul
     analyst: row.analyst,
     laboratory: row.laboratory,
     analysisMethods: row.analysis_methods,
-    keyFindings: row.key_findings,
-    fairScore: row.fair_score,
-    fairNotes: row.fair_notes,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
   };
 }

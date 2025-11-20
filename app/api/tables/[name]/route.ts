@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { query } from '@/lib/db/connection';
 
 /**
@@ -32,32 +33,22 @@ const TABLE_CONFIGS: Record<string, TableConfig> = {
   },
   'ft-datapoints': {
     tableName: 'earthbank_ftDatapoints',
-    columns: ['id', 'datapointName', 'sampleID', 'batchID', 'laboratory', 'ftMethod', 'pooledAgeMa', 'pooledAgeUncertaintyMa', 'centralAgeMa', 'centralAgeUncertaintyMa', 'nGrains', 'pChi2', 'dispersion', 'mtl'],
-    defaultSort: 'id'
-  },
-  'ft-count-data': {
-    tableName: 'earthbank_ftCountData',
-    columns: ['id', 'datapointName', 'grainName', 'ns', 'ni', 'nd', 'rhoS', 'rhoI', 'rhoD', 'dPar'],
+    columns: ['id', 'datapointName', 'sampleID', 'laboratory', 'analyst', 'analysisDate', 'ftMethod', 'mineralType', 'nGrains', 'pooledAgeMa', 'pooledAgeUncertainty', 'centralAgeMa', 'centralAgeUncertainty', 'pChi2', 'dispersion', 'mtl', 'dPar'],
     defaultSort: 'id'
   },
   'ft-track-lengths': {
     tableName: 'earthbank_ftTrackLengthData',
-    columns: ['id', 'datapointName', 'grainName', 'trackID', 'trackType', 'lengthUm', 'cAxisAngleDeg', 'dPar'],
-    defaultSort: 'id'
-  },
-  'ft-single-grain-ages': {
-    tableName: 'earthbank_ftSingleGrainAges',
-    columns: ['id', 'datapointName', 'grainName', 'ageMa', 'ageUncertaintyMa', 'uPpm', 'rmr0'],
+    columns: ['id', 'datapointName', 'sampleID', 'grainName', 'trackID', 'trackType', 'lengthUm', 'cAxisAngleDeg', 'dPar'],
     defaultSort: 'id'
   },
   'he-datapoints': {
     tableName: 'earthbank_heDatapoints',
-    columns: ['id', 'datapointName', 'sampleID', 'batchID', 'laboratory', 'heMethod', 'nGrains', 'meanCorrectedAgeMa', 'meanCorrectedAgeUncertaintyMa', 'chi2pct', 'MSWD'],
+    columns: ['id', 'datapointName', 'sampleID', 'ftMethod', 'laboratory', 'analyst', 'analysisDate', 'nGrains', 'meanCorrectedAgeMa', 'meanCorrectedAgeUncertainty', 'meanUncorrectedAgeMa'],
     defaultSort: 'id'
   },
   'he-grains': {
     tableName: 'earthbank_heWholeGrainData',
-    columns: ['id', 'datapointName', 'grainName', 'uncorrectedHeAge', 'correctedHeAge', 'correctedHeAgeUncertainty', 'ft', 'uConcentration', 'thConcentration', 'smConcentration', 'eU'],
+    columns: ['id', 'datapointName', 'sampleID', 'grainName', 'correctedHeAge', 'correctedHeAgeUncertainty', 'uncorrectedHeAge', 'ft', 'uConcentration', 'thConcentration', 'smConcentration', 'eU'],
     defaultSort: 'id'
   }
 };
@@ -119,32 +110,31 @@ export async function GET(
         queryParams = [datasetId];
       } else if (config.tableName === 'earthbank_ftDatapoints' || config.tableName === 'earthbank_heDatapoints') {
         // Join with samples table to filter by dataset
-        whereClause = `WHERE "sampleID" IN (SELECT "sampleID" FROM earthbank_samples WHERE "datasetID" = $1)`;
+        whereClause = `WHERE "sampleID" IN (SELECT "sampleID" FROM "earthbank_samples" WHERE "datasetID" = $1)`;
         queryParams = [datasetId];
-      } else if (config.tableName === 'earthbank_ftCountData' || config.tableName === 'earthbank_ftTrackLengthData' || config.tableName === 'earthbank_ftSingleGrainAges') {
-        // Join through ft_datapoints -> samples
+      } else if (config.tableName === 'earthbank_ftTrackLengthData') {
+        // Join through earthbank_ftDatapoints -> earthbank_samples
         whereClause = `WHERE "datapointName" IN (
-          SELECT "datapointName" FROM earthbank_ftDatapoints
-          WHERE "sampleID" IN (SELECT "sampleID" FROM earthbank_samples WHERE "datasetID" = $1)
+          SELECT "datapointName" FROM "earthbank_ftDatapoints"
+          WHERE "sampleID" IN (SELECT "sampleID" FROM "earthbank_samples" WHERE "datasetID" = $1)
         )`;
         queryParams = [datasetId];
       } else if (config.tableName === 'earthbank_heWholeGrainData') {
-        // Join through he_datapoints -> samples
+        // Join through earthbank_heDatapoints -> earthbank_samples
         whereClause = `WHERE "datapointName" IN (
-          SELECT "datapointName" FROM earthbank_heDatapoints
-          WHERE "sampleID" IN (SELECT "sampleID" FROM earthbank_samples WHERE "datasetID" = $1)
+          SELECT "datapointName" FROM "earthbank_heDatapoints"
+          WHERE "sampleID" IN (SELECT "sampleID" FROM "earthbank_samples" WHERE "datasetID" = $1)
         )`;
         queryParams = [datasetId];
       }
-      // For batches and people, don't filter by dataset (they're shared across datasets)
     }
 
     // Build query (all identifiers double-quoted for camelCase)
     const columnList = config.columns.map(col => `"${col}"`).join(', ');
-    const countSql = `SELECT COUNT(*) as total FROM ${config.tableName} ${whereClause}`;
+    const countSql = `SELECT COUNT(*) as total FROM "${config.tableName}" ${whereClause}`;
     const dataSql = `
       SELECT ${columnList}
-      FROM ${config.tableName}
+      FROM "${config.tableName}"
       ${whereClause}
       ORDER BY "${sortBy}" ${sortOrder.toUpperCase()}
       LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
@@ -176,7 +166,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Table API error:', error);
+    logger.error({ err: error }, 'Table API error:');
     return NextResponse.json(
       { error: 'Failed to fetch table data' },
       { status: 500 }

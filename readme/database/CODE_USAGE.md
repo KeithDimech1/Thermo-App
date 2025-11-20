@@ -1,10 +1,48 @@
 # Database Code Usage Map
 
-**Last Updated:** 2025-11-18 01:30:00
+**Last Updated:** 2025-11-19 07:24:26
 
 Cross-reference showing which code files interact with which database tables.
 
+**Note:** This map includes both original schema tables (samples, ft_datapoints, etc.) and new EarthBank tables (earthbank_samples, earthbank_ftDatapoints, etc.) added in IDEA-014 migration.
+
 ---
+
+## EarthBank Tables (IDEA-014)
+
+### `earthbank_samples`
+**Primary Access:** `lib/db/earthbank-queries.ts` (523 lines)
+**Purpose:** EarthBank-native sample storage with camelCase fields
+**Status:** ✅ Active (migration complete 2025-11-18)
+
+### `earthbank_ftDatapoints`
+**Primary Access:** `lib/db/earthbank-queries.ts`
+**Purpose:** Fission-track datapoints with EarthBank camelCase schema
+**Status:** ✅ Active (migration complete 2025-11-18)
+
+### `earthbank_heDatapoints`
+**Primary Access:** `lib/db/earthbank-queries.ts`
+**Purpose:** (U-Th)/He datapoints with EarthBank camelCase schema
+**Status:** ✅ Active (migration complete 2025-11-18)
+
+### `earthbank_ftTrackLengthData`
+**Primary Access:** `lib/db/earthbank-queries.ts`
+**Purpose:** Track length measurements with EarthBank camelCase schema
+**Status:** ✅ Active (migration complete 2025-11-18)
+
+### `earthbank_heWholeGrainData`
+**Primary Access:** `lib/db/earthbank-queries.ts`
+**Purpose:** He grain chemistry data with EarthBank camelCase schema
+**Status:** ✅ Active (migration complete 2025-11-18)
+
+**API Integration:**
+- All API routes updated to use EarthBank queries (Phase 5-6 complete)
+- TypeScript compilation: 0 errors
+- Data integrity: 100% validated
+
+---
+
+## Original Schema Tables
 
 ## By Table
 

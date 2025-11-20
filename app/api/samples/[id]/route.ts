@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { getSampleDetail } from '@/lib/db/earthbank-queries';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,7 @@ export async function GET(
 
     return NextResponse.json(sampleDetail);
   } catch (error) {
-    console.error('Error fetching sample detail:', error);
+    logger.error({ err: error }, 'Error fetching sample detail:');
     return NextResponse.json(
       { error: 'Failed to fetch sample detail', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

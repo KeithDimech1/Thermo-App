@@ -85,7 +85,6 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
   // Parse PostgreSQL array fields
   const authors = parsePostgresArray(dataset.authors);
   const analysisMethods = parsePostgresArray(dataset.analysisMethods);
-  const keyFindings = parsePostgresArray(dataset.keyFindings);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -102,21 +101,7 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
             {dataset.datasetName}
           </h1>
 
-          {/* FAIR Score Badge */}
-          {dataset.fairScore !== null && dataset.fairScore !== undefined && (
-            <div className="ml-4 flex flex-col items-center">
-              <div className={`
-                text-5xl font-bold px-6 py-3 rounded-lg
-                ${dataset.fairScore >= 90 ? 'bg-green-100 text-green-800' :
-                  dataset.fairScore >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                  dataset.fairScore >= 60 ? 'bg-orange-100 text-orange-800' :
-                  'bg-red-100 text-red-800'}
-              `}>
-                {dataset.fairScore}
-              </div>
-              <p className="text-xs text-gray-600 mt-1 font-semibold">FAIR Score</p>
-            </div>
-          )}
+          {/* FAIR Score Badge - Note: Not in datasets table, use FAIR Assessment tab */}
         </div>
 
         {/* Laboratory Badge */}
@@ -243,20 +228,7 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Key Findings */}
-      {keyFindings.length > 0 && (
-        <div className="mb-8 p-6 bg-purple-50 border-l-4 border-purple-500 rounded-r-lg">
-          <h2 className="text-lg font-bold text-purple-900 mb-3">Key Findings</h2>
-          <ul className="space-y-2">
-            {keyFindings.map((finding, idx) => (
-              <li key={idx} className="text-gray-800 flex items-start">
-                <span className="text-purple-600 mr-2 font-bold">•</span>
-                <span className="flex-1">{finding}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Key Findings - Note: Not in datasets table */}
 
       {/* Metadata Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

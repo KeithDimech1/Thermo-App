@@ -1,9 +1,12 @@
 /**
  * API Route: Sample Age Data
  * Returns sample age data for visualization
+ *
+ * SCHEMA: EarthBank camelCase (IDEA-014)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { query } from '@/lib/db/connection';
 
 export async function GET(request: NextRequest) {
@@ -13,34 +16,34 @@ export async function GET(request: NextRequest) {
 
     let sql = `
       SELECT
-        s.sample_id,
+        s."sampleID",
         fd.id as datapoint_id,
-        fd.datapoint_key,
-        s.latitude,
-        s.longitude,
-        s.elevation_m,
-        fd.central_age_ma,
-        fd.central_age_error_ma,
-        fd.pooled_age_ma,
-        fd.pooled_age_error_ma,
-        fd.dispersion_pct,
-        fd.P_chi2_pct as p_chi2,
-        fd.n_grains,
-        fd.laboratory,
-        fd.analysis_date
-      FROM samples s
-      JOIN ft_datapoints fd ON s.sample_id = fd.sample_id
-      WHERE fd.central_age_ma IS NOT NULL
+        fd."datapointName",
+        s."latitude",
+        s."longitude",
+        s."elevationM",
+        fd."centralAgeMa",
+        fd."centralAgeErrorMa",
+        fd."pooledAgeMa",
+        fd."pooledAgeErrorMa",
+        fd."dispersionPct",
+        fd."pChi2Pct" as p_chi2,
+        fd."nGrains",
+        fd."laboratory",
+        fd."analysisDate"
+      FROM earthbank_samples s
+      JOIN "earthbank_ftDatapoints" fd ON s."sampleID" = fd."sampleID"
+      WHERE fd."centralAgeMa" IS NOT NULL
     `;
 
     const params: any[] = [];
 
     if (datasetId) {
-      sql += ` AND s.dataset_id = $1`;
-      params.push(parseInt(datasetId));
+      sql += ` AND s."datasetID" = $1`;
+      params.push(datasetId); // datasetID is now string, not integer
     }
 
-    sql += ` ORDER BY fd.central_age_ma`;
+    sql += ` ORDER BY fd."centralAgeMa"`;
 
     const result = await query(sql, params);
 
@@ -51,7 +54,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching age data:', error);
+    logger.error({ err: error }, 'Error fetching age data:');
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

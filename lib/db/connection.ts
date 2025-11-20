@@ -10,6 +10,7 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow, types } from 'pg';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { logger } from '@/lib/utils/logger';
 
 // Load environment variables from .env.local if not already loaded
 // This is needed when running scripts directly (not through Next.js)
@@ -76,12 +77,12 @@ export function getPool(): Pool {
 
     // Error handler
     pool.on('error', (err) => {
-      console.error('Unexpected database pool error:', err);
+      logger.error({ err }, 'Unexpected database pool error');
     });
 
     // Log pool creation (development only)
     if (process.env.NODE_ENV === 'development') {
-      console.log('✅ Database connection pool created');
+      logger.info('Database connection pool created');
     }
   }
 
@@ -118,14 +119,12 @@ export async function query<T extends QueryResultRow = any>(
 
     // Log slow queries (development only)
     if (process.env.NODE_ENV === 'development' && duration > 1000) {
-      console.warn(`⚠️  Slow query (${duration}ms):`, text.substring(0, 100));
+      logger.warn({ query: text.substring(0, 100), duration }, `Slow query (${duration}ms)`);
     }
 
     return result.rows;
   } catch (error) {
-    console.error('Database query error:', error);
-    console.error('Query:', text);
-    console.error('Params:', params);
+    logger.error({ err: error, query: text, params }, 'Database query error');
     throw error;
   } finally {
     client.release();
@@ -152,6 +151,7 @@ export async function queryOne<T extends QueryResultRow = any>(
  * Execute a transaction
  * Automatically handles BEGIN, COMMIT, and ROLLBACK
  *
+ * @future-use Utility function for multi-step database operations
  * @param callback - Function to execute within transaction
  * @returns Result from callback
  *
@@ -177,7 +177,7 @@ export async function transaction<T>(
     return result;
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Transaction error (rolled back):', error);
+    logger.error({ err: error }, 'Transaction error (rolled back)');
     throw error;
   } finally {
     client.release();
@@ -188,18 +188,16 @@ export async function transaction<T>(
  * Test database connection
  * Useful for health checks and debugging
  *
+ * @utility-function Used by scripts/db/test-connection.ts
  * @returns true if connection successful
  */
 export async function testConnection(): Promise<boolean> {
   try {
     const result = await query<{ now: Date }>('SELECT NOW() as now');
-    console.log('✅ Database connection successful');
-    if (result[0]) {
-      console.log('   Server time:', result[0].now);
-    }
+    logger.info({ serverTime: result[0]?.now }, 'Database connection successful');
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    logger.error({ err: error }, 'Database connection failed');
     return false;
   }
 }
@@ -207,19 +205,23 @@ export async function testConnection(): Promise<boolean> {
 /**
  * Close all database connections
  * Should be called when shutting down the application
- * Not typically needed in serverless environments
+ *
+ * @utility-function Cleanup for graceful shutdown
+ * @note Not typically needed in serverless environments
  */
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;
-    console.log('Database connection pool closed');
+    logger.info('Database connection pool closed');
   }
 }
 
 /**
  * Get connection pool statistics
  * Useful for monitoring and debugging
+ *
+ * @utility-function Monitoring and observability
  */
 export function getPoolStats() {
   if (!pool) {

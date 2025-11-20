@@ -4,6 +4,78 @@ Auto-generated changelog tracking documentation updates.
 
 ---
 
+## 2025-11-18 18:48 (BigTidy: Scripts Documentation + Cleanup)
+
+### 📁 Project Structure Cleaned
+
+**Files Moved:**
+- ✅ `backup-pre-earthbank-migration-2025-11-18-04-08-11.sql` → `build-data/archive/backups/` (261K SQL backup)
+- ✅ `EARTHBANK-QUICK-REFERENCE.md` → `build-data/documentation/` (15K reference doc)
+
+**Root Directory:** Cleaned - only essential config files remain
+
+### 🔄 Project Index Updated
+
+**PROJECT_INDEX.json refreshed:**
+- 171 code files tracked
+  - 63 TypeScript files (with signatures)
+  - 54 Python files (with signatures)
+  - 1 JavaScript file
+  - 3 Shell scripts
+- 57 documentation files indexed
+- 68 directories cataloged
+- All safe zones verified against index
+
+### 🗄️ Database Schema Status
+
+**Status:** STABLE ✓ (No changes since 2025-11-18 18:13)
+- Schema snapshot: `.schema-snapshot.sql` (18K)
+- Previous snapshot: `.schema-previous.sql` (18K)
+- Diff: **No structural changes detected**
+- Tables: 20+ tables (EarthBank camelCase migration in progress)
+
+### 📚 Living Documentation: Scripts Directory ⭐ NEW
+
+**Major Addition:** Comprehensive scripts directory documentation
+
+**New Documentation Files:**
+- ✅ `readme/scripts/INDEX.md` - Complete scripts directory guide (47+ files documented)
+  - Database utilities (scripts/db/): 30+ utilities
+  - PDF extraction (scripts/pdf/): 12+ tools
+  - Data analysis (scripts/analysis/): 5+ visualization scripts
+  - Import scripts: 8 dataset-specific importers
+  - Test scripts: 6 validation utilities
+
+**Scripts Categories Documented:**
+1. **Database Utilities** - Connection wrappers, import engines, migrations
+2. **PDF Extraction** - Multi-method table extraction, cleaning, validation
+3. **Data Analysis** - Statistical plots (radial, histograms), spatial analysis
+4. **Import Scripts** - EarthBank template import, dataset-specific importers
+5. **Test Scripts** - Extraction validation, data verification
+
+**Updated Files:**
+- 🔄 `readme/INDEX.md` - Added scripts section with links to comprehensive docs
+
+**New Utility Script:**
+- ✅ `scripts/db/pg_dump-direct.sh` - Safe pg_dump wrapper (uses DIRECT_URL)
+
+### 📊 Documentation Statistics
+
+**Total Documentation Files:** 60+
+- Database tables: 20+ documented
+- Scripts: 47+ documented
+- Code files: 171 tracked
+- Living documentation coverage: ~95%
+
+### 🔗 Quick Links Added
+
+Main INDEX.md now includes:
+- Direct links to scripts/INDEX.md
+- Categorized script listings (db, pdf, analysis)
+- Common workflow examples
+
+---
+
 ## 2025-11-16 22:20 (BigTidy: Project Structure Cleanup)
 
 ### 📁 Project Structure Cleaned

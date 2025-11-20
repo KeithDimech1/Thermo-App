@@ -158,7 +158,7 @@ export default async function SampleDetailPage({
                                 {datapoint.centralAgeMa.toFixed(1)}
                               </p>
                               <p className="text-sm text-gray-600 mt-1">
-                                ± {datapoint.centralAgeUncertaintyMa?.toFixed(1)} Ma
+                                ± {datapoint.centralAgeUncertainty?.toFixed(1)} Ma
                               </p>
                             </div>
                           )}
@@ -170,7 +170,7 @@ export default async function SampleDetailPage({
                                 {datapoint.pooledAgeMa.toFixed(1)}
                               </p>
                               <p className="text-sm text-gray-600 mt-1">
-                                ± {datapoint.pooledAgeUncertaintyMa?.toFixed(1)} Ma
+                                ± {datapoint.pooledAgeUncertainty?.toFixed(1)} Ma
                               </p>
                             </div>
                           )}
@@ -201,7 +201,7 @@ export default async function SampleDetailPage({
                           <div className="mt-4 p-3 bg-purple-50 rounded-lg">
                             <p className="text-xs text-gray-600 mb-1">Mean Track Length</p>
                             <p className="text-lg font-bold text-purple-700">
-                              {datapoint.mtl.toFixed(2)} ± {datapoint.mtlStdDev?.toFixed(2)} μm
+                              {datapoint.mtl.toFixed(2)} ± {datapoint.mtlUncertainty?.toFixed(2)} μm
                             </p>
                             <p className="text-xs text-gray-600 mt-1">
                               {datapoint.nTracks || 0} tracks measured
@@ -258,7 +258,7 @@ export default async function SampleDetailPage({
               </h2>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {heDatapoints.map((datapoint: EarthBankEarthBankHeDatapoint, idx: number) => {
+                {heDatapoints.map((datapoint: EarthBankHeDatapoint, idx: number) => {
                   const grains = grainDataByDatapoint.get(datapoint.datapointName) || [];
 
                   return (
@@ -290,7 +290,7 @@ export default async function SampleDetailPage({
                               {datapoint.meanCorrectedAgeMa.toFixed(1)}
                             </p>
                             <p className="text-sm text-gray-600 mt-1">
-                              ± {datapoint.meanCorrectedAgeUncertaintyMa?.toFixed(1)} Ma (SE)
+                              ± {datapoint.meanCorrectedAgeUncertainty?.toFixed(1)} Ma (SE)
                             </p>
                           </div>
                         )}

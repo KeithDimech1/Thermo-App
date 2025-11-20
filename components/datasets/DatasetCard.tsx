@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Dataset } from '@/lib/types/thermo-data';
+import { EarthBankDataset } from '@/lib/types/earthbank-types';
 
+// MIGRATED TO EARTHBANK SCHEMA - IDEA-014 Session 11
 interface DatasetCardProps {
-  dataset: Dataset;
+  dataset: EarthBankDataset;
   sampleCount?: number;
   aftGrainCount?: number;
   aheGrainCount?: number;
@@ -30,7 +31,7 @@ export default function DatasetCard({
   };
 
   const authors = parsePostgresArray(dataset.authors);
-  const analysisMethods = parsePostgresArray(dataset.analysis_methods);
+  const analysisMethods = parsePostgresArray(dataset.analysisMethods);
 
   return (
     <Link
@@ -40,7 +41,7 @@ export default function DatasetCard({
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">
-          {dataset.dataset_name}
+          {dataset.datasetName}
         </h3>
 
         {/* Laboratory */}
@@ -52,19 +53,19 @@ export default function DatasetCard({
         )}
 
         {/* Publication info */}
-        {(dataset.publication_year || dataset.publication_journal) && (
+        {(dataset.publicationYear || dataset.publicationJournal) && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">Publication:</span>{' '}
-            {dataset.publication_journal}
-            {dataset.publication_year && ` (${dataset.publication_year})`}
-            {dataset.publication_volume_pages && `, ${dataset.publication_volume_pages}`}
+            {dataset.publicationJournal}
+            {dataset.publicationYear && ` (${dataset.publicationYear})`}
+            {dataset.publicationVolumePages && `, ${dataset.publicationVolumePages}`}
           </p>
         )}
 
         {/* Full Citation (if available and different from constructed one) */}
-        {dataset.full_citation && (
+        {dataset.fullCitation && (
           <p className="text-xs text-gray-500 italic mb-2 line-clamp-2">
-            {dataset.full_citation}
+            {dataset.fullCitation}
           </p>
         )}
 
@@ -80,28 +81,28 @@ export default function DatasetCard({
         )}
 
         {/* Study Location */}
-        {dataset.study_location && (
+        {dataset.studyLocation && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">Location:</span>{' '}
-            {dataset.study_location}
+            {dataset.studyLocation}
           </p>
         )}
 
         {/* Mineral & Sample Count */}
         <div className="flex gap-4 text-sm text-gray-600 mb-1">
-          {dataset.mineral_analyzed && (
+          {dataset.mineralAnalyzed && (
             <span>
-              <span className="font-semibold">Mineral:</span> {dataset.mineral_analyzed}
+              <span className="font-semibold">Mineral:</span> {dataset.mineralAnalyzed}
             </span>
           )}
         </div>
 
         {/* Age Range */}
-        {(dataset.age_range_min_ma || dataset.age_range_max_ma) && (
+        {(dataset.ageRangeMinMa || dataset.ageRangeMaxMa) && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">Age Range:</span>{' '}
-            {dataset.age_range_min_ma !== null && dataset.age_range_min_ma.toFixed(1)}-
-            {dataset.age_range_max_ma !== null && dataset.age_range_max_ma.toFixed(1)} Ma
+            {dataset.ageRangeMinMa !== null && dataset.ageRangeMinMa?.toFixed(1)}-
+            {dataset.ageRangeMaxMa !== null && dataset.ageRangeMaxMa?.toFixed(1)} Ma
           </p>
         )}
       </div>
@@ -155,32 +156,7 @@ export default function DatasetCard({
         </div>
       )}
 
-      {/* FAIR Score Badge */}
-      {dataset.fair_score && (
-        <div className="mb-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
-            <span className="text-xs font-semibold text-gray-700">FAIR Score:</span>
-            <span className={`text-lg font-bold ${
-              dataset.fair_score >= 90 ? 'text-green-600' :
-              dataset.fair_score >= 80 ? 'text-blue-600' :
-              dataset.fair_score >= 70 ? 'text-yellow-600' :
-              'text-orange-600'
-            }`}>
-              {dataset.fair_score}/100
-            </span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-              dataset.fair_score >= 90 ? 'bg-green-100 text-green-800' :
-              dataset.fair_score >= 80 ? 'bg-blue-100 text-blue-800' :
-              dataset.fair_score >= 70 ? 'bg-yellow-100 text-yellow-800' :
-              'bg-orange-100 text-orange-800'
-            }`}>
-              {dataset.fair_score >= 90 ? 'A' :
-               dataset.fair_score >= 80 ? 'B' :
-               dataset.fair_score >= 70 ? 'C' : 'D'}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* FAIR Score Badge - Note: fair_score not in datasets table, use FAIR Assessment page instead */}
 
       {/* DOI */}
       {dataset.doi && (

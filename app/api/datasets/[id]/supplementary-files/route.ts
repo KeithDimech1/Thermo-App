@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { query } from '@/lib/db/connection';
 
 export const dynamic = 'force-dynamic';
@@ -79,7 +80,7 @@ export async function GET(
       has_supplementary_data: files.length > 0,
     });
   } catch (error) {
-    console.error('Error fetching supplementary files:', error);
+    logger.error({ err: error }, 'Error fetching supplementary files:');
     return NextResponse.json(
       { error: 'Failed to fetch supplementary files' },
       { status: 500 }

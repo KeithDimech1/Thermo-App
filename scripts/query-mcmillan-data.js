@@ -1,8 +1,24 @@
 #!/usr/bin/env node
 /**
- * Query McMillan 2024 Malawi Rift data from Neon database
+ * ⚠️ DEPRECATED - NOT UPDATED FOR EARTHBANK SCHEMA (IDEA-014)
+ *
+ * This script uses the OLD snake_case schema (samples, ft_datapoints, ft_ages)
+ * and has NOT been migrated to the new EarthBank camelCase schema.
+ *
+ * If you need to query McMillan 2024 data, use the application UI or update this script:
+ * - Replace: samples → earthbank_samples
+ * - Replace: ft_datapoints → earthbank_ftDatapoints
+ * - Replace: sample_id → sampleID, central_age_ma → centralAgeMa
+ *
+ * See: build-data/ideas/debug/IDEA-014-INDEX.md
+ *
+ * ---
+ *
+ * Query McMillan 2024 Malawi Rift data from Neon database (LEGACY)
  * Run: node scripts/query-mcmillan-data.js
  */
+
+console.error('\n⚠️  WARNING: This script uses the OLD schema and may not work.\n');
 
 require('dotenv').config({ path: '.env.local' });
 const { Pool } = require('pg');

@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAllSamples } from '@/lib/db/earthbank-queries';
 import { EarthBankSampleFilters } from '@/lib/types/earthbank-types';
+import { logger } from '@/lib/utils/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching samples:', error);
+    logger.error({ err: error, route: '/api/samples' }, 'Error fetching samples');
     return NextResponse.json(
       { error: 'Failed to fetch samples', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

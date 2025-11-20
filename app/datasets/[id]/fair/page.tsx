@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getDatasetById, getFairScoreBreakdown } from '@/lib/db/queries';
+import { getDatasetById } from '@/lib/db/earthbank-queries';
+// NOTE: getFairScoreBreakdown uses old queries.ts since fair_score_breakdown table was not migrated to EarthBank schema
+import { getFairScoreBreakdown } from '@/lib/db/queries';
 import { loadFairCompliance, KOHN_TABLE_DESCRIPTIONS, getFairScoreColor, getGradeBadgeColor } from '@/lib/db/fair-compliance';
 import FairScoreCard from '@/components/datasets/FairScoreCard';
 import Breadcrumb from '@/components/ui/Breadcrumb';
@@ -9,6 +11,7 @@ import Tooltip from '@/components/ui/Tooltip';
 
 export const dynamic = 'force-dynamic';
 
+// MIGRATED TO EARTHBANK SCHEMA - IDEA-014 Session 11
 interface PageProps {
   params: {
     id: string;
@@ -17,8 +20,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
-  const dataset = await getDatasetById(datasetId);
+  const dataset = await getDatasetById(id);
 
   if (!dataset) {
     return {
@@ -27,36 +29,34 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   return {
-    title: `FAIR Assessment - ${dataset.dataset_name} - AusGeochem`,
-    description: `FAIR data compliance assessment for ${dataset.dataset_name}`,
+    title: `FAIR Assessment - ${dataset.datasetName} - AusGeochem`,
+    description: `FAIR data compliance assessment for ${dataset.datasetName}`,
   };
 }
 
 export default async function DatasetFairPage({ params }: PageProps) {
   const { id } = await params;
-  const datasetId = parseInt(id, 10);
 
-  if (isNaN(datasetId)) {
-    return notFound();
-  }
-
-  const dataset = await getDatasetById(datasetId);
+  const dataset = await getDatasetById(id);
 
   if (!dataset) {
     return notFound();
   }
 
-  const fairBreakdown = await getFairScoreBreakdown(datasetId);
+  // Note: fair_score_breakdown table still uses old schema (dataset_id as integer)
+  // Convert string UUID back to integer for this legacy table
+  const datasetIdInt = parseInt(id, 10);
+  const fairBreakdown = await getFairScoreBreakdown(datasetIdInt);
 
   // Load fair-compliance.json (if available)
-  const fairCompliance = await loadFairCompliance(dataset.dataset_name);
+  const fairCompliance = await loadFairCompliance(dataset.datasetName);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Datasets', href: '/datasets' },
-        { label: dataset.dataset_name, href: `/datasets/${datasetId}` },
+        { label: dataset.datasetName, href: `/datasets/${id}` },
         { label: 'FAIR Assessment' }
       ]} />
 
@@ -65,7 +65,7 @@ export default async function DatasetFairPage({ params }: PageProps) {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              {dataset.dataset_name}
+              {dataset.datasetName}
             </h1>
             <p className="text-lg text-gray-600">FAIR Data Compliance Assessment</p>
           </div>
@@ -103,7 +103,7 @@ export default async function DatasetFairPage({ params }: PageProps) {
       </div>
 
       {/* Tab Navigation */}
-      <DatasetTabs datasetId={datasetId} activeTab="fair" />
+      <DatasetTabs datasetId={id} activeTab="fair" />
 
       {/* FAIR Principles Overview */}
       <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">

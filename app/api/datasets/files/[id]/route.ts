@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 import { query } from '@/lib/db/connection';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -56,7 +57,7 @@ export async function GET(
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      console.error(`File not found: ${filePath}`);
+      logger.error(`File not found: ${filePath}`);
       return NextResponse.json(
         { error: 'File not found on server', path: filePath },
         { status: 404 }
@@ -90,7 +91,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error serving file:', error);
+    logger.error({ err: error }, 'Error serving file:');
     return NextResponse.json(
       { error: 'Failed to serve file' },
       { status: 500 }

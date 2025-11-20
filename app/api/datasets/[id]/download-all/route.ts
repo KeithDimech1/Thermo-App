@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
+// NOTE: Using old queries.ts since data_files and datasets tables were not migrated to EarthBank schema
 import { getDataFilesByDataset, getDatasetById } from '@/lib/db/queries';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -59,7 +61,7 @@ export async function GET(
         // Add to ZIP with original filename
         zip.file(file.file_name, fileContent);
       } catch (error) {
-        console.error(`Error adding file ${file.file_name} to ZIP:`, error);
+        logger.error({ err: error, fileName: file.file_name }, `Error adding file to ZIP`);
         // Continue with other files even if one fails
       }
     }
@@ -79,7 +81,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Error generating ZIP:', error);
+    logger.error({ err: error }, 'Error generating ZIP');
     return NextResponse.json(
       { error: 'Failed to generate ZIP file' },
       { status: 500 }

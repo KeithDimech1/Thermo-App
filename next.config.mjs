@@ -2,9 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // Optimize for production
-  swcMinify: true,
-
   // Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -22,11 +19,8 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
 
-  // ESLint config
-  eslint: {
-    // Don't run linting during builds (we'll do this in CI/CD)
-    ignoreDuringBuilds: false,
-  },
+  // Exclude server-side packages from bundling (fixes Turbopack build errors)
+  serverExternalPackages: ['pino', 'pino-pretty', 'thread-stream'],
 
   // Headers for security
   async headers() {

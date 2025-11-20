@@ -6,6 +6,7 @@ import { getDataFilesByDataset } from '@/lib/db/queries';
 import DownloadSection from '@/components/datasets/DownloadSection';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
+import { extractPaperTitle } from '@/lib/utils/extract-paper-title';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +47,9 @@ export default async function DatasetDataPage({ params }: PageProps) {
   const datasetIdInt = parseInt(id, 10);
   const files = await getDataFilesByDataset(datasetIdInt);
 
+  // Extract paper title from full citation
+  const paperTitle = extractPaperTitle(dataset.fullCitation);
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -57,9 +61,14 @@ export default async function DatasetDataPage({ params }: PageProps) {
 
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-4xl font-bold text-gray-900">
           {dataset.datasetName}
         </h1>
+        {paperTitle && (
+          <h2 className="text-xl font-bold text-gray-700 mt-2">
+            {paperTitle}
+          </h2>
+        )}
       </div>
 
       {/* Tab Navigation */}

@@ -327,6 +327,30 @@ print()
 
 ---
 
+## File Type Standards
+
+**CRITICAL:** All file types use centralized constants from `lib/constants/file-types.ts`
+
+**Supported File Types:**
+- `FILE_TYPES.PDF` = 'pdf' - PDF documents
+- `FILE_TYPES.CSV` = 'csv' - CSV data files
+- `FILE_TYPES.IMAGE_PNG` = 'image/png' - PNG images (tables, figures)
+- `FILE_TYPES.IMAGE_JPG` = 'image/jpeg' - JPEG images
+- `FILE_TYPES.IMAGE_TIFF` = 'image/tiff' - TIFF images
+
+**Why Centralized Constants:**
+- ✅ Prevents UI/database mismatches
+- ✅ Single source of truth
+- ✅ Type safety with TypeScript
+- ✅ Consistent across upload scripts and display components
+
+**Used By:**
+- `/thermoload` script (`scripts/db/load-dataset-from-paper.ts`)
+- Download section component (`components/datasets/DownloadSection.tsx`)
+- Any future file upload functionality
+
+---
+
 ## Step 3: Upload Files to Public Directory
 
 **Task:** Copy PDF, CSVs, and images to `public/data/datasets/[dataset-id]/`

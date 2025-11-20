@@ -46,6 +46,10 @@ Thumbs.db
 public/data/papers/*.pdf
 public/data/papers/**/*.pdf
 
+# IDEA-015: Extraction uploads (PDF files from web upload)
+public/uploads/
+tmp/
+
 # IDE
 .vscode/
 !.vscode/settings.json  # Track Pylance optimization settings

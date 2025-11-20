@@ -14,6 +14,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { query } from '../../lib/db/connection';
+import { FILE_TYPES, getFileTypeFromExtension } from '../../lib/constants/file-types';
 
 interface ParsedMetadata {
   datasetName: string;
@@ -183,9 +184,9 @@ async function main() {
   console.log(`   FAIR Score: ${fairData.summary.total_score}/100 (Grade ${fairData.summary.grade})`);
   console.log();
 
-  const pdfCount = uploadedFiles.filter(f => f.type === 'pdf').length;
-  const csvCount = uploadedFiles.filter(f => f.type === 'csv').length;
-  const imgCount = uploadedFiles.filter(f => f.type === 'image/png').length;
+  const pdfCount = uploadedFiles.filter(f => f.type === FILE_TYPES.PDF).length;
+  const csvCount = uploadedFiles.filter(f => f.type === FILE_TYPES.CSV).length;
+  const imgCount = uploadedFiles.filter(f => f.type === FILE_TYPES.IMAGE_PNG).length;
 
   console.log(`📁 Files Uploaded:`);
   console.log(`   - PDFs: ${pdfCount}`);
@@ -397,7 +398,7 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
 
     const pdfSize = fs.statSync(pdfDest).size;
     uploadedFiles.push({
-      type: 'pdf',
+      type: FILE_TYPES.PDF, // Using constant instead of hardcoded string
       source: pdfSource,
       dest: pdfDest,
       size: pdfSize
@@ -427,7 +428,7 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
       const rowCount = csvContent.split('\n').length - 1; // Exclude header
 
       uploadedFiles.push({
-        type: 'csv',
+        type: FILE_TYPES.CSV, // Using constant instead of hardcoded string
         source: csvSource,
         dest: csvDest,
         size: csvSize,
@@ -458,7 +459,7 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
 
       const imgSize = fs.statSync(imgDest).size;
       uploadedFiles.push({
-        type: 'image/png',
+        type: getFileTypeFromExtension(imgFile), // Using helper function for type safety
         source: imgSource,
         dest: imgDest,
         size: imgSize,
@@ -489,7 +490,7 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
 
       const imgSize = fs.statSync(imgDest).size;
       uploadedFiles.push({
-        type: 'image/png',
+        type: getFileTypeFromExtension(imgFile), // Using helper function for type safety
         source: imgSource,
         dest: imgDest,
         size: imgSize,
@@ -515,9 +516,9 @@ async function trackFilesInDatabase(uploadedFiles: UploadedFile[], datasetId: nu
     const description = file.description || null;
 
     let displayName: string;
-    if (fileType === 'pdf') {
+    if (fileType === FILE_TYPES.PDF) {
       displayName = 'Full Paper (PDF)';
-    } else if (fileType === 'csv') {
+    } else if (fileType === FILE_TYPES.CSV) {
       displayName = fileName.replace('_extracted.csv', '').replace(/_/g, ' ');
       displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
     } else {
@@ -535,7 +536,7 @@ async function trackFilesInDatabase(uploadedFiles: UploadedFile[], datasetId: nu
 }
 
 async function performFairAnalysis(uploadedFiles: UploadedFile[], metadata: ParsedMetadata, datasetId: number): Promise<any> {
-  const csvFiles = uploadedFiles.filter(f => f.type === 'csv');
+  const csvFiles = uploadedFiles.filter(f => f.type === FILE_TYPES.CSV);
 
   const fairData: any = {
     dataset_name: metadata.datasetName,
@@ -689,9 +690,9 @@ async function generateFairReport(fairData: any, metadata: ParsedMetadata, uploa
   // Data Inventory
   report.push('## Data Inventory\n');
   report.push(`- **Samples:** ${metadata.sampleCount || 'Unknown'}\n`);
-  report.push(`- **CSV Files:** ${uploadedFiles.filter(f => f.type === 'csv').length}\n`);
-  report.push(`- **Table Images:** ${uploadedFiles.filter(f => f.type === 'image/png' && f.description === 'Table screenshot').length}\n`);
-  report.push(`- **Figure Images:** ${uploadedFiles.filter(f => f.type === 'image/png' && f.description === 'Figure').length}\n`);
+  report.push(`- **CSV Files:** ${uploadedFiles.filter(f => f.type === FILE_TYPES.CSV).length}\n`);
+  report.push(`- **Table Images:** ${uploadedFiles.filter(f => f.type === FILE_TYPES.IMAGE_PNG && f.description === 'Table screenshot').length}\n`);
+  report.push(`- **Figure Images:** ${uploadedFiles.filter(f => f.type === FILE_TYPES.IMAGE_PNG && f.description === 'Figure').length}\n`);
   report.push(`- **Total File Size:** ${(totalSize / 1024 / 1024).toFixed(2)} MB\n`);
 
   // Strengths

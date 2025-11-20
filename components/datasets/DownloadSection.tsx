@@ -1,4 +1,5 @@
 import { DataFile } from '@/lib/types/thermo-data';
+import { FILE_GROUP_CONFIG } from '@/lib/constants/file-types';
 
 interface DownloadSectionProps {
   files: DataFile[];
@@ -17,40 +18,19 @@ interface FileGroup {
   description: string;
   files: DataFile[];
   colorClass: string;
+  icon: string;
 }
 
 export default function DownloadSection({ files }: DownloadSectionProps) {
-  // Group files by type
-  const fileGroups: FileGroup[] = [
-    {
-      type: 'RAW',
-      title: 'Raw Data Files',
-      description: 'Original data extracted directly from paper tables',
-      files: files.filter(f => f.file_type === 'RAW'),
-      colorClass: 'bg-blue-50 border-blue-200'
-    },
-    {
-      type: 'EarthBank',
-      title: 'EarthBank/FAIR Data',
-      description: 'FAIR-compliant data formatted for EarthBank platform',
-      files: files.filter(f => f.file_type === 'EarthBank'),
-      colorClass: 'bg-green-50 border-green-200'
-    },
-    {
-      type: 'PDF',
-      title: 'PDF Documents',
-      description: 'Research paper and supplementary tables',
-      files: files.filter(f => f.file_type === 'PDF'),
-      colorClass: 'bg-red-50 border-red-200'
-    },
-    {
-      type: 'Images',
-      title: 'Figures & Images',
-      description: 'Extracted figures and diagrams from the paper',
-      files: files.filter(f => f.file_type === 'Images'),
-      colorClass: 'bg-purple-50 border-purple-200'
-    }
-  ].filter(group => group.files.length > 0); // Only show groups with files
+  // Group files by type using centralized configuration
+  const fileGroups: FileGroup[] = FILE_GROUP_CONFIG.map(config => ({
+    type: config.type,
+    title: config.title,
+    description: config.description,
+    colorClass: config.colorClass,
+    icon: config.icon,
+    files: files.filter(f => f.file_type === config.type),
+  })).filter(group => group.files.length > 0); // Only show groups with files
 
   return (
     <div className="space-y-6">

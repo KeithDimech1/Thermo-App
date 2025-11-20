@@ -9,6 +9,8 @@
 **Key Rule:** ❌ NEVER read the PDF directly - ✅ Extract text first, read text file only
 
 **Recent Updates (2025-11-20):**
+- 📚 **APPENDIX TABLE FIX** - Now extracts ALL tables including appendices (Table A1, A2, etc.) automatically
+- 🔍 **SMART TABLE DETECTION** - Intelligently selects actual table locations vs. references in text
 - 🌐 **UNIVERSAL PAPER SUPPORT** - Works on ANY research paper type, not just thermochronology
 - 🎯 **METADATA-FIRST WORKFLOW** - Extract text → Parse metadata → Create accurately named folder
 - 📍 **LINE NUMBER TRACKING** - Tracks exact text location of each table for precise extraction
@@ -786,16 +788,43 @@ print()
    table_pattern = r'(?:Table|TABLE)\s+([A-Z]?\d+[A-Za-z]?)'
    matches = re.finditer(table_pattern, text_content)
 
-   seen_tables = set()  # Avoid duplicates
+   # Collect ALL occurrences of each table (don't skip duplicates!)
+   # This is critical for finding actual table locations vs. references
+   table_occurrences = {}
 
    for match in matches:
        table_ref = match.group(0)
        table_num = match.group(1)
 
-       # Skip if already discovered
-       if table_num in seen_tables:
-           continue
-       seen_tables.add(table_num)
+       if table_num not in table_occurrences:
+           table_occurrences[table_num] = []
+
+       # Store ALL occurrences with metadata
+       table_occurrences[table_num].append({
+           'match': match,
+           'table_ref': table_ref,
+           'start_char': match.start(),
+           'page_estimate': text_content[:match.start()].count('--- PAGE'),
+           'context': text_content[match.start():match.end()+300]
+       })
+
+   # Now process each table, selecting the ACTUAL table location (not just first reference)
+   for table_num, occurrences in table_occurrences.items():
+       # Use heuristics to find the actual table header:
+       # 1. Prefer occurrences in later pages (appendix tables)
+       # 2. Prefer occurrences on their own line (standalone table header)
+       # 3. Prefer occurrences followed by table-like keywords
+
+       best_occurrence = max(occurrences, key=lambda occ: (
+           occ['page_estimate'] > 15,  # Appendix tables are usually after page 15
+           '\n' in text_content[max(0, occ['start_char']-10):occ['start_char']],  # Standalone line
+           any(kw in occ['context'].lower() for kw in ['sample', 'results', 'measurement', 'summary', 'data'])
+       ))
+
+       # Use the best occurrence
+       match = best_occurrence['match']
+       table_ref = best_occurrence['table_ref']
+       table_num = table_num
 
        # Calculate LINE NUMBERS (NEW - CRITICAL FOR EXTRACTION)
        start_char = match.start()
@@ -1789,6 +1818,170 @@ Full caption text from paper...
 - **Prioritizes data figures** - Focus on plots, distributions, maps with actual data
 - **Identifies context figures** - Tectonic/geological context may not need detailed analysis
 - **Informs documentation** - Helps decide which figures to emphasize in paper-analysis.md
+
+---
+
+### STEP 7.7: Filter Images by Caption Match + Rename + Extract Table Metadata
+
+**Purpose:**
+1. Filter extracted images to only keep those with proper figure captions
+2. Rename image files to use figure names (e.g., `figure_1.jpeg` instead of `page_4_img_0.jpeg`)
+3. Extract table captions and create `table-metadata.json`
+
+**Why This Matters:**
+- PDFs often contain many small images (journal logos, icons, decorative elements)
+- Caption matching ensures we only keep scientifically relevant figures
+- Figure-based filenames make it easier to find specific figures
+- Table metadata provides searchable caption text for all tables
+
+**Actions:**
+
+1. **Run the TypeScript caption extraction script:**
+   ```bash
+   npx tsx scripts/extract-figure-captions.ts \
+     text/plain-text.txt \
+     images/image-metadata.json
+   ```
+
+2. **What the script does for FIGURES:**
+   - Reads plain-text.txt to extract figure captions (e.g., "Fig. 1. Description...")
+   - Matches captions to images based on page proximity
+   - Filters out small images (< 500px width/height) - likely logos
+   - **RENAMES image files:** `page_4_img_0.jpeg` → `figure_1.jpeg`
+   - Updates image-metadata.json with:
+     - `figure_number` field (e.g., "1", "2A")
+     - `caption` field (full text from paper)
+     - `filename` field (updated to new name)
+   - Only keeps images that have captions
+   - Creates backup: `image-metadata.backup.json`
+
+3. **What the script does for TABLES:**
+   - Extracts table captions from plain-text.txt (e.g., "Table 1. Description...")
+   - Matches captions to existing table screenshots (from `table_images` array)
+   - Creates new file: `images/table-metadata.json` with:
+     - Table number, page, caption text
+     - Screenshot filename and extracted PDF path
+   - Enables searchable table descriptions
+
+3. **Review filtered results:**
+   ```python
+   import json
+
+   print('━' * 60)
+   print('REVIEWING CAPTION-FILTERED IMAGES')
+   print('━' * 60)
+   print()
+
+   # Load updated metadata
+   metadata_path = images_dir / 'image-metadata.json'
+   with open(metadata_path, 'r') as f:
+       filtered_data = json.load(f)
+
+   print(f"✅ Kept {filtered_data['total_images']} images with captions")
+   print(f"📊 Figures: {', '.join(sorted(set(img.get('figure_number', '?') for img in filtered_data['images'])))}")
+   print()
+
+   # Show what was filtered
+   backup_path = images_dir / 'image-metadata.backup.json'
+   if backup_path.exists():
+       with open(backup_path, 'r') as f:
+           original_data = json.load(f)
+       removed = original_data['total_images'] - filtered_data['total_images']
+       print(f"❌ Filtered out {removed} images without captions")
+       print()
+   ```
+
+4. **Optional: Delete filtered image files to save space:**
+   ```python
+   import os
+
+   # Get list of kept filenames
+   kept_files = {img['filename'] for img in filtered_data['images']}
+
+   # Load original list
+   with open(backup_path, 'r') as f:
+       original_data = json.load(f)
+
+   removed_count = 0
+   for img in original_data['images']:
+       if img['filename'] not in kept_files:
+           img_path = images_dir / img['filename']
+           if img_path.exists():
+               os.remove(img_path)
+               removed_count += 1
+               print(f"   🗑️  Deleted {img['filename']} (page {img['page']}, {img['width']}x{img['height']})")
+
+   if removed_count > 0:
+       print(f"\n✅ Cleaned up {removed_count} useless image file(s)")
+   print()
+   ```
+
+**Example Output:**
+```
+📖 Reading files...
+
+📊 Found 12 figure captions
+📊 Found 15 total images
+
+🔍 Matching captions to images...
+
+✅ Matched 12 images with captions
+❌ Filtered out 3 images without captions
+
+🔄 Renaming image files...
+  ✓ page_4_img_0.jpeg → figure_1.jpeg
+  ✓ page_3_img_0.jpeg → figure_2.jpeg
+  ✓ page_5_img_0.jpeg → figure_3.jpeg
+  ✓ page_7_img_0.jpeg → figure_4.jpeg
+  ✓ page_7_img_1.jpeg → figure_5.jpeg
+  ✓ page_12_img_0.jpeg → figure_6.jpeg
+  ✓ page_13_img_0.jpeg → figure_7.jpeg
+  ✓ page_14_img_0.jpeg → figure_8.jpeg
+  ✓ page_15_img_0.jpeg → figure_9.jpeg
+  ✓ page_16_img_0.jpeg → figure_10.jpeg
+  ✓ page_17_img_0.jpeg → figure_11.jpeg
+  ✓ page_19_img_0.jpeg → figure_12.jpeg
+
+💾 Backed up original metadata to: images/image-metadata.backup.json
+💾 Updated metadata saved to: images/image-metadata.json
+
+📊 Extracting table captions...
+✅ Found 3 table captions
+💾 Table metadata saved to: images/table-metadata.json
+
+📋 Tables with Captions:
+  Table 1 (page 9) - images/tables/table_1_page_9.png
+    Caption: Table 1. Sample locations and thermochronology results...
+  Table 2 (page 10) - images/tables/table_2_page_10.png
+    Caption: Table 2. Fission track analytical data...
+  Table A2 (page 22) - images/tables/table_A2_page_22.png
+    Caption: Table A2. Single grain apatite (U-Th)/He data...
+
+📋 Matched Figures (Renamed):
+  Fig. 1 (page 4) - figure_1.jpeg
+    Caption: Fig. 1. Schematic of normal fault system evolution...
+  Fig. 2 (page 3) - figure_2.jpeg
+    Caption: Fig. 2. Tectonic overview map...
+  [...]
+```
+
+**Output Files Created:**
+- `images/image-metadata.json` - Updated with renamed filenames and captions
+- `images/image-metadata.backup.json` - Backup of original
+- `images/table-metadata.json` - NEW: Table captions and metadata
+- `images/figure_*.{jpeg|png}` - Renamed image files
+
+**Benefits:**
+- Reduces clutter (only scientifically relevant figures saved)
+- Improves caption accuracy (extracted from paper text, not inferred)
+- Saves disk space (no logos, watermarks, page decorations)
+- Better organization (figure names match paper references)
+- Searchable table metadata (full caption text for all tables)
+- Easier file management (no more guessing which page_X_img_Y is which figure)
+
+**When to Skip:**
+- If paper has no figures (text-only)
+- If you need to review ALL images manually before filtering
 
 ---
 

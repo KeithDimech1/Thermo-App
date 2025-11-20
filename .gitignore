@@ -69,3 +69,4 @@ venv/
 # TypeScript build info
 *.tsbuildinfo
 cache/
+public/data/datasets/

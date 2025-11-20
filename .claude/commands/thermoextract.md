@@ -745,29 +745,32 @@ print()
 # - Data types per column
 ```
 
-### 6.3: Cross-Validate with Table Screenshots
+### 6.3: Cross-Validate with Table PDF Pages
 
 ```python
 print('━' * 80)
-print(f'STEP 6.3: CROSS-VALIDATING WITH SCREENSHOTS')
+print(f'STEP 6.3: CROSS-VALIDATING WITH PDF PAGES')
 print('━' * 80)
 print()
 
-# Load table screenshots
-screenshots = table_info['screenshots']
-print(f'📸 Found {len(screenshots)} screenshot(s):')
-for screenshot in screenshots:
-    print(f'   - {screenshot["filename"]} (Page {screenshot["page"]})')
+# Load table PDF pages
+pdf_pages_info = table_info['pdf_pages']
+pdf_file = pdf_pages_info['file']
+pages = pdf_pages_info['pages']
+
+print(f'📄 Found table PDF: {pdf_file}')
+print(f'   Pages: {pages[0]}-{pages[-1]} ({len(pages)} page(s))' if len(pages) > 1 else f'   Page: {pages[0]}')
 print()
 
-# Use AI to verify structure
-print('🤖 Using AI to verify extraction against visual screenshots...')
+# Use AI to verify structure from PDF
+print('🤖 Using AI to verify extraction against PDF pages...')
 print()
-# [AI compares text extraction with screenshot images to:]
+# [AI compares text extraction with PDF pages to:]
 # - Verify column count matches
 # - Check for missing rows
 # - Validate data alignment
 # - Detect parsing errors (merged columns, split rows, etc.)
+# - Benefits: Better text extraction than PNG OCR, preserves PDF structure
 ```
 
 ### 6.4: Generate CSV
@@ -1088,9 +1091,9 @@ print()
 
 ---
 
-## Step 5.1: AI-Guided Image Extraction (Fallback on Validation Failure)
+## Step 5.1: AI-Guided PDF Extraction (Fallback on Validation Failure)
 
-**Task:** If text-based extraction fails validation after retry, use AI to directly extract from table screenshot images
+**Task:** If text-based extraction fails validation after retry, use AI to directly extract from table PDF pages
 
 **Trigger condition:**
 - `validation_passed = False` after 2+ retry attempts from text
@@ -1100,41 +1103,44 @@ print()
 **Why this step:**
 - Some PDFs have image-only tables (scanned documents)
 - Complex table layouts may not parse well from text
-- Visual AI extraction can handle merged cells, rotated text, footnotes better
+- AI extraction from PDF pages can handle merged cells, rotated text, footnotes better
 - **Last resort:** Higher token cost but higher accuracy for difficult tables
+- **Advantage over PNG OCR:** PDF preserves native text layer for better extraction
 
 **Process:**
 
 ```python
 print('━' * 80)
-print('STEP 7.1: AI-GUIDED IMAGE EXTRACTION (FALLBACK)')
+print('STEP 7.1: AI-GUIDED PDF EXTRACTION (FALLBACK)')
 print('━' * 80)
 print()
 
 print('⚠️  Text extraction failed validation')
-print('🤖 Switching to AI visual extraction from table screenshots')
+print('🤖 Switching to AI extraction from table PDF pages')
 print()
 
-# Load table screenshots from table-index.json
+# Load table PDF from table-index.json
 table_info = table_index['tables'][current_table_index]
-screenshots = table_info['screenshots']
+pdf_pages_info = table_info['pdf_pages']
+pdf_file = pdf_pages_info['file']
+pages = pdf_pages_info['pages']
 
-print(f'📸 Loading {len(screenshots)} screenshot(s) for {table_name}:')
-for screenshot in screenshots:
-    print(f'   - {screenshot["filename"]} (Page {screenshot["page"]})')
+print(f'📄 Loading table PDF: {pdf_file}')
+print(f'   Pages: {pages[0]}-{pages[-1]} ({len(pages)} page(s))' if len(pages) > 1 else f'   Page: {pages[0]}')
 print()
 
-# Use AI to directly read table from images
-print('🤖 Using AI vision to extract table structure from images...')
+# Use AI to directly read table from PDF
+print('🤖 Using AI to extract table structure from PDF pages...')
 print()
 
-# [AI analyzes screenshots to:]
+# [AI analyzes PDF pages to:]
 # - Identify column headers (even if rotated/styled)
-# - Extract all data rows
+# - Extract all data rows from native PDF text layer
 # - Handle multi-page tables (stitch together)
 # - Detect footnotes and exclude from data
 # - Handle merged cells and complex layouts
 # - Output structured CSV
+# - Benefits: Better text extraction than PNG OCR, preserves formatting
 
 # Validation checkpoint
 print('✅ Validating AI-extracted data...')
@@ -1147,22 +1153,24 @@ print()
 # - Row count
 
 print(f'✅ AI extraction complete: {csv_file.name}')
-print(f'   Method: Visual AI extraction')
+print(f'   Method: AI PDF extraction (direct from PDF pages)')
 print(f'   Rows: {len(df)}')
 print(f'   Columns: {len(df.columns)}')
 print()
 ```
 
 **Output:**
-- CSV file extracted from visual analysis of screenshot images
-- Higher accuracy for complex tables
+- CSV file extracted from AI analysis of PDF pages
+- Higher accuracy for complex tables vs text parsing
+- Better than PNG OCR (uses native PDF text layer)
 - Same validation checks applied
 
 **Key Benefits:**
 - ✅ **Fallback for difficult tables** (scanned PDFs, complex layouts)
 - ✅ **Handles visual complexity** (merged cells, rotated headers, footnotes)
 - ✅ **Multi-page stitching** (AI recognizes continuation patterns)
-- ⚠️ **Higher cost** (vision tokens more expensive than text)
+- ✅ **Better than PNG OCR** (preserves native PDF text layer, higher accuracy)
+- ⚠️ **Higher cost** (AI extraction more expensive than text parsing)
 
 **When to use:**
 - Text extraction fails validation 2+ times

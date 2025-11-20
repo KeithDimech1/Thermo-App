@@ -1198,7 +1198,7 @@ print()
 
 ### STEP 6: Create Table Index Linking All 3 Formats (NEW - CRITICAL FOR VALIDATION)
 
-**Purpose:** Create `table-index.json` that links all 3 table formats (text lines, screenshots, PDF sections) by table name. This enables 3-way validation in `/thermoextract`.
+**Purpose:** Create `table-index.json` that links all 3 table formats (text lines, PDF pages, PDF sections) by table name. This enables 3-way validation in `/thermoextract`.
 
 **Actions:**
 
@@ -1231,8 +1231,14 @@ print()
            None
        )
 
-       # Find screenshot file (if exists)
-       screenshot_files = list((paper_dir / 'images' / 'tables').glob(f"*table*{table['number']}*.png"))
+       # Find table PDF page file (from Step 3.6)
+       table_pdf_files = list((paper_dir / 'images' / 'tables').glob(f"*table*{table['number']}*.pdf"))
+
+       # Get table PDF info from metadata
+       table_pdf_info = next(
+           (t for t in table_pdfs if t['table_name'] == table_name),
+           None
+       )
 
        table_entry = {
            "name": table_name,
@@ -1248,8 +1254,9 @@ print()
                    "file": f"extracted/{pdf_file}" if pdf_file else None,
                    "pages": table_page_info.get(table_name, {}).get('pages', [table['page_estimate']])
                },
-               "screenshots": {
-                   "files": [str(f.relative_to(paper_dir)) for f in screenshot_files],
+               "pdf_pages": {
+                   "file": str(table_pdf_files[0].relative_to(paper_dir)) if table_pdf_files else None,
+                   "pages": table_pdf_info['pages'] if table_pdf_info else table_page_info.get(table_name, {}).get('pages', [table['page_estimate']]),
                    "bbox": table['bbox']
                }
            },
@@ -1277,9 +1284,10 @@ print()
        if entry["locations"]["text_file"]["start_line"]:
            formats_available.append("Text")
        if entry["locations"]["pdf_section"]["file"]:
-           formats_available.append("PDF")
-       if entry["locations"]["screenshots"]["files"]:
-           formats_available.append(f"Screenshot({len(entry['locations']['screenshots']['files'])})")
+           formats_available.append("PDF-Section")
+       if entry["locations"]["pdf_pages"]["file"]:
+           pages_count = len(entry['locations']['pdf_pages']['pages'])
+           formats_available.append(f"PDF-Pages({pages_count})")
 
        formats_str = ", ".join(formats_available)
        print(f'   - {entry["name"]}: {formats_str}')
@@ -1294,13 +1302,13 @@ print('VALIDATION CHECKPOINT: Table Index Created')
 print('━' * 60)
 print()
 print(f'✅ table-index.json created with {len(table_index["tables"])} tables')
-print('✅ Each table links to: text lines, PDF section, screenshots')
+print('✅ Each table links to: text lines, PDF section, PDF pages')
 print('✅ Ready for 3-way validation in /thermoextract')
 print()
 print('Example usage in /thermoextract:')
 print('  1. Extract from text lines (fast, simple)')
 print('  2. Extract from PDF section (structured, accurate)')
-print('  3. Extract from screenshot (AI/OCR, fallback)')
+print('  3. Extract from PDF pages (direct PDF extraction, best quality)')
 print('  4. Compare all 3 methods → validate data quality')
 print()
 ```
@@ -1311,7 +1319,7 @@ print()
 - Validation metadata for quality assurance
 
 **Why This Matters:**
-- **3-way validation:** Compare extraction results from text, PDF, and screenshots
+- **3-way validation:** Compare extraction results from text, PDF sections, and PDF pages
 - **Quality assurance:** Detect extraction errors by comparing formats
 - **Flexibility:** Choose best extraction method per table type
 - **Automation-ready:** JSON format enables scripted extraction workflows
@@ -1490,13 +1498,13 @@ print()
    print()
    ```
 
-3.6. **Extract table screenshots (using discovered tables from STEP 2):**
+3.6. **Extract table PDFs (using discovered tables from STEP 2):**
    ```python
    import fitz  # PyMuPDF
    import json
 
    print('━' * 60)
-   print('EXTRACTING TABLE SCREENSHOTS')
+   print('EXTRACTING TABLE PDFs')
    print('━' * 60)
    print()
 
@@ -1513,8 +1521,8 @@ print()
    with open(table_pages_file, 'r') as f:
        table_page_info = json.load(f)
 
-   doc = fitz.open(pdf_path)
-   table_images = []
+   source_doc = fitz.open(pdf_path)
+   table_pdfs = []
 
    for table in discovered_tables:
        table_name = table['name']
@@ -1525,116 +1533,103 @@ print()
        pages = page_info.get('pages', [table['page_estimate']])
        is_multipage = page_info.get('is_multipage', False)
 
-       # Extract screenshot for each page the table appears on
-       for page_num in pages:
-           if page_num < 1 or page_num > len(doc):
-               continue
+       # Skip invalid pages
+       valid_pages = [p for p in pages if 1 <= p <= len(source_doc)]
+       if not valid_pages:
+           print(f'   ⚠️ Skipping {table_name}: no valid pages found')
+           continue
 
-           page = doc[page_num - 1]  # 0-indexed
+       # Create new PDF for this table
+       table_pdf = fitz.open()  # Empty PDF
 
-           # Get bbox from discovered table metadata
-           bbox = table.get('bbox')
+       # Extract pages from source document
+       for page_num in valid_pages:
+           # insert_pdf() uses 0-based indexing
+           table_pdf.insert_pdf(source_doc, from_page=page_num-1, to_page=page_num-1)
 
-           if bbox:
-               # Crop to table region with padding
-               padding = 20  # pixels
-               x0 = max(0, bbox[0] - padding)
-               y0 = max(0, bbox[1] - padding)
-               x1 = min(page.rect.width, bbox[2] + padding)
-               y1 = min(page.rect.height, bbox[3] + padding)
+       # Generate filename based on page range
+       table_filename = table_name.lower().replace(' ', '_').replace('.', '')
 
-               crop_rect = fitz.Rect(x0, y0, x1, y1)
+       if len(valid_pages) == 1:
+           # Single page table
+           pdf_filename = f"{table_filename}_page_{valid_pages[0]}.pdf"
+       else:
+           # Multi-page table (combine into single PDF)
+           pdf_filename = f"{table_filename}_page_{valid_pages[0]}-{valid_pages[-1]}.pdf"
 
-               # Render cropped region at high resolution
-               mat = fitz.Matrix(2, 2)  # 2x zoom for better quality
-               pix = page.get_pixmap(matrix=mat, clip=crop_rect)
-           else:
-               # Fallback: capture full page if no bbox available
-               mat = fitz.Matrix(2, 2)
-               pix = page.get_pixmap(matrix=mat)
+       pdf_path_out = tables_dir / pdf_filename
+       table_pdf.save(str(pdf_path_out))
+       table_pdf.close()
 
-           # Save table screenshot
-           # Clean table name for filename
-           table_filename = table_name.lower().replace(' ', '_').replace('.', '')
-           if is_multipage:
-               image_filename = f"{table_filename}_page_{page_num}.png"
-           else:
-               image_filename = f"{table_filename}_page_{page_num}.png"
+       # Get bbox from discovered table metadata (kept for reference only)
+       bbox = table.get('bbox')
 
-           image_path = tables_dir / image_filename
-           pix.save(str(image_path))
+       # Record metadata
+       table_pdf_info = {
+           "table_name": table_name,
+           "table_type": table_type,
+           "pages": valid_pages,
+           "filename": f"tables/{pdf_filename}",
+           "is_multipage": is_multipage or len(valid_pages) > 1,
+           "bbox": bbox if bbox else None,
+           "page_count": len(valid_pages)
+       }
 
-           # Record metadata
-           table_image_info = {
-               "table_name": table_name,
-               "table_type": table_type,
-               "page": page_num,
-               "filename": f"tables/{image_filename}",
-               "is_multipage": is_multipage,
-               "bbox": bbox if bbox else None,
-               "width": pix.width,
-               "height": pix.height
-           }
+       table_pdfs.append(table_pdf_info)
 
-           table_images.append(table_image_info)
+       if len(valid_pages) == 1:
+           print(f'   ✅ Extracted {table_name} (page {valid_pages[0]}) → {pdf_filename}')
+       else:
+           print(f'   ✅ Extracted {table_name} (pages {valid_pages[0]}-{valid_pages[-1]}) → {pdf_filename}')
 
-           print(f'   ✅ Extracted {table_name} (page {page_num}) → {image_filename}')
-
-   doc.close()
+   source_doc.close()
 
    print()
-   print(f'✅ Extracted {len(table_images)} table screenshot(s) from {len(discovered_tables)} table(s)')
+   print(f'✅ Extracted {len(table_pdfs)} table PDF(s) from {len(discovered_tables)} table(s)')
    print()
 
-   # Add table images to main metadata
-   metadata['table_images'] = table_images
+   # Add table PDFs to main metadata
+   metadata['table_pdfs'] = table_pdfs
    with open(metadata_path, 'w') as f:
        json.dump(metadata, f, indent=2)
 
-   print(f'✅ Table images added to image-metadata.json')
+   print(f'✅ Table PDFs added to image-metadata.json')
    print()
    ```
 
-3.7. **Generate tables.md (visual reference for all tables):**
+3.7. **Generate tables.md (reference for all tables):**
    ```python
-   # Create tables.md for quick visual reference
+   # Create tables.md for quick reference
    tables_md_path = paper_dir / 'tables.md'
 
    with open(tables_md_path, 'w') as f:
-       f.write("# Extracted Tables (Visual Reference)\n\n")
-       f.write("**Source:** Screenshots extracted from PDF using table bbox coordinates\n\n")
+       f.write("# Extracted Tables\n\n")
+       f.write("**Source:** PDF pages extracted directly from source document\n\n")
        f.write("---\n\n")
 
-       # Group by table name
-       tables_by_name = {}
-       for table_img in table_images:
-           table_name = table_img['table_name']
-           if table_name not in tables_by_name:
-               tables_by_name[table_name] = []
-           tables_by_name[table_name].append(table_img)
-
-       for table_name in sorted(tables_by_name.keys()):
-           table_imgs = tables_by_name[table_name]
-           table_type = table_imgs[0]['table_type']
-           is_multipage = table_imgs[0]['is_multipage']
+       # List each table PDF
+       for table_pdf in table_pdfs:
+           table_name = table_pdf['table_name']
+           table_type = table_pdf['table_type']
+           pages = table_pdf['pages']
+           filename = table_pdf['filename']
+           is_multipage = table_pdf['is_multipage']
 
            f.write(f"## {table_name}\n\n")
            f.write(f"**Type:** {table_type}\n")
 
            if is_multipage:
-               f.write(f"**Pages:** {', '.join(str(img['page']) for img in table_imgs)} (multi-page table)\n\n")
+               f.write(f"**Pages:** {pages[0]}-{pages[-1]} ({len(pages)} pages)\n\n")
            else:
-               f.write(f"**Page:** {table_imgs[0]['page']}\n\n")
+               f.write(f"**Page:** {pages[0]}\n\n")
 
-           # Show preview for each page
-           for img in table_imgs:
-               if is_multipage:
-                   f.write(f"### Page {img['page']}\n\n")
-               f.write(f"![{table_name} page {img['page']}](./images/{img['filename']})\n\n")
+           # Link to PDF (download link, not embedded)
+           pdf_filename = filename.split('/')[-1]  # Get just the filename
+           f.write(f"[Download {table_name} PDF](./images/{filename})\n\n")
 
            f.write("---\n\n")
 
-   print(f'✅ Created tables.md for visual table reference')
+   print(f'✅ Created tables.md for table reference')
    print()
    ```
 

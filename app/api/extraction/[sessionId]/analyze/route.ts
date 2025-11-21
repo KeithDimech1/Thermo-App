@@ -149,7 +149,7 @@ export async function POST(
     // Create table-index.json (links text locations to PDF pages)
     const tableIndex = {
       paper_metadata: analysisResult.paper_metadata,
-      tables: analysisResult.tables.map((table, index) => ({
+      tables: analysisResult.tables.map((table) => ({
         table_number: table.table_number,
         caption: table.caption,
         page_number: table.page_number,

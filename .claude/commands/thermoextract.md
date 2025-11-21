@@ -1,6 +1,8 @@
-# /thermoextract - AI-Powered Thermochronology Data Extraction
+# /thermoextract - AI-Powered Table Data Extraction (Paper-Agnostic)
 
-**Purpose:** Extract thermochronology data from research papers using pdfplumber + AI analysis, validate against Kohn et al. (2024) standards, and import to database.
+**Purpose:** Extract table data from ANY research paper using pdfplumber + AI analysis. Works on any paper type - quality scoring ensures bad extractions get flagged, not blocked.
+
+**Philosophy:** EXTRACT FIRST, VALIDATE LATER. If data doesn't match expected schema, it gets a low FAIR score. But at least the CSVs, tables, and figures are available for download.
 
 **Key Innovation:** Iterative AI-guided extraction with pdfplumber for reliable text extraction + AI structure understanding + validation loop
 

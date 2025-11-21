@@ -1,12 +1,14 @@
-# /thermoload - Load Dataset with FAIR Assessment
+# /thermoload - Load Dataset with FAIR Assessment (Paper-Agnostic)
 
-**Purpose:** Create a dataset entry with paper metadata, upload files (PDF, CSVs, images), and perform FAIR compliance assessment - WITHOUT importing CSV data to database.
+**Purpose:** Create a dataset entry with paper metadata, upload files (PDF, CSVs, images), and perform FAIR compliance assessment - WITHOUT importing CSV data to database. Works on ANY paper type.
+
+**Philosophy:** LOAD EVERYTHING. If data doesn't match thermochronology schema, it gets a low FAIR score. But the CSVs, tables, and figures are available for download and use.
 
 **Prerequisites:**
 - Paper analyzed with `/thermoanalysis` (creates `paper-index.md`, `paper-analysis.md`)
 - Data extracted with `/thermoextract` (creates `extracted/*.csv`, `images/`)
 
-**Key Innovation:** Bridges extraction → database by creating dataset records with FAIR assessment, enabling web UI display before data import.
+**Key Innovation:** Bridges extraction → database by creating dataset records with FAIR assessment, enabling web UI display before data import. Paper-agnostic - works on ANY research field.
 
 ---
 

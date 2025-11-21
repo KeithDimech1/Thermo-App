@@ -77,6 +77,26 @@ Database application for thermochronology (geological dating via radioactive dec
 - **Store granular data** (grain-by-grain counts, individual track measurements, single-grain ages)
 - **FAIR compliant** (Findable, Accessible, Interoperable, Reusable per Nixon et al. 2025)
 
+### 🌐 Paper-Agnostic Philosophy (CRITICAL)
+
+**The extraction commands work on ANY research paper, not just thermochronology papers.**
+
+**Core Principle:** EXTRACT FIRST, VALIDATE LATER
+
+- `/thermoanalysis` - Analyzes ANY PDF, extracts tables/figures/metadata regardless of field
+- `/thermoextract` - Extracts table data from ANY paper type
+- `/thermoload` - Loads dataset and performs FAIR assessment on ANY paper
+
+**Why this matters:**
+- ✅ Commands do their job regardless of paper content
+- ✅ If data doesn't match thermochronology schema → Low FAIR score
+- ✅ But CSVs, tables, and figures are still available for download
+- ✅ Users can manually correct or use data as-is
+- ❌ Don't block extraction because data "doesn't look right"
+- ❌ Don't refuse to process non-thermochronology papers
+
+**The quality gate is FAIR scoring, not extraction blocking.**
+
 ### Critical Architecture Concept: Datapoints
 
 **1 sample → many datapoints → many grains**
@@ -128,15 +148,24 @@ A **datapoint** = one analytical session (specific lab, date, method, analyst). 
 
 **Custom workflows** available in `.claude/commands/`:
 
-**Data Extraction & Import:**
-- `/thermoextract` - Extract thermochronology data from published papers (PDF → EarthBank templates → CSV)
-  - **Primary workflow:** AI-guided extraction with field validation, table detection, and EarthBank schema mapping
-  - Outputs: Sample metadata, FT datapoints, He datapoints, grain-level data
+**🌐 Data Extraction & Import (Paper-Agnostic - Works on ANY research paper):**
+
+- `/thermoanalysis` - Deep paper analysis with indexed navigation
+  - **Philosophy:** ANALYZE EVERYTHING regardless of paper type
+  - Extracts tables, figures, metadata from ANY PDF
+  - Location: `.claude/commands/thermoanalysis.md`
+
+- `/thermoextract` - AI-powered table data extraction
+  - **Philosophy:** EXTRACT FIRST, VALIDATE LATER
+  - Works on any paper type - quality issues → low FAIR score, not blocked extraction
+  - Outputs: CSVs, table screenshots, validation reports
   - Location: `.claude/commands/thermoextract.md`
 
-**Data Analysis:**
-- `/thermoanalysis` - Analyze thermochronology datasets (statistics, visualizations, QC checks)
-  - Location: `.claude/commands/thermoanalysis.md`
+- `/thermoload` - Load dataset with FAIR assessment
+  - **Philosophy:** LOAD EVERYTHING - FAIR scores determine quality, not gatekeeping
+  - Creates dataset records, uploads files, performs FAIR assessment
+  - Works on papers from any research field
+  - Location: `.claude/commands/thermoload.md`
 
 **Global Hooks Available:**
 Project has been initialized with `/setupproject`. The following global commands work:

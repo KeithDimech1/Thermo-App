@@ -1,8 +1,10 @@
-# /thermoanalysis - Deep Paper Analysis with Indexed Navigation
+# /thermoanalysis - Deep Paper Analysis with Indexed Navigation (Paper-Agnostic)
 
 **Status:** ✅ Ready for use | 🚀 Optimized for ANY PDF size | 🌐 Works on ANY research paper
 
-**Purpose:** Create comprehensive, indexed analysis of research papers with automatic metadata extraction, table tracking, and multi-format documentation
+**Purpose:** Create comprehensive, indexed analysis of research papers with automatic metadata extraction, table tracking, and multi-format documentation. Works on papers from ANY research field.
+
+**Philosophy:** ANALYZE EVERYTHING. This command does its job regardless of paper type. It extracts tables, figures, and metadata from any PDF. Whether the content matches expected schemas is determined later by FAIR scoring.
 
 **Usage:** Provide PDF path (folder name auto-generated from paper metadata)
 

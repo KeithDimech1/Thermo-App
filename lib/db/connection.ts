@@ -69,7 +69,7 @@ export function getPool(): Pool {
       // Connection pool settings
       max: 20,                      // Maximum number of clients in pool
       idleTimeoutMillis: 30000,     // Close idle clients after 30s
-      connectionTimeoutMillis: 10000, // Timeout connecting to database (10s for Neon)
+      connectionTimeoutMillis: 30000, // Timeout connecting to database (30s for Neon - increased for stability)
 
       // Serverless optimization
       allowExitOnIdle: true,        // Allow pool to close when idle (good for serverless)

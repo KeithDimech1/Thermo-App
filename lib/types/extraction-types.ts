@@ -23,6 +23,7 @@ export interface PaperMetadata {
   title: string;
   authors: string[];
   affiliations?: string[];
+  abstract?: string;
   doi?: string;
   journal?: string;
   year?: number;

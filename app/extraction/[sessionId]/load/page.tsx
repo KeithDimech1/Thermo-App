@@ -23,7 +23,7 @@ interface LoadResponse {
 
 export default function LoadPage({ params }: PageProps) {
   const { sessionId } = use(params);
-  const router = useRouter();
+  const _router = useRouter();
   const [session, setSession] = useState<ExtractionSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);

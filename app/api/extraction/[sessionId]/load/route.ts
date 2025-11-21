@@ -523,7 +523,7 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
 
   // Generate dataset name
   let dataset_name = 'Unknown Dataset';
-  if (authors.length > 0 && publication_year) {
+  if (authors.length > 0 && publication_year && authors[0]) {
     const nameParts = authors[0].split(' ');
     const firstAuthorLast = nameParts[nameParts.length - 1] || authors[0];
     dataset_name = `${firstAuthorLast} ${publication_year}`;

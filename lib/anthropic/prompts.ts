@@ -137,7 +137,7 @@ Return JSON with detailed scores and recommendations.`;
  * Create user message for table extraction
  */
 export interface TableExtractionRequest {
-  tableNumber: number;
+  tableNumber: number | string;  // Can be 1, 2, "A1", "S1", etc.
   tableCaption: string;
   dataType: string;
   pdfText: string;

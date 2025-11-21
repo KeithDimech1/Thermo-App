@@ -1,7 +1,6 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { ExtractionSession } from '@/lib/types/extraction-types';
 
@@ -23,7 +22,6 @@ interface LoadResponse {
 
 export default function LoadPage({ params }: PageProps) {
   const { sessionId } = use(params);
-  const _router = useRouter();
   const [session, setSession] = useState<ExtractionSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);

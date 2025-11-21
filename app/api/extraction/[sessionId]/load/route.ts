@@ -33,11 +33,17 @@ interface LoadResponse {
   total_size_bytes: number;
 }
 
+interface RouteParams {
+  params: Promise<{
+    sessionId: string;
+  }>;
+}
+
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: RouteParams
 ) {
-  const { sessionId } = params;
+  const { sessionId } = await params;
 
   try {
     console.log(`[Load] Starting load for session: ${sessionId}`);
@@ -55,10 +61,12 @@ export async function POST(
       );
     }
 
-    // Verify session is in 'extracted' state
-    if (session.state !== 'extracted') {
+    // Verify session is in 'extracted' or 'analyzed' state
+    // 'analyzed' state is allowed for papers with no tables (paper-agnostic workflow)
+    const validStates = ['extracted', 'analyzed'];
+    if (!validStates.includes(session.state)) {
       return NextResponse.json(
-        { error: `Cannot load from state '${session.state}'. Session must be in 'extracted' state.` },
+        { error: `Cannot load from state '${session.state}'. Session must be in 'extracted' or 'analyzed' state.` },
         { status: 400 }
       );
     }
@@ -425,19 +433,28 @@ export async function POST(
   } catch (error: any) {
     console.error('[Load] Error:', error);
 
-    // Update session with error
-    await query(
-      `UPDATE extraction_sessions
-       SET state = 'failed',
-           error_message = $1,
-           error_stage = 'load',
-           updated_at = NOW()
-       WHERE session_id = $2`,
-      [error.message, sessionId]
-    );
+    // Try to update session with error (don't fail if database is down)
+    try {
+      await query(
+        `UPDATE extraction_sessions
+         SET state = 'failed',
+             error_message = $1,
+             error_stage = 'load',
+             updated_at = NOW()
+         WHERE session_id = $2`,
+        [error.message, sessionId]
+      );
+    } catch (dbError) {
+      console.error('[Load] Failed to update session error state (database may be down):', dbError);
+    }
 
+    // Always return JSON response even if database update fails
     return NextResponse.json(
-      { error: 'Load failed', details: error.message },
+      {
+        error: 'Load failed',
+        details: error.message || 'Unknown error',
+        code: error.code || 'UNKNOWN'
+      },
       { status: 500 }
     );
   }

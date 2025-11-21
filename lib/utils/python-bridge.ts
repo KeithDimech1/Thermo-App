@@ -24,7 +24,11 @@ export async function executePythonScript(
   }
 ): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
-    const python = spawn('python3', [scriptPath, ...args], {
+    // Use virtual environment Python if available, fallback to system python3
+    const venvPython = path.join(process.cwd(), '.venv', 'bin', 'python3');
+    const pythonCmd = require('fs').existsSync(venvPython) ? venvPython : 'python3';
+
+    const python = spawn(pythonCmd, [scriptPath, ...args], {
       cwd: options?.cwd || process.cwd(),
     });
 

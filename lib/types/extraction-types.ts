@@ -33,6 +33,7 @@ export interface PaperMetadata {
   laboratory?: string;
   age_range_min_ma?: number;
   age_range_max_ma?: number;
+  supplementary_data_url?: string;  // URL to supplementary materials (e.g., journal website, Zenodo, GitHub)
 }
 
 /**

@@ -305,9 +305,25 @@ export default function AnalyzePage({ params }: PageProps) {
                 </div>
               )}
               {analysisResult.paper_metadata.sample_count !== undefined && (
-                <div className="flex">
+                <div className="flex border-b border-slate-100 pb-3">
                   <dt className="w-48 font-medium text-slate-700">Sample Count:</dt>
                   <dd className="text-slate-900">{analysisResult.paper_metadata.sample_count}</dd>
+                </div>
+              )}
+              {analysisResult.paper_metadata.supplementary_data_url && (
+                <div className="flex">
+                  <dt className="w-48 font-medium text-slate-700">Supplementary Data:</dt>
+                  <dd>
+                    <a
+                      href={analysisResult.paper_metadata.supplementary_data_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline font-medium flex items-center gap-1"
+                    >
+                      <span>View supplementary materials</span>
+                      <span className="text-sm">↗</span>
+                    </a>
+                  </dd>
                 </div>
               )}
             </dl>
@@ -462,14 +478,36 @@ export default function AnalyzePage({ params }: PageProps) {
 
         {analysisResult && (
           <>
+            {analysisResult.tables_found > 0 ? (
+              <button
+                onClick={() => {
+                  const tablesParam = encodeURIComponent(JSON.stringify(analysisResult.tables));
+                  router.push(`/extraction/${sessionId}/extract?tables=${tablesParam}`);
+                }}
+                className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition"
+              >
+                Proceed to Extraction ({analysisResult.tables_found} {analysisResult.tables_found === 1 ? 'table' : 'tables'})
+              </button>
+            ) : (
+              <div className="flex items-start gap-3 bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
+                <span className="text-2xl">ℹ️</span>
+                <div>
+                  <h4 className="font-semibold text-yellow-900 mb-1">No Tables Detected</h4>
+                  <p className="text-sm text-yellow-800">
+                    This paper has no extractable tables, but you can still load the metadata, figures, and supplementary materials.
+                  </p>
+                </div>
+              </div>
+            )}
             <button
-              onClick={() => {
-                const tablesParam = encodeURIComponent(JSON.stringify(analysisResult.tables));
-                router.push(`/extraction/${sessionId}/extract?tables=${tablesParam}`);
-              }}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition"
+              onClick={() => router.push(`/extraction/${sessionId}/load`)}
+              className={`px-6 py-3 font-semibold rounded-lg transition ${
+                analysisResult.tables_found === 0
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
-              Proceed to Extraction
+              {analysisResult.tables_found === 0 ? 'Load Metadata & Files' : 'Skip to Load (No Extraction)'}
             </button>
             <button
               onClick={handleDiscard}

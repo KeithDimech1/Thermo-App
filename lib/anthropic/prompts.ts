@@ -19,7 +19,8 @@ You will receive the full text of a research paper. Analyze it carefully and ret
     "journal": "Journal name",
     "year": 2024,
     "doi": "10.xxxx/xxxxx",
-    "abstract": "Brief summary of paper findings and conclusions"
+    "abstract": "Brief summary of paper findings and conclusions",
+    "supplementary_data_url": "URL to supplementary materials (optional)"
   },
   "tables": [
     {
@@ -45,6 +46,7 @@ You will receive the full text of a research paper. Analyze it carefully and ret
    - Extract title, authors, affiliations, journal, year, DOI
    - Extract author affiliations/institutions from author list or acknowledgments
    - Create a brief abstract/summary of the paper's findings (2-3 sentences)
+   - Look for supplementary data URL (check for "Supplementary Materials", "Data Availability", "Supporting Information" sections)
 
 2. **Table Detection:**
    - Look for "Table 1", "Table 2", etc. in the text

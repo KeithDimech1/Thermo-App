@@ -132,24 +132,28 @@ export default function LoadPage({ params }: PageProps) {
   }
 
   // Check if session is in correct state
-  if (session.state !== 'extracted' && session.state !== 'loaded') {
+  // Allow 'analyzed' state for papers with no tables (paper-agnostic workflow)
+  const validStates = ['analyzed', 'extracted', 'loaded'];
+  if (!validStates.includes(session.state)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-yellow-600 text-xl mb-4">⚠️ Not Ready</div>
           <p className="text-gray-700 mb-4">
-            This session is in state "{session.state}". It must be in "extracted" state before loading.
+            This session is in state "{session.state}". It must be in "analyzed" or "extracted" state before loading.
           </p>
           <Link
-            href={`/extraction/${sessionId}/extract`}
+            href={`/extraction/${sessionId}/analyze`}
             className="text-blue-600 hover:underline"
           >
-            ← Go to Extraction
+            ← Go to Analysis
           </Link>
         </div>
       </div>
     );
   }
+
+  const hasTables = session.tables_found && session.tables_found > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -187,6 +191,16 @@ export default function LoadPage({ params }: PageProps) {
                 <li>Calculates Kohn 2024 compliance scores</li>
               </ul>
             </div>
+
+            {!hasTables && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">📄 Paper-Agnostic Mode</h3>
+                <p className="text-blue-800 text-sm">
+                  This paper has no extractable tables. You can still load the metadata, figures, and supplementary materials.
+                  The FAIR assessment will reflect the available data.
+                </p>
+              </div>
+            )}
 
             <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <h3 className="font-semibold text-yellow-900 mb-2">⚠️ Important Note:</h3>

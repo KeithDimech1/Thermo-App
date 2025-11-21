@@ -67,10 +67,10 @@ export async function POST(
       );
     }
 
-    // Check state
-    if (session.state !== 'uploaded') {
+    // Check state - allow retry from 'failed' state
+    if (session.state !== 'uploaded' && session.state !== 'failed') {
       return NextResponse.json(
-        { error: `Invalid state: ${session.state}. Expected: uploaded` },
+        { error: `Invalid state: ${session.state}. Expected: uploaded or failed` },
         { status: 400 }
       );
     }

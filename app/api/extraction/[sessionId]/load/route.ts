@@ -455,7 +455,7 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
   // Extract authors
   const authorsMatch = content.match(/\*\*Authors:\*\*\s*(.+)/);
   let authors: string[] = [];
-  if (authorsMatch) {
+  if (authorsMatch?.[1]) {
     const authorsText = authorsMatch[1];
     authors = authorsText.split(',').map(author => {
       // Remove affiliation in parentheses
@@ -465,39 +465,39 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
 
   // Extract journal
   const journalMatch = content.match(/\*\*Journal:\*\*\s*([^,\n]+)/);
-  const publication_journal = journalMatch ? journalMatch[1].trim() : null;
+  const publication_journal = journalMatch?.[1]?.trim() || null;
 
   // Extract year
   const yearMatch = content.match(/\*\*Year:\*\*\s*(\d{4})/);
-  const publication_year = yearMatch ? parseInt(yearMatch[1]) : null;
+  const publication_year = yearMatch?.[1] ? parseInt(yearMatch[1]) : null;
 
   // Extract DOI
   const doiMatch = content.match(/\*\*DOI:\*\*\s*(?:https?:\/\/doi\.org\/)?([\w./-]+)/);
-  const doi = doiMatch ? doiMatch[1].trim() : null;
+  const doi = doiMatch?.[1]?.trim() || null;
 
   // Extract volume/pages
   const volumeMatch = content.match(/Volume\s+(\d+)[,\s]+(?:Article\s+)?(\S+)/);
-  const publication_volume_pages = volumeMatch ? `Volume ${volumeMatch[1]}, ${volumeMatch[2]}` : null;
+  const publication_volume_pages = (volumeMatch?.[1] && volumeMatch?.[2]) ? `Volume ${volumeMatch[1]}, ${volumeMatch[2]}` : null;
 
   // Extract PDF URL
   const pdfUrlMatch = content.match(/\*\*PDF URL:\*\*\s*(https?:\/\/[^\s\n]+)/);
-  const pdf_url = pdfUrlMatch ? pdfUrlMatch[1].trim() : null;
+  const pdf_url = pdfUrlMatch?.[1]?.trim() || null;
 
   // Extract supplementary files URL
   const suppMatch = content.match(/\*\*Supplementary Files URL:\*\*\s*(https?:\/\/[^\s\n]+)/);
-  let supplementary_files_url = suppMatch ? suppMatch[1].trim() : null;
+  let supplementary_files_url = suppMatch?.[1]?.trim() || null;
   if (supplementary_files_url && supplementary_files_url.includes('None')) {
     supplementary_files_url = null;
   }
 
   // Extract study area/location
   const studyMatch = content.match(/\*\*Study Area:\*\*\s*(.+)/);
-  const study_location = studyMatch ? studyMatch[1].trim() : null;
+  const study_location = studyMatch?.[1]?.trim() || null;
 
   // Extract mineral analyzed
   const mineralMatch = content.match(/\*\*Method:\*\*\s*(?:Both\s+)?(?:AFT.*?and\s+)?(?:AHe)?\s*\(([^)]+)\)/);
   let mineral_analyzed = null;
-  if (mineralMatch) {
+  if (mineralMatch?.[1]) {
     const mineralText = mineralMatch[1];
     if (mineralText.toLowerCase().includes('apatite')) {
       mineral_analyzed = 'Apatite';
@@ -510,16 +510,16 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
 
   // Extract sample count
   const sampleCountMatch = content.match(/\*\*Sample Count:\*\*\s*(\d+)/);
-  const sample_count = sampleCountMatch ? parseInt(sampleCountMatch[1]) : null;
+  const sample_count = sampleCountMatch?.[1] ? parseInt(sampleCountMatch[1]) : null;
 
   // Extract age range
   const ageRangeMatch = content.match(/\*\*Age Range:\*\*\s*~?(\d+)-(\d+)\s*Ma/);
-  const age_range_min_ma = ageRangeMatch ? parseFloat(ageRangeMatch[1]) : null;
-  const age_range_max_ma = ageRangeMatch ? parseFloat(ageRangeMatch[2]) : null;
+  const age_range_min_ma = ageRangeMatch?.[1] ? parseFloat(ageRangeMatch[1]) : null;
+  const age_range_max_ma = ageRangeMatch?.[2] ? parseFloat(ageRangeMatch[2]) : null;
 
   // Extract laboratory
   const labMatch = content.match(/\*\*Laboratory:\*\*\s*(.+)/);
-  const laboratory = labMatch ? labMatch[1].trim() : null;
+  const laboratory = labMatch?.[1]?.trim() || null;
 
   // Generate dataset name
   let dataset_name = 'Unknown Dataset';

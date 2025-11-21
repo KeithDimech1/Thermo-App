@@ -126,10 +126,10 @@ export interface ExtractionProgress {
  * Table information from analysis
  */
 export interface TableInfo {
-  table_number: number;
+  table_number: number | string;  // Can be 1, 2, "A1", "S1", etc.
   caption: string;
-  page_number: number;
-  data_type: string;  // 'AFT ages' | 'He ages' | 'Track lengths' | 'Sample metadata' | 'Unknown'
-  estimated_rows: number;
-  estimated_columns: number;
+  page_number?: number;
+  data_type?: string;  // Optional - paper-agnostic analysis may not classify
+  estimated_rows?: number;
+  estimated_columns?: number;
 }

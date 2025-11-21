@@ -105,13 +105,13 @@ async function extractTableAttempt(
     throw new Error('No text content in Claude response');
   }
 
-  const csvText = contentBlock.text;
-  console.log(`[Extract] Received CSV response: ${csvText.substring(0, 200)}...`);
+  const csvResponse = contentBlock.text;
+  console.log(`[Extract] Received CSV response: ${csvResponse.substring(0, 200)}...`);
 
   // Parse CSV
   let csvData: Array<Record<string, string>>;
   try {
-    csvData = parseCSV(csvText);
+    csvData = parseCSV(csvResponse);
     console.log(`[Extract] Parsed ${csvData.length} rows`);
   } catch (error) {
     console.error(`[Extract] CSV parse error:`, error);
@@ -181,7 +181,7 @@ async function extractTableAttempt(
   console.log(`[Extract] ✓ Data completeness check passed (${stats.completeness.toFixed(1)}%)`);
 
   // ═══════════════════════════════════════════════════════════════════
-  // PHASE 2: FIELD MAPPING VALIDATION
+  // PHASE 2: FIELD MAPPING VALIDATION (if data type is known)
   // ═══════════════════════════════════════════════════════════════════
 
   if (table.data_type && table.data_type !== 'Unknown') {
@@ -212,8 +212,146 @@ async function extractTableAttempt(
       }
 
       console.log(`[Extract] ✓ Field mapping validation passed`);
-    } else {
-      console.log(`[Extract] No field mapping found for data type: ${table.data_type}`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PHASE 2B: AI-BASED QUALITY VALIDATION (data-agnostic)
+  // ═══════════════════════════════════════════════════════════════════
+
+  console.log(`[Extract] Running AI-based quality validation...`);
+
+  // Convert CSV to text for Claude to review
+  const csvText = arrayToCSV(csvData);
+
+  // Get a sample of the PDF text around the table for context
+  const pdfTextSample = pdfText.substring(0, 30000); // First 30k chars for context
+
+  // Create validation prompt
+  const validationPrompt = `Review the quality of this extracted table data.
+
+**Original Table Caption:** ${table.caption || 'No caption'}
+
+**Expected Table Characteristics:**
+- Table Number: ${table.table_number}
+- Estimated Rows: ${table.estimated_rows || 'Unknown'}
+- Estimated Columns: ${table.estimated_columns || 'Unknown'}
+
+**Extracted CSV:**
+\`\`\`csv
+${csvText.substring(0, 5000)}${csvText.length > 5000 ? '\n... (truncated)' : ''}
+\`\`\`
+
+**CSV Statistics:**
+- Rows: ${stats.totalRows}
+- Columns: ${stats.totalColumns}
+- Completeness: ${stats.completeness.toFixed(1)}%
+
+**Original PDF Text (context):**
+\`\`\`
+${pdfTextSample}
+\`\`\`
+
+## Your Task:
+
+Review the extracted CSV and determine if it's a HIGH-QUALITY extraction. Check for:
+
+1. **Data Integrity Issues:**
+   - Are cells excessively long (>200 characters)?
+   - Are there obvious concatenation errors (e.g., "149–132 Ma Lu-Hf garneta b")?
+   - Are numeric values mixed with text inappropriately?
+   - Are superscripts/subscripts incorrectly merged with data?
+
+2. **Structural Issues:**
+   - Do column headers make sense?
+   - Is data aligned properly in columns?
+   - Are there missing rows or columns?
+
+3. **Completeness:**
+   - Does the row count match expectations?
+   - Are critical columns present?
+
+## Response Format:
+
+Return a JSON object:
+\`\`\`json
+{
+  "valid": true/false,
+  "quality_score": 0-100,
+  "issues": [
+    {
+      "severity": "critical" | "high" | "medium" | "low",
+      "category": "data_integrity" | "structure" | "completeness" | "formatting",
+      "description": "Detailed description of the issue",
+      "location": "Row X, Column Y" or "General"
+    }
+  ],
+  "recommendation": "accept" | "retry" | "manual_review"
+}
+\`\`\`
+
+**Guidelines:**
+- quality_score < 70: Set valid=false, recommendation="retry" (poor quality)
+- quality_score 70-84: Set valid=false, recommendation="retry" (moderate issues)
+- quality_score 85-94: Set valid=true, recommendation="accept" (good quality with minor issues)
+- quality_score >= 95: Set valid=true, recommendation="accept" (excellent quality)
+- Critical or high-severity issues always result in valid=false
+- Medium-severity issues with footnote/superscript problems should fail
+
+Return ONLY the JSON object, no explanations.`;
+
+  // Call Claude for validation
+  console.log(`[Extract] Sending CSV to Claude for quality review...`);
+  const validationResponse = await createMessage(
+    'You are a data extraction quality reviewer. Your task is to analyze extracted table data and identify quality issues.',
+    validationPrompt,
+    {
+      maxTokens: 2000,
+      temperature: 0.0, // Deterministic
+    }
+  );
+
+  // Parse validation response
+  const validationContentBlock = validationResponse.content.find(block => block.type === 'text');
+  if (!validationContentBlock || validationContentBlock.type !== 'text') {
+    console.warn(`[Extract] No validation response from Claude, proceeding with extraction`);
+  } else {
+    try {
+      const validationText = validationContentBlock.text
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      const validationResult = JSON.parse(validationText);
+      console.log(`[Extract] AI validation result: ${validationResult.valid ? 'PASS' : 'FAIL'} (score: ${validationResult.quality_score}/100)`);
+
+      if (validationResult.issues && validationResult.issues.length > 0) {
+        console.log(`[Extract] Issues found (${validationResult.issues.length}):`);
+        validationResult.issues.slice(0, 5).forEach((issue: any) => {
+          console.log(`  ${issue.severity.toUpperCase()}: ${issue.description} (${issue.location})`);
+        });
+      }
+
+      // If validation fails, throw error with Claude's feedback
+      // Threshold: 85/100 - we want high-quality extractions
+      if (!validationResult.valid || validationResult.quality_score < 85) {
+        const criticalIssues = validationResult.issues
+          .filter((i: any) => i.severity === 'critical' || i.severity === 'high')
+          .slice(0, 5);
+
+        const errorMsg =
+          `AI quality validation FAILED (score: ${validationResult.quality_score}/100):\n` +
+          criticalIssues.map((i: any) => `  - ${i.description} (${i.location})`).join('\n') +
+          (validationResult.issues.length > 5 ? `\n  ... and ${validationResult.issues.length - 5} more issues` : '');
+
+        console.error(`[Extract] ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+
+      console.log(`[Extract] ✓ AI quality validation passed (score: ${validationResult.quality_score}/100)`);
+    } catch (parseError) {
+      console.warn(`[Extract] Failed to parse validation response:`, parseError);
+      console.warn(`[Extract] Proceeding with extraction despite validation parse error`);
     }
   }
 

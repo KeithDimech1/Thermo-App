@@ -16,9 +16,13 @@ interface AnalysisResult {
   sessionId: string;
   paper_metadata: PaperMetadata;
   tables_found: number;
-  data_types: string[];
-  quality_score: number;
+  figures_found: number;
   tables: TableInfo[];
+  figures?: Array<{
+    figure_number: number | string;
+    caption: string;
+    page_number?: number;
+  }>;
 }
 
 export default function AnalyzePage({ params }: PageProps) {
@@ -48,9 +52,9 @@ export default function AnalyzePage({ params }: PageProps) {
             sessionId: data.session.session_id,
             paper_metadata: data.session.paper_metadata,
             tables_found: data.session.tables_found || 0,
-            data_types: data.session.data_types || [],
-            quality_score: 0, // Not stored in session yet
+            figures_found: 0, // Not stored in session yet
             tables: [], // Not stored in session yet
+            figures: [],
           });
         }
       } catch (err) {
@@ -309,7 +313,7 @@ export default function AnalyzePage({ params }: PageProps) {
             </dl>
           </div>
 
-          {/* Tables & Data Types */}
+          {/* Tables & Figures */}
           <div className="grid md:grid-cols-2 gap-5">
             <div className="bg-white rounded-lg p-5">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Tables Found</h3>
@@ -320,7 +324,9 @@ export default function AnalyzePage({ params }: PageProps) {
                 <ul className="space-y-2 text-sm">
                   {analysisResult.tables.map((table) => (
                     <li key={table.table_number} className="text-slate-700">
-                      <span className="font-semibold">Table {table.table_number}:</span> {table.data_type}
+                      <span className="font-semibold">Table {table.table_number}:</span>{' '}
+                      {table.caption ? table.caption.substring(0, 60) + (table.caption.length > 60 ? '...' : '') : 'No caption'}
+                      {table.page_number && <span className="text-slate-500 ml-2">(p. {table.page_number})</span>}
                     </li>
                   ))}
                 </ul>
@@ -328,17 +334,84 @@ export default function AnalyzePage({ params }: PageProps) {
             </div>
 
             <div className="bg-white rounded-lg p-5">
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Data Types</h3>
-              <div className="flex flex-wrap gap-2">
-                {analysisResult.data_types.map((type) => (
-                  <span
-                    key={type}
-                    className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full"
-                  >
-                    {type}
-                  </span>
-                ))}
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Figures Found</h3>
+              <div className="text-4xl font-bold text-blue-600 mb-2">
+                {analysisResult.figures_found}
               </div>
+              {analysisResult.figures && analysisResult.figures.length > 0 && (
+                <ul className="space-y-2 text-sm">
+                  {analysisResult.figures.slice(0, 5).map((fig) => (
+                    <li key={fig.figure_number} className="text-slate-700">
+                      <span className="font-semibold">Figure {fig.figure_number}</span>
+                      {fig.page_number && <span className="text-slate-500 ml-2">(p. {fig.page_number})</span>}
+                    </li>
+                  ))}
+                  {analysisResult.figures.length > 5 && (
+                    <li className="text-slate-500 text-xs">+ {analysisResult.figures.length - 5} more</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Generated Files */}
+          <div className="bg-white rounded-lg p-5">
+            <h3 className="text-lg font-semibold text-slate-900 mb-3">Generated Files</h3>
+            <p className="text-slate-600 text-sm mb-4">
+              Analysis complete! The following files have been generated and are available for review:
+            </p>
+            <div className="grid md:grid-cols-2 gap-3">
+              <a
+                href={`/uploads/${sessionId}/paper-index.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                <span className="text-2xl">📄</span>
+                <div>
+                  <div className="font-semibold text-slate-900">paper-index.md</div>
+                  <div className="text-xs text-slate-500">Quick reference guide</div>
+                </div>
+              </a>
+
+              <a
+                href={`/uploads/${sessionId}/tables.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                <span className="text-2xl">📊</span>
+                <div>
+                  <div className="font-semibold text-slate-900">tables.md</div>
+                  <div className="text-xs text-slate-500">Visual table reference</div>
+                </div>
+              </a>
+
+              <a
+                href={`/uploads/${sessionId}/table-index.json`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                <span className="text-2xl">🗂️</span>
+                <div>
+                  <div className="font-semibold text-slate-900">table-index.json</div>
+                  <div className="text-xs text-slate-500">Structured metadata</div>
+                </div>
+              </a>
+
+              <a
+                href={`/uploads/${sessionId}/text/plain-text.txt`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                <span className="text-2xl">📝</span>
+                <div>
+                  <div className="font-semibold text-slate-900">plain-text.txt</div>
+                  <div className="text-xs text-slate-500">Extracted PDF text</div>
+                </div>
+              </a>
             </div>
           </div>
         </div>

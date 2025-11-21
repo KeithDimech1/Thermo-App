@@ -37,7 +37,7 @@ export default function ExtractPage({ params }: PageProps) {
   const [session, setSession] = useState<ExtractionSession | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [extractionStates, setExtractionStates] = useState<Map<number, TableExtractionState>>(new Map());
+  const [extractionStates, setExtractionStates] = useState<Map<number | string, TableExtractionState>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
   // Fetch session on mount
@@ -58,7 +58,7 @@ export default function ExtractPage({ params }: PageProps) {
           setTables(parsedTables);
 
           // Initialize extraction states
-          const initialStates = new Map<number, TableExtractionState>();
+          const initialStates = new Map<number | string, TableExtractionState>();
           parsedTables.forEach((table: TableInfo) => {
             initialStates.set(table.table_number, { status: 'pending' });
           });

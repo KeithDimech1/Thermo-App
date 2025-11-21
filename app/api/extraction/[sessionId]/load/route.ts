@@ -450,7 +450,7 @@ export async function POST(
 function parsePaperMetadata(content: string, pdfFilename: string) {
   // Extract citation
   const citationMatch = content.match(/\*\*Citation:\*\*\s*(.+)/);
-  const full_citation = citationMatch ? citationMatch[1].trim() : null;
+  const full_citation = citationMatch?.[1]?.trim() || null;
 
   // Extract authors
   const authorsMatch = content.match(/\*\*Authors:\*\*\s*(.+)/);

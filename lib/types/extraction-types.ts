@@ -22,6 +22,7 @@ export type ExtractionState =
 export interface PaperMetadata {
   title: string;
   authors: string[];
+  affiliations?: string[];
   doi?: string;
   journal?: string;
   year?: number;

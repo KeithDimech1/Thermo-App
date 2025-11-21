@@ -4,6 +4,67 @@ Auto-generated changelog tracking documentation updates.
 
 ---
 
+## 2025-11-21 05:24:45 (BigTidy: Schema Update + Index Refresh)
+
+### ✅ Project Structure: Already Clean
+
+**Analysis Result:** No files to move - project structure is well-organized
+- All application code in safe zones (app/, lib/, components/)
+- All documentation in safe zone (readme/)
+- Build artifacts properly contained (build-data/, .venv/)
+
+### 🔄 Project Index: Complete Refresh
+
+**PROJECT_INDEX.json updated:**
+- ✓ 206 code files indexed (+35 from last run)
+  - 89 TypeScript files (with full function signatures)
+  - 56 Python files (with full function signatures)
+  - 5 JavaScript files
+  - 3 Shell scripts (parsed)
+  - 10 Shell scripts (listed only)
+  - 35 SQL files (listed only)
+- ✓ 65 markdown documentation files
+- ✓ 86 directories cataloged
+- ✓ Call graphs and dependency maps generated
+- **Baseline established** - future runs will show incremental changes
+
+### 🗄️ Database Schema: 1 New Table Detected
+
+**Schema Changes:**
+- **NEW:** `extraction_sessions` table (20 columns)
+  - Purpose: Tracks PDF paper extraction sessions for `/thermoextract` workflow
+  - Features: UUID PKs, JSONB metadata, state machine tracking
+  - Impact: No changes to existing tables
+
+**Schema Snapshot:**
+- Tables: 26 (was 25)
+- Snapshot updated: `readme/database/.schema-snapshot.sql`
+- Previous backed up: `readme/database/.schema-previous.sql`
+- Changes documented: `readme/database/SCHEMA_CHANGES.md`
+
+### 📚 Documentation Updated
+
+**Files Modified:**
+- ✓ `readme/INDEX.md` - Updated timestamp, table count, file statistics
+- ✓ `readme/database/SCHEMA_CHANGES.md` - New entry for extraction_sessions table
+- ✓ `readme/CHANGES.md` - This file
+- ✓ `scripts/db/export-schema-snapshot.ts` - **NEW** automated schema export tool
+
+**Statistics:**
+- Total code files: 206
+- Total documentation: 65 markdown files
+- Database tables: 26
+- Database records: 1,238 (75 samples, 67 FT datapoints, 975 track lengths, 8 He datapoints, 113 He grains)
+
+### 🎯 Next Steps
+
+**Documentation Enhancement Opportunities:**
+- Code documentation can be generated incrementally for new/changed files on future `/bigtidy` runs
+- Cross-reference maps (code ↔ tables) available via Grep analysis
+- Table usage docs can be enhanced with specific query examples
+
+---
+
 ## 2025-11-18 18:48 (BigTidy: Scripts Documentation + Cleanup)
 
 ### 📁 Project Structure Cleaned

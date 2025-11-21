@@ -4,6 +4,32 @@
 
 ---
 
+## 2025-11-21 05:24:45 (/bigtidy Schema Update)
+
+### New Table Detected
+
+**Type:** Schema addition
+**Tables Added:** 1
+**Total Tables:** 26 (was 25)
+
+### New Table
+
+**`extraction_sessions`**
+- Purpose: Tracks PDF paper extraction sessions for `/thermoextract` workflow
+- Columns: 10
+- Created via: Application feature development (extraction workflow tracking)
+
+**Impact Analysis:**
+- ✓ No impact on existing tables
+- ✓ New table for extraction feature tracking
+- ✓ No code changes required (new feature addition)
+
+**Related Files:**
+- API routes for extraction workflow
+- Session management for PDF analysis
+
+---
+
 ## 2025-11-19 (Schema Snapshot Refresh)
 
 ### Living Documentation Update

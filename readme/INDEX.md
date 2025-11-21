@@ -1,8 +1,10 @@
 # AusGeochem Thermochronology - Living Documentation
 
-**Last Updated:** 2025-11-19 07:26:29
+**Last Updated:** 2025-11-21 05:24:45
 **Project:** Next.js + PostgreSQL Thermochronology Database
 **Schema Version:** 2.1 (EarthBank camelCase Native)
+**Total Files:** 206 code files | 65 markdown docs
+**Total Tables:** 26 (1 new: `extraction_sessions`)
 
 ---
 

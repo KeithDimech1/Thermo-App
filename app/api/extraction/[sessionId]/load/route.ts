@@ -465,23 +465,31 @@ export async function POST(
 // ========================================
 
 function parsePaperMetadata(content: string, pdfFilename: string) {
-  // Extract citation
-  const citationMatch = content.match(/\*\*Citation:\*\*\s*(.+)/);
-  const full_citation = citationMatch?.[1]?.trim() || null;
+  // Extract title
+  const titleMatch = content.match(/\*\*Title:\*\*\s*(.+)/);
+  const title = titleMatch?.[1]?.trim() || 'Unknown Title';
 
   // Extract authors
   const authorsMatch = content.match(/\*\*Authors:\*\*\s*(.+)/);
   let authors: string[] = [];
   if (authorsMatch?.[1]) {
     const authorsText = authorsMatch[1];
-    authors = authorsText.split(',').map(author => {
-      // Remove affiliation in parentheses
-      return author.replace(/\s*\([^)]+\)/g, '').trim();
-    }).filter(name => name.length > 0);
+    authors = authorsText.split(',').map(author => author.trim()).filter(name => name.length > 0);
+  }
+
+  // Extract affiliations (to use for laboratory extraction)
+  const affiliationsMatch = content.match(/\*\*Affiliations:\*\*\s*(.+)/);
+  const affiliations = affiliationsMatch?.[1]?.trim() || null;
+
+  // Extract laboratory from affiliations (first institution mentioned)
+  let laboratory = null;
+  if (affiliations) {
+    const firstAffiliation = affiliations.split(';')[0]?.trim();
+    laboratory = firstAffiliation || null;
   }
 
   // Extract journal
-  const journalMatch = content.match(/\*\*Journal:\*\*\s*([^,\n]+)/);
+  const journalMatch = content.match(/\*\*Journal:\*\*\s*([^\n]+)/);
   const publication_journal = journalMatch?.[1]?.trim() || null;
 
   // Extract year
@@ -491,6 +499,10 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
   // Extract DOI
   const doiMatch = content.match(/\*\*DOI:\*\*\s*(?:https?:\/\/doi\.org\/)?([\w./-]+)/);
   const doi = doiMatch?.[1]?.trim() || null;
+
+  // Extract abstract
+  const abstractMatch = content.match(/##\s*Abstract\s*\n\n(.+?)(?=\n\n---|$)/s);
+  const abstract = abstractMatch?.[1]?.trim() || null;
 
   // Extract volume/pages
   const volumeMatch = content.match(/Volume\s+(\d+)[,\s]+(?:Article\s+)?(\S+)/);
@@ -534,11 +546,7 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
   const age_range_min_ma = ageRangeMatch?.[1] ? parseFloat(ageRangeMatch[1]) : null;
   const age_range_max_ma = ageRangeMatch?.[2] ? parseFloat(ageRangeMatch[2]) : null;
 
-  // Extract laboratory
-  const labMatch = content.match(/\*\*Laboratory:\*\*\s*(.+)/);
-  const laboratory = labMatch?.[1]?.trim() || null;
-
-  // Generate dataset name
+  // Generate dataset name (FirstAuthorLastName YEAR)
   let dataset_name = 'Unknown Dataset';
   if (authors.length > 0 && publication_year && authors[0]) {
     const nameParts = authors[0].split(' ');
@@ -546,8 +554,19 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
     dataset_name = `${firstAuthorLast} ${publication_year}`;
   }
 
-  // Generate description
-  const description = full_citation ? `Thermochronology data from ${full_citation}` : null;
+  // Generate full citation (Author1, Author2, ... (Year). Title. Journal, Volume, Pages.)
+  let full_citation = null;
+  if (authors.length > 0 && publication_year && title && publication_journal) {
+    const authorList = authors.join(', ');
+    full_citation = `${authorList} (${publication_year}). ${title}. ${publication_journal}`;
+    if (publication_volume_pages) {
+      full_citation += `, ${publication_volume_pages}`;
+    }
+    full_citation += '.';
+  }
+
+  // Generate description using abstract or title
+  const description = abstract || (title ? `Thermochronology data from ${title}` : null);
 
   return {
     dataset_name,

@@ -34,7 +34,7 @@ interface LoadResponse {
 }
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { sessionId: string } }
 ) {
   const { sessionId } = params;

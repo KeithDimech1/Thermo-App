@@ -340,7 +340,7 @@ This document provides a visual reference for all tables found in the paper.
 
 ---
 
-${tables.map((table, index) => {
+${tables.map((table) => {
   const tableNum = table.table_number;
   const caption = table.caption || 'No caption';
   const page = table.page_number ? `Page ${table.page_number}` : 'Page unknown';

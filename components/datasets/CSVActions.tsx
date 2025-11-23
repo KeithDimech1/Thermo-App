@@ -5,12 +5,14 @@ import { DataFile } from '@/lib/types/thermo-data';
 import CSVPreviewModal from './CSVPreviewModal';
 import ExcelJS from 'exceljs';
 import { parse } from 'csv-parse/sync';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
 interface CSVActionsProps {
   csvFile: DataFile;
 }
 
 export default function CSVActions({ csvFile }: CSVActionsProps) {
+  const { t } = useLanguage();
   const [showPreview, setShowPreview] = useState(false);
   const [exportingXLSX, setExportingXLSX] = useState(false);
 
@@ -108,11 +110,11 @@ export default function CSVActions({ csvFile }: CSVActionsProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-gray-700">
-            Extracted Data
+            {t('extractedData')}
           </h4>
           <div className="flex gap-3 text-xs text-gray-500">
             {csvFile.row_count && (
-              <span>{csvFile.row_count} rows</span>
+              <span>{csvFile.row_count} {t('rows')}</span>
             )}
             <span>{formatFileSize(csvFile.file_size_bytes)}</span>
           </div>
@@ -120,11 +122,11 @@ export default function CSVActions({ csvFile }: CSVActionsProps) {
 
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <p className="text-sm text-gray-700 mb-2">
-            <span className="font-semibold">File:</span> {csvFile.file_name}
+            <span className="font-semibold">{t('file')}:</span> {csvFile.file_name}
           </p>
           {csvFile.description && (
             <p className="text-sm text-gray-600">
-              Extracted data table ({csvFile.row_count} rows)
+              {csvFile.description}
             </p>
           )}
         </div>
@@ -137,7 +139,7 @@ export default function CSVActions({ csvFile }: CSVActionsProps) {
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
           >
             <span>🔍</span>
-            <span>Preview Data</span>
+            <span>{t('previewData')}</span>
           </button>
 
           {/* Download XLSX Button */}
@@ -154,7 +156,7 @@ export default function CSVActions({ csvFile }: CSVActionsProps) {
             ) : (
               <>
                 <span>📊</span>
-                <span>Download XLSX</span>
+                <span>{t('downloadXLSX')}</span>
               </>
             )}
           </button>
@@ -168,7 +170,7 @@ export default function CSVActions({ csvFile }: CSVActionsProps) {
             className="w-full text-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold flex items-center justify-center gap-2"
           >
             <span>📄</span>
-            <span>Download CSV</span>
+            <span>{t('downloadCSV')}</span>
           </a>
         </div>
       </div>

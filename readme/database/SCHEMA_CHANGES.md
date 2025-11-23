@@ -1,7 +1,47 @@
 # Database Schema Changes
 
 **Auto-Generated:** This file tracks all schema changes detected by comparing snapshots.
-**Last Updated:** 2025-11-23 20:50:00
+**Last Updated:** 2025-11-24 07:50:00
+
+---
+
+## 2025-11-24 (Schema Documentation Expansion)
+
+### 📊 Schema Snapshot Expanded to All Tables
+
+**Type:** Documentation expansion (complete schema coverage)
+**Status:** ✓ Snapshot now includes all 25 production tables
+
+**Changes:**
+- Expanded `.schema-snapshot.sql` from 5 tables → 25 tables (complete coverage)
+- Previous snapshot: EarthBank tables only (162 lines)
+- Current snapshot: All production tables (907 lines)
+- Added 20 additional tables to schema documentation
+
+**Tables Added to Snapshot:**
+- `batches`, `data_files`, `dataset_people_roles`, `datasets`
+- `extraction_sessions`, `fair_score_breakdown`
+- `datapoint_people_roles`, `people`, `reference_materials`
+- `sample_people_roles`, `samples`, `mounts`, `grains`
+- Legacy schema tables: `ft_datapoints`, `ft_count_data`, `ft_single_grain_ages`, `ft_track_length_data`, `ft_binned_length_data`, `he_datapoints`, `he_whole_grain_data`
+
+**Tables Documented:**
+- ✅ 21 legacy/supporting tables have documentation
+- ✅ 5 earthbank_* tables documented (COMPLETE)
+- ✅ 3 new feature tables documented (COMPLETE)
+- ✅ **All 29 tables now have full documentation**
+
+**New Documentation Created (2025-11-24 08:12):**
+- `earthbank_samples.md` - Primary sample metadata table
+- `earthbank_ftDatapoints.md` - Fission-track analytical sessions
+- `earthbank_ftTrackLengthData.md` - Individual track measurements
+- `earthbank_heDatapoints.md` - (U-Th)/He analytical sessions
+- `earthbank_heWholeGrainData.md` - Individual grain chemistry/ages
+- `data_files.md` - Dataset supplementary file tracking
+- `extraction_sessions.md` - Extraction workflow state tracking
+- `fair_score_breakdown.md` - FAIR principle assessment details
+
+**Note:** Complete schema snapshot AND complete table documentation now available.
 
 ---
 

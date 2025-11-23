@@ -17,7 +17,8 @@ import {
 } from '@/lib/db/extraction-queries';
 import { extractPDFText, checkPDFJSAvailable } from '@/lib/utils/pdf-utils';
 import { createMessage, isAnthropicConfigured } from '@/lib/anthropic/client';
-import { captureTableScreenshots, captureFigureScreenshots } from '@/lib/extraction/pdf-screenshot';
+// Screenshot generation moved to client-side (analyze page.tsx)
+// import { captureTableScreenshots, captureFigureScreenshots } from '@/lib/extraction/pdf-screenshot';
 import {
   ANALYSIS_SYSTEM_PROMPT,
   createAnalysisUserMessage,
@@ -178,35 +179,10 @@ export async function POST(
       figuresFound: analysisResult.figures?.length || 0,
     });
 
-    // Step 5: Capture table and figure screenshots as backup
-    console.log(`[Analyze API] Capturing table/figure screenshots...`);
-    let tableScreenshots: any[] = [];
-    let figureScreenshots: any[] = [];
-
-    try {
-      // Capture table screenshots
-      if (analysisResult.tables.length > 0) {
-        tableScreenshots = await captureTableScreenshots(
-          tempPdfPath,
-          analysisResult.tables,
-          sessionId
-        );
-        console.log(`[Analyze API] Captured ${tableScreenshots.length}/${analysisResult.tables.length} table screenshots`);
-      }
-
-      // Capture figure screenshots
-      if (analysisResult.figures && analysisResult.figures.length > 0) {
-        figureScreenshots = await captureFigureScreenshots(
-          tempPdfPath,
-          analysisResult.figures,
-          sessionId
-        );
-        console.log(`[Analyze API] Captured ${figureScreenshots.length}/${analysisResult.figures.length} figure screenshots`);
-      }
-    } catch (screenshotError) {
-      console.error(`[Analyze API] Screenshot capture failed (non-fatal):`, screenshotError);
-      // Continue with workflow even if screenshots fail
-    }
+    // NOTE: Table screenshots are now generated client-side in the browser
+    // See app/extraction/[sessionId]/analyze/page.tsx for implementation
+    // This is more reliable and fully serverless-compatible
+    console.log(`[Analyze API] Skipping server-side screenshot generation (handled client-side)`);
 
     // Clean up temp PDF file now that we're done with it
     await fs.rm(tempDir, { recursive: true, force: true });
@@ -301,12 +277,7 @@ export async function POST(
       figures_found: analysisResult.figures?.length || 0,
       tables: analysisResult.tables,
       figures: analysisResult.figures || [],
-      screenshots: {
-        tables: tableScreenshots.length,
-        figures: figureScreenshots.length,
-        table_details: tableScreenshots,
-        figure_details: figureScreenshots,
-      },
+      // Screenshots generated client-side (see analyze page.tsx)
     });
 
   } catch (error) {

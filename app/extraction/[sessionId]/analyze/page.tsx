@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { ExtractionSession, PaperMetadata, TableInfo } from '@/lib/types/extraction-types';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 // Helper function to convert file path to Supabase public URL
 function getPublicUrl(filePath: string): string {
@@ -46,6 +47,11 @@ export default function AnalyzePage({ params }: PageProps) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Screenshot generation state
+  const [generatingScreenshots, setGeneratingScreenshots] = useState(false);
+  const [screenshotProgress, setScreenshotProgress] = useState({ current: 0, total: 0 });
+  const [screenshotsGenerated, setScreenshotsGenerated] = useState(false);
 
   // Fetch session on mount
   useEffect(() => {
@@ -102,10 +108,108 @@ export default function AnalyzePage({ params }: PageProps) {
       const sessionResponse = await fetch(`/api/extraction/${sessionId}`);
       const sessionData = await sessionResponse.json();
       setSession(sessionData.session);
+
+      // Generate screenshots for tables
+      if (result.tables && result.tables.length > 0) {
+        await generateTableScreenshots(result.tables);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // Generate screenshots of table pages using PDF.js in the browser
+  const generateTableScreenshots = async (tables: TableInfo[]) => {
+    setGeneratingScreenshots(true);
+    setScreenshotProgress({ current: 0, total: tables.length });
+    setError(null);
+
+    try {
+      // Download PDF from Supabase
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('NEXT_PUBLIC_SUPABASE_URL not configured');
+      }
+
+      const pdfUrl = `${supabaseUrl}/storage/v1/object/public/extractions/${sessionId}/original.pdf`;
+      const pdfResponse = await fetch(pdfUrl);
+      if (!pdfResponse.ok) {
+        throw new Error('Failed to download PDF');
+      }
+
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+
+      // Load PDF using PDF.js
+      const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+      const pdf = await loadingTask.promise;
+
+      // Process each table
+      for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        if (!table || !table.page_number) {
+          console.warn(`Table ${table?.table_number || i} has no page number, skipping screenshot`);
+          continue;
+        }
+
+        setScreenshotProgress({ current: i + 1, total: tables.length });
+
+        // Get page
+        const page = await pdf.getPage(table.page_number);
+        const viewport = page.getViewport({ scale: 2.0 });
+
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+          throw new Error('Failed to get canvas context');
+        }
+
+        // Render PDF page to canvas
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+          canvas: canvas,
+        }).promise;
+
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          }, 'image/png');
+        });
+
+        // Upload to Supabase
+        const uploadPath = `${sessionId}/images/tables/table-${table.table_number}.png`;
+        const uploadUrl = `${supabaseUrl}/storage/v1/object/extractions/${uploadPath}`;
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'image/png',
+          },
+          body: blob,
+        });
+
+        if (!uploadResponse.ok) {
+          console.error(`Failed to upload screenshot for table ${table.table_number}`);
+        }
+      }
+
+      setScreenshotsGenerated(true);
+    } catch (err) {
+      console.error('Screenshot generation failed:', err);
+      setError(`Screenshot generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setGeneratingScreenshots(false);
     }
   };
 
@@ -461,7 +565,7 @@ export default function AnalyzePage({ params }: PageProps) {
               <ul className="space-y-2 text-blue-700 text-sm">
                 <li className="flex items-center gap-2">
                   <span className="animate-pulse">•</span>
-                  Extracting PDF text with PyMuPDF
+                  Extracting PDF text
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="animate-pulse">•</span>
@@ -472,6 +576,49 @@ export default function AnalyzePage({ params }: PageProps) {
                   Detecting tables and extracting metadata
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Screenshot Generation State */}
+      {generatingScreenshots && (
+        <div className="bg-purple-50 border-2 border-purple-300 rounded-lg p-8 mb-8">
+          <div className="flex items-start gap-4">
+            <div className="text-4xl animate-pulse">📸</div>
+            <div>
+              <h2 className="text-2xl font-bold text-purple-900 mb-2">
+                Generating Table Screenshots...
+              </h2>
+              <p className="text-purple-800 mb-3">
+                Creating high-quality images of each table for accurate extraction.
+              </p>
+              <div className="text-purple-700 text-sm mb-2">
+                Progress: {screenshotProgress.current} / {screenshotProgress.total} tables
+              </div>
+              <div className="w-full bg-purple-200 rounded-full h-2">
+                <div
+                  className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${screenshotProgress.total > 0 ? (screenshotProgress.current / screenshotProgress.total) * 100 : 0}%`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Screenshots Generated Success */}
+      {screenshotsGenerated && !generatingScreenshots && (
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-6 mb-8">
+          <div className="flex items-start gap-4">
+            <div className="text-3xl">✅</div>
+            <div>
+              <h3 className="text-lg font-bold text-green-900 mb-1">Screenshots Generated!</h3>
+              <p className="text-green-800">
+                {screenshotProgress.total} table screenshot(s) created successfully. Ready for extraction!
+              </p>
             </div>
           </div>
         </div>

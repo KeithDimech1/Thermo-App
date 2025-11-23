@@ -22,9 +22,9 @@ export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) 
     { id: 'pdfs', label: 'PDFs', href: `/datasets/${datasetId}/pdfs` },
     { id: 'figures', label: 'Figures', href: `/datasets/${datasetId}/figures` },
     { id: 'data-tables', label: 'Tables', href: `/datasets/${datasetId}/data-tables` },
+    { id: 'fair', label: 'ThermoFAIR', href: `/datasets/${datasetId}/fair` },
     { id: 'tables', label: 'Database Tables', href: `/datasets/${datasetId}/tables` },
     { id: 'analysis', label: 'Analysis', href: `/datasets/${datasetId}/analysis` },
-    { id: 'fair', label: 'FAIR Assessment', href: `/datasets/${datasetId}/fair` },
   ];
 
   return (

@@ -74,3 +74,8 @@ venv/
 *.tsbuildinfo
 cache/
 public/data/datasets/
+
+# Backup files and test artifacts
+.env.local.bak
+logs_result.csv
+scripts/test-supabase.ts

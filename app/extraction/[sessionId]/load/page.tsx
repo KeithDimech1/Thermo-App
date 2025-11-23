@@ -14,8 +14,6 @@ interface LoadResponse {
   success: boolean;
   dataset_id: number;
   dataset_name: string;
-  fair_score: number;
-  fair_grade: string;
   files_uploaded: number;
   total_size_bytes: number;
 }
@@ -46,8 +44,6 @@ export default function LoadPage({ params }: PageProps) {
             success: true,
             dataset_id: data.session.dataset_id,
             dataset_name: data.session.paper_metadata?.title || 'Unknown',
-            fair_score: data.session.fair_score || 0,
-            fair_grade: calculateGrade(data.session.fair_score || 0),
             files_uploaded: 0, // Would need to fetch from data_files
             total_size_bytes: 0
           });
@@ -84,8 +80,7 @@ export default function LoadPage({ params }: PageProps) {
         setSession({
           ...session,
           state: 'loaded',
-          dataset_id: result.dataset_id,
-          fair_score: result.fair_score
+          dataset_id: result.dataset_id
         });
       }
     } catch (err) {
@@ -171,7 +166,7 @@ export default function LoadPage({ params }: PageProps) {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Step 3: Load to Database</h1>
           <p className="text-gray-600 mt-2">
-            Create dataset record and perform FAIR assessment
+            Create dataset record and upload files to database
           </p>
         </div>
 
@@ -186,9 +181,7 @@ export default function LoadPage({ params }: PageProps) {
                 <li>Creates dataset record with paper metadata</li>
                 <li>Uploads files to public directory (PDF, CSVs, images)</li>
                 <li>Tracks files in database</li>
-                <li>Performs FAIR compliance assessment</li>
-                <li>Generates FAIR reports</li>
-                <li>Calculates Kohn 2024 compliance scores</li>
+                <li>Makes dataset ready for FAIR assessment (via ThermoFAIR tab)</li>
               </ul>
             </div>
 
@@ -278,7 +271,7 @@ export default function LoadPage({ params }: PageProps) {
                 <h2 className="text-2xl font-bold text-green-900">Load Complete!</h2>
               </div>
               <p className="text-green-800">
-                Dataset created successfully with FAIR assessment
+                Dataset created successfully. Visit ThermoFAIR to perform FAIR assessment.
               </p>
             </div>
 
@@ -307,32 +300,15 @@ export default function LoadPage({ params }: PageProps) {
               </div>
             </div>
 
-            {/* FAIR Score */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold mb-4">FAIR Compliance Assessment</h3>
-              <div className="flex items-center gap-6">
-                <div className="text-center">
-                  <div className={`text-6xl font-bold ${getGradeColor(loadResult.fair_grade)}`}>
-                    {loadResult.fair_grade}
-                  </div>
-                  <p className="text-gray-600 text-sm mt-1">Grade</p>
-                </div>
-                <div className="flex-1">
-                  <div className="mb-2 flex justify-between items-center">
-                    <span className="text-gray-700 font-medium">Overall Score</span>
-                    <span className="text-gray-900 font-semibold">{loadResult.fair_score}/100</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div
-                      className={`h-4 rounded-full transition-all ${getScoreBarColor(loadResult.fair_score)}`}
-                      style={{ width: `${loadResult.fair_score}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-gray-600 text-sm mt-2">
-                    {getScoreDescription(loadResult.fair_score)}
-                  </p>
-                </div>
-              </div>
+            {/* Next Steps Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">📊 FAIR Assessment</h3>
+              <p className="text-blue-800 text-sm mb-3">
+                To perform FAIR compliance assessment on this dataset, visit the ThermoFAIR tab after viewing the dataset.
+              </p>
+              <p className="text-blue-700 text-xs">
+                ThermoFAIR will analyze the CSVs against Kohn 2024 standards, convert data to EarthBank templates, and provide a compliance score.
+              </p>
             </div>
 
             {/* Actions */}
@@ -351,13 +327,13 @@ export default function LoadPage({ params }: PageProps) {
                 </Link>
 
                 <Link
-                  href={`/datasets/${loadResult.dataset_id}#fair-assessment`}
+                  href={`/datasets/${loadResult.dataset_id}/fair`}
                   className="flex items-center gap-3 p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <span className="text-2xl">📊</span>
                   <div>
-                    <div className="font-semibold">FAIR Assessment</div>
-                    <div className="text-sm text-gray-600">Detailed compliance breakdown</div>
+                    <div className="font-semibold">ThermoFAIR Assessment</div>
+                    <div className="text-sm text-gray-600">Perform FAIR compliance analysis</div>
                   </div>
                 </Link>
 
@@ -398,38 +374,4 @@ export default function LoadPage({ params }: PageProps) {
   );
 }
 
-// Helper Functions
-function calculateGrade(score: number): string {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
-  return 'F';
-}
-
-function getGradeColor(grade: string): string {
-  switch (grade) {
-    case 'A': return 'text-green-600';
-    case 'B': return 'text-blue-600';
-    case 'C': return 'text-yellow-600';
-    case 'D': return 'text-orange-600';
-    case 'F': return 'text-red-600';
-    default: return 'text-gray-600';
-  }
-}
-
-function getScoreBarColor(score: number): string {
-  if (score >= 90) return 'bg-green-500';
-  if (score >= 80) return 'bg-blue-500';
-  if (score >= 70) return 'bg-yellow-500';
-  if (score >= 60) return 'bg-orange-500';
-  return 'bg-red-500';
-}
-
-function getScoreDescription(score: number): string {
-  if (score >= 90) return 'Excellent FAIR compliance';
-  if (score >= 80) return 'Good FAIR compliance';
-  if (score >= 70) return 'Moderate FAIR compliance';
-  if (score >= 60) return 'Basic FAIR compliance';
-  return 'Limited FAIR compliance - improvements needed';
-}
+// Helper Functions removed - FAIR assessment moved to ThermoFAIR page

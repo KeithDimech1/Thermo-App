@@ -8,6 +8,7 @@ import FairScoreCard from '@/components/datasets/FairScoreCard';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
 import Tooltip from '@/components/ui/Tooltip';
+import FairAnalysisButton from '@/components/datasets/FairAnalysisButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +66,7 @@ export default async function DatasetFairPage({ params }: PageProps) {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              {dataset.datasetName}
+              ThermoFAIR: {dataset.datasetName}
             </h1>
             <p className="text-lg text-gray-600">FAIR Data Compliance Assessment</p>
           </div>
@@ -104,6 +105,11 @@ export default async function DatasetFairPage({ params }: PageProps) {
 
       {/* Tab Navigation */}
       <DatasetTabs datasetId={id} activeTab="fair" />
+
+      {/* Analysis Button */}
+      <div className="mb-8">
+        <FairAnalysisButton datasetId={id} hasFairScore={!!fairBreakdown} />
+      </div>
 
       {/* FAIR Principles Overview */}
       <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">

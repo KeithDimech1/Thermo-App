@@ -1,30 +1,24 @@
 /**
- * PDF Utilities using PDF.js (serverless-compatible)
+ * PDF Utilities using unpdf (serverless-optimized)
  *
- * Replaces PyMuPDF/Python bridge with pure JavaScript solution.
- * Works in Vercel serverless environment without Python dependencies.
+ * Replaces PyMuPDF/Python bridge with serverless-friendly solution.
+ * unpdf is designed for edge/serverless environments (Vercel, Cloudflare Workers, etc.)
+ * Zero dependencies, ~1.4MB, no native bindings.
  */
 
-// Use legacy build for Node.js compatibility
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { createCanvas } from 'canvas';
+import { getDocumentProxy } from 'unpdf';
 import fs from 'fs/promises';
 
 /**
- * Extract text from PDF using PDF.js
+ * Extract text from PDF using unpdf
  */
 export async function extractPDFText(pdfPath: string): Promise<string> {
   try {
     // Read PDF file
     const pdfBuffer = await fs.readFile(pdfPath);
 
-    // Load PDF document
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useSystemFonts: true,
-    });
-
-    const pdf = await loadingTask.promise;
+    // Load PDF document using unpdf
+    const pdf = await getDocumentProxy(new Uint8Array(pdfBuffer));
     const numPages = pdf.numPages;
 
     let fullText = '';
@@ -36,7 +30,7 @@ export async function extractPDFText(pdfPath: string): Promise<string> {
 
       // Combine text items with spaces
       const pageText = textContent.items
-        .map((item: any) => item.str)
+        .map((item: any) => item.str || '')
         .join(' ');
 
       fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
@@ -62,13 +56,7 @@ export async function extractPDFMetadata(pdfPath: string): Promise<{
 }> {
   try {
     const pdfBuffer = await fs.readFile(pdfPath);
-
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useSystemFonts: true,
-    });
-
-    const pdf = await loadingTask.promise;
+    const pdf = await getDocumentProxy(new Uint8Array(pdfBuffer));
     const metadata = await pdf.getMetadata();
 
     // Type assertion for metadata.info
@@ -89,74 +77,40 @@ export async function extractPDFMetadata(pdfPath: string): Promise<{
 }
 
 /**
- * Render a PDF page to PNG using PDF.js and Canvas
+ * Render a PDF page to PNG using unpdf
+ *
+ * NOTE: PNG rendering is currently disabled for serverless compatibility.
+ * Screenshots are optional - the extraction workflow continues without them.
+ * Future: Consider using @napi-rs/canvas or pdfium for serverless PNG rendering.
  */
 export async function renderPageToPng(
-  pdfPath: string,
-  pageNumber: number,
-  outputPath: string,
-  zoom: number = 2.0
+  _pdfPath: string,
+  _pageNumber: number,
+  _outputPath: string,
+  _zoom: number = 2.0
 ): Promise<{ success: boolean; error?: string; width?: number; height?: number }> {
-  try {
-    // Read PDF file
-    const pdfBuffer = await fs.readFile(pdfPath);
+  // PNG rendering disabled for serverless compatibility
+  // Text extraction still works perfectly
+  return {
+    success: false,
+    error: 'PNG rendering disabled for serverless compatibility (text extraction still works)',
+  };
 
-    // Load PDF document
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useSystemFonts: true,
-    });
-
-    const pdf = await loadingTask.promise;
-
-    // Validate page number
-    if (pageNumber < 1 || pageNumber > pdf.numPages) {
-      return {
-        success: false,
-        error: `Invalid page number: ${pageNumber} (PDF has ${pdf.numPages} pages)`,
-      };
-    }
-
-    // Get page
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: zoom });
-
-    // Create canvas
-    const canvas = createCanvas(viewport.width, viewport.height);
-    const context = canvas.getContext('2d');
-
-    // Render page to canvas
-    const renderContext: any = {
-      canvasContext: context,
-      viewport: viewport,
-    };
-    await page.render(renderContext).promise;
-
-    // Save to PNG file
-    const buffer = canvas.toBuffer('image/png');
-    await fs.writeFile(outputPath, buffer);
-
-    return {
-      success: true,
-      width: viewport.width,
-      height: viewport.height,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+  // TODO: Implement serverless-compatible PNG rendering if needed
+  // Options:
+  // 1. Use @napi-rs/canvas (Rust-based, smaller than node-canvas)
+  // 2. Use external service like Cloudinary or Imgix
+  // 3. Generate screenshots client-side in browser
 }
 
 /**
- * Check if PDF.js is properly configured
+ * Check if unpdf is properly configured
  * (Always returns true since we're using it natively)
  */
 export async function checkPDFJSAvailable(): Promise<boolean> {
   try {
     // Simple check - just verify the module is loaded
-    return typeof pdfjsLib.getDocument === 'function';
+    return typeof getDocumentProxy === 'function';
   } catch {
     return false;
   }

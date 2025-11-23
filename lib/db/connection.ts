@@ -66,10 +66,10 @@ export function getPool(): Pool {
         ? { rejectUnauthorized: false }
         : undefined,
 
-      // Connection pool settings
-      max: 20,                      // Maximum number of clients in pool
-      idleTimeoutMillis: 30000,     // Close idle clients after 30s
-      connectionTimeoutMillis: 30000, // Timeout connecting to database (30s for Supabase - increased for stability)
+      // Connection pool settings (optimized for serverless + Supabase Transaction mode)
+      max: 1,                       // Only 1 connection per function (serverless best practice)
+      idleTimeoutMillis: 10000,     // Close idle clients after 10s (fast cleanup)
+      connectionTimeoutMillis: 10000, // Shorter timeout for Transaction mode
 
       // Serverless optimization
       allowExitOnIdle: true,        // Allow pool to close when idle (good for serverless)

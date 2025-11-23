@@ -5,7 +5,20 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { ExtractionSession, PaperMetadata, TableInfo } from '@/lib/types/extraction-types';
 
-interface PageProps {
+// Helper function to convert file path to Supabase public URL
+function getPublicUrl(filePath: string): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const bucket = 'extractions';
+
+  if (!supabaseUrl) {
+    console.warn('NEXT_PUBLIC_SUPABASE_URL not set, using file path as-is');
+    return filePath;
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${filePath}`;
+}
+
+interface PageProps{
   params: Promise<{
     sessionId: string;
   }>;
@@ -378,7 +391,7 @@ export default function AnalyzePage({ params }: PageProps) {
             </p>
             <div className="grid md:grid-cols-2 gap-3">
               <a
-                href={`/uploads/${sessionId}/paper-index.md`}
+                href={getPublicUrl(`${sessionId}/paper-index.md`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
@@ -391,7 +404,7 @@ export default function AnalyzePage({ params }: PageProps) {
               </a>
 
               <a
-                href={`/uploads/${sessionId}/tables.md`}
+                href={getPublicUrl(`${sessionId}/tables.md`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
@@ -404,7 +417,7 @@ export default function AnalyzePage({ params }: PageProps) {
               </a>
 
               <a
-                href={`/uploads/${sessionId}/table-index.json`}
+                href={getPublicUrl(`${sessionId}/table-index.json`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition"

@@ -5,6 +5,19 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { ExtractionSession, TableInfo } from '@/lib/types/extraction-types';
 
+// Helper function to convert file path to Supabase public URL
+function getPublicUrl(filePath: string): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const bucket = 'extractions';
+
+  if (!supabaseUrl) {
+    console.warn('NEXT_PUBLIC_SUPABASE_URL not set, using file path as-is');
+    return filePath;
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${filePath}`;
+}
+
 interface PageProps {
   params: Promise<{
     sessionId: string;
@@ -321,7 +334,7 @@ export default function ExtractPage({ params }: PageProps) {
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-slate-900">CSV Preview</h4>
                       <a
-                        href={`/${state.result.csvPath}`}
+                        href={getPublicUrl(state.result.csvPath)}
                         download
                         className="text-blue-600 hover:underline text-sm"
                       >

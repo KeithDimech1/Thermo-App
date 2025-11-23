@@ -88,7 +88,7 @@ function pairTablesWithCsvs(csvFiles: DataFile[], tableImages: DataFile[]): Tabl
       pairs.push({
         tableName: image.display_name || image.file_name,
         image,
-        caption: image.description
+        caption: image.description || undefined
       });
     }
   }

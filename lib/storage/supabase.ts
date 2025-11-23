@@ -69,6 +69,23 @@ export async function uploadFile(
 }
 
 /**
+ * Get public URL for a file (without downloading)
+ *
+ * @param bucket - Bucket name ('extractions' or 'datasets')
+ * @param path - File path within bucket
+ * @returns Public URL string
+ */
+export function getPublicUrl(bucket: string, path: string): string {
+  const supabase = getSupabaseClient();
+
+  const { data: { publicUrl } } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(path);
+
+  return publicUrl;
+}
+
+/**
  * Download a file from Supabase Storage
  *
  * @param bucket - Bucket name ('extractions' or 'datasets')

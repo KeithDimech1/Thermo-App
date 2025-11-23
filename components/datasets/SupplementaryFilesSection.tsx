@@ -16,6 +16,21 @@ interface SupplementaryFile {
   upload_notes: string | null;
 }
 
+// Helper function to convert file path to public URL
+function getPublicUrl(filePath: string): string {
+  // File paths in database are stored as: extract-xxx/tables/table-1.csv or similar
+  // We need to construct the full Supabase public URL
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const bucket = 'extractions'; // Assuming all supplementary files are in extractions bucket
+
+  if (!supabaseUrl) {
+    console.warn('NEXT_PUBLIC_SUPABASE_URL not set, using file path as-is');
+    return filePath;
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${filePath}`;
+}
+
 // MIGRATED TO EARTHBANK SCHEMA - IDEA-014
 interface SupplementaryFilesSectionProps {
   datasetId: string;  // Changed from number to string for URL param compatibility
@@ -126,7 +141,7 @@ export default function SupplementaryFilesSection({ datasetId, supplementaryFile
                     )}
                   </div>
                   <button
-                    onClick={() => window.open(file.file_path, '_blank')}
+                    onClick={() => window.open(getPublicUrl(file.file_path), '_blank')}
                     className="ml-4 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
                   >
                     Download

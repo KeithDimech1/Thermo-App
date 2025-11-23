@@ -8,6 +8,7 @@ import { extractPaperTitle } from '@/lib/utils/extract-paper-title';
 import { FILE_TYPES } from '@/lib/constants/file-types';
 import Image from 'next/image';
 import { DataFile } from '@/lib/types/thermo-data';
+import CSVActions from '@/components/datasets/CSVActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -203,40 +204,7 @@ export default async function DatasetTablesPage({ params }: PageProps) {
 
                   {/* CSV Data */}
                   {pair.csv && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold text-gray-700">
-                          Extracted CSV Data
-                        </h4>
-                        <div className="flex gap-3 text-xs text-gray-500">
-                          {pair.csv.row_count && (
-                            <span>{pair.csv.row_count} rows</span>
-                          )}
-                          <span>{formatFileSize(pair.csv.file_size_bytes)}</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p className="text-sm text-gray-700 mb-2">
-                          <span className="font-semibold">File:</span> {pair.csv.file_name}
-                        </p>
-                        {pair.csv.description && (
-                          <p className="text-sm text-gray-600">
-                            {pair.csv.description}
-                          </p>
-                        )}
-                      </div>
-
-                      <a
-                        href={pair.csv.file_path}
-                        download={pair.csv.file_name}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold"
-                      >
-                        Download CSV
-                      </a>
-                    </div>
+                    <CSVActions csvFile={pair.csv} />
                   )}
 
                   {/* If only image, no CSV */}

@@ -241,7 +241,24 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
     console.log(`[Extract] ✓ Extracted ${csvData.length} rows x ${columnCount} columns`);
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 6: Save CSV to storage
+    // STEP 6: Calculate basic stats (completeness)
+    // ═══════════════════════════════════════════════════════════════════
+    const totalCells = csvData.length * columnCount;
+    let filledCells = 0;
+
+    csvData.forEach(row => {
+      Object.values(row).forEach(value => {
+        if (value && value.trim() !== '') {
+          filledCells++;
+        }
+      });
+    });
+
+    const completeness = totalCells > 0 ? (filledCells / totalCells) * 100 : 0;
+    console.log(`[Extract] ✓ Completeness: ${completeness.toFixed(1)}% (${filledCells}/${totalCells} cells filled)`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 7: Save CSV to storage
     // ═══════════════════════════════════════════════════════════════════
     console.log(`[Extract] Saving CSV...`);
 
@@ -252,7 +269,13 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
     console.log(`[Extract] ✓ Saved CSV to ${csvPath}`);
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 7: Return success
+    // STEP 8: Update session state to extracted
+    // ═══════════════════════════════════════════════════════════════════
+    await updateExtractionState(sessionId, 'extracted');
+    console.log(`[Extract] ✓ Session state updated to 'extracted'`);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 9: Return success
     // ═══════════════════════════════════════════════════════════════════
     console.log(`[Extract] ✅ Extraction complete`);
 
@@ -265,6 +288,7 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
       stats: {
         totalRows: csvData.length,
         totalColumns: columnCount,
+        completeness,
       },
     });
 

@@ -6,6 +6,9 @@ import Link from 'next/link';
 import type { ExtractionSession, PaperMetadata, TableInfo } from '@/lib/types/extraction-types';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
 // Helper function to convert file path to Supabase public URL
 function getPublicUrl(filePath: string): string {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

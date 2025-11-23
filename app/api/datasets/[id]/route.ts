@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+/**
+ * Get or create Supabase client (lazy initialization)
+ */
+function getSupabaseClient(): SupabaseClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase environment variables');
   }
-});
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
 
 /**
  * DELETE /api/datasets/[id]
@@ -89,6 +98,8 @@ export async function DELETE(
  */
 async function deleteStorageFolder(bucketName: string, folderPath: string): Promise<void> {
   try {
+    const supabase = getSupabaseClient();
+
     // List all files in the folder
     const { data: files, error: listError } = await supabase.storage
       .from(bucketName)

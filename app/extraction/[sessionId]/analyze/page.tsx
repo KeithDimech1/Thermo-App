@@ -56,6 +56,12 @@ export default function AnalyzePage({ params }: PageProps) {
   const [screenshotProgress, setScreenshotProgress] = useState({ current: 0, total: 0 });
   const [screenshotsGenerated, setScreenshotsGenerated] = useState(false);
 
+  // Live log state
+  const [logs, setLogs] = useState<string[]>([]);
+  const addLog = (message: string) => {
+    setLogs((prev) => [...prev.slice(-4), message]); // Keep last 5 messages
+  };
+
   // Fetch session on mount
   useEffect(() => {
     async function fetchSession() {
@@ -93,8 +99,11 @@ export default function AnalyzePage({ params }: PageProps) {
   const handleAnalyze = async () => {
     setAnalyzing(true);
     setError(null);
+    setLogs([]);
 
     try {
+      addLog('📄 Extracting PDF text...');
+
       const response = await fetch(`/api/extraction/${sessionId}/analyze`, {
         method: 'POST',
       });
@@ -104,7 +113,10 @@ export default function AnalyzePage({ params }: PageProps) {
         throw new Error(errorData.details || 'Analysis failed');
       }
 
+      addLog('🤖 Sending to Claude API for analysis...');
       const result: AnalysisResult = await response.json();
+
+      addLog(`✓ Found ${result.tables_found} tables, ${result.figures_found} figures`);
       setAnalysisResult(result);
 
       // Refresh session to get updated state
@@ -114,10 +126,12 @@ export default function AnalyzePage({ params }: PageProps) {
 
       // Generate screenshots for tables
       if (result.tables && result.tables.length > 0) {
+        addLog(`📸 Generating screenshots for ${result.tables.length} tables...`);
         await generateTableScreenshots(result.tables);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
+      addLog(`❌ Error: ${err instanceof Error ? err.message : 'Analysis failed'}`);
     } finally {
       setAnalyzing(false);
     }
@@ -130,19 +144,17 @@ export default function AnalyzePage({ params }: PageProps) {
     setError(null);
 
     try {
-      // Download PDF from Supabase
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (!supabaseUrl) {
-        throw new Error('NEXT_PUBLIC_SUPABASE_URL not configured');
-      }
+      addLog('⬇️ Downloading PDF...');
 
-      const pdfUrl = `${supabaseUrl}/storage/v1/object/public/extractions/${sessionId}/original.pdf`;
-      const pdfResponse = await fetch(pdfUrl);
+      // Download PDF via authenticated API endpoint
+      const pdfResponse = await fetch(`/api/extraction/${sessionId}/pdf`);
       if (!pdfResponse.ok) {
-        throw new Error('Failed to download PDF');
+        const errorData = await pdfResponse.json();
+        throw new Error(errorData.details || 'Failed to download PDF');
       }
 
       const pdfBuffer = await pdfResponse.arrayBuffer();
+      addLog(`✓ PDF loaded (${(pdfBuffer.byteLength / 1024).toFixed(0)} KB)`);
 
       // Load PDF using PDF.js
       const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
@@ -157,6 +169,7 @@ export default function AnalyzePage({ params }: PageProps) {
         }
 
         setScreenshotProgress({ current: i + 1, total: tables.length });
+        addLog(`📸 Rendering table ${table.table_number} (page ${table.page_number})...`);
 
         // Get page
         const page = await pdf.getPage(table.page_number);
@@ -190,23 +203,28 @@ export default function AnalyzePage({ params }: PageProps) {
           }, 'image/png');
         });
 
-        // Upload to Supabase
-        const uploadPath = `${sessionId}/images/tables/table-${table.table_number}.png`;
-        const uploadUrl = `${supabaseUrl}/storage/v1/object/extractions/${uploadPath}`;
-
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'image/png',
-          },
-          body: blob,
-        });
+        // Upload via authenticated API endpoint
+        const uploadResponse = await fetch(
+          `/api/extraction/${sessionId}/upload-screenshot?table=${table.table_number}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'image/png',
+            },
+            body: blob,
+          }
+        );
 
         if (!uploadResponse.ok) {
-          console.error(`Failed to upload screenshot for table ${table.table_number}`);
+          const errorData = await uploadResponse.json();
+          console.error(`Failed to upload screenshot for table ${table.table_number}:`, errorData);
+          throw new Error(errorData.details || 'Upload failed');
         }
+
+        addLog(`✓ Uploaded table ${table.table_number} screenshot`);
       }
 
+      addLog(`✅ All screenshots generated successfully`);
       setScreenshotsGenerated(true);
     } catch (err) {
       console.error('Screenshot generation failed:', err);
@@ -553,32 +571,31 @@ export default function AnalyzePage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Analyzing State */}
+      {/* Analyzing State - Live Logs */}
       {analyzing && (
         <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-8 mb-8">
           <div className="flex items-start gap-4">
             <div className="text-4xl animate-pulse">⏳</div>
-            <div>
+            <div className="flex-1">
               <h2 className="text-2xl font-bold text-blue-900 mb-2">
                 Analyzing Paper...
               </h2>
-              <p className="text-blue-800 mb-3">
-                This may take 1-2 minutes. Claude is extracting text from the PDF and analyzing its contents.
+              <p className="text-blue-800 mb-4">
+                Live progress (last 5 messages):
               </p>
-              <ul className="space-y-2 text-blue-700 text-sm">
-                <li className="flex items-center gap-2">
-                  <span className="animate-pulse">•</span>
-                  Extracting PDF text
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="animate-pulse">•</span>
-                  Sending to Claude API for analysis
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="animate-pulse">•</span>
-                  Detecting tables and extracting metadata
-                </li>
-              </ul>
+              <div className="bg-gray-900 text-green-400 font-mono text-sm p-4 rounded border border-gray-700 max-h-32 overflow-hidden">
+                {logs.length === 0 ? (
+                  <div className="text-gray-500">Starting analysis...</div>
+                ) : (
+                  <div className="space-y-1">
+                    {logs.map((log, index) => (
+                      <div key={index} className="truncate">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

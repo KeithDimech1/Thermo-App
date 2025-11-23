@@ -180,7 +180,7 @@ export default async function DatasetTablesPage({ params }: PageProps) {
 
                       <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
                         <Image
-                          src={`/${pair.image.file_path}`}
+                          src={pair.image.file_path.startsWith('http') ? pair.image.file_path : `/${pair.image.file_path}`}
                           alt={pair.caption || pair.tableName}
                           width={600}
                           height={400}

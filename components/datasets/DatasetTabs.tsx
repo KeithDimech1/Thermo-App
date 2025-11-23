@@ -11,7 +11,7 @@ interface Tab {
 // MIGRATED TO EARTHBANK SCHEMA - IDEA-014
 interface DatasetTabsProps {
   datasetId: string;  // Changed from number to string for URL param compatibility
-  activeTab: 'overview' | 'data' | 'fair' | 'tables' | 'analysis';
+  activeTab: 'overview' | 'data' | 'fair' | 'tables' | 'analysis' | 'pdfs' | 'figures' | 'data-tables';
 }
 
 export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) {
@@ -19,8 +19,10 @@ export default function DatasetTabs({ datasetId, activeTab }: DatasetTabsProps) 
 
   const tabs: Tab[] = [
     { id: 'overview', label: 'Overview', href: `/datasets/${datasetId}` },
-    { id: 'data', label: 'Data Files', href: `/datasets/${datasetId}/data` },
-    { id: 'tables', label: 'Data Tables', href: `/datasets/${datasetId}/tables` },
+    { id: 'pdfs', label: 'PDFs', href: `/datasets/${datasetId}/pdfs` },
+    { id: 'figures', label: 'Figures', href: `/datasets/${datasetId}/figures` },
+    { id: 'data-tables', label: 'Tables', href: `/datasets/${datasetId}/data-tables` },
+    { id: 'tables', label: 'Database Tables', href: `/datasets/${datasetId}/tables` },
     { id: 'analysis', label: 'Analysis', href: `/datasets/${datasetId}/analysis` },
     { id: 'fair', label: 'FAIR Assessment', href: `/datasets/${datasetId}/fair` },
   ];

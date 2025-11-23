@@ -46,6 +46,27 @@ interface UploadedFile {
   description?: string;
 }
 
+interface ImageMetadata {
+  figures_summary?: {
+    [figureName: string]: {
+      description: string;
+      images: Array<{
+        filename: string;
+        page: number;
+      }>;
+    };
+  };
+  tables_summary?: {
+    [tableName: string]: {
+      description: string;
+      images: Array<{
+        filename: string;
+        page: number;
+      }>;
+    };
+  };
+}
+
 async function main() {
   const paperDir = process.argv[2];
 
@@ -387,9 +408,52 @@ async function createDatasetRecord(metadata: ParsedMetadata): Promise<number> {
   return result[0].id;
 }
 
+function loadImageMetadata(paperPath: string): Map<string, string> {
+  const metadataPath = path.join(paperPath, 'images', 'image-metadata.json');
+  const captions = new Map<string, string>();
+
+  if (!fs.existsSync(metadataPath)) {
+    console.log('   ⚠️  No image-metadata.json found - captions will not be loaded');
+    return captions;
+  }
+
+  try {
+    const metadata: ImageMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+
+    // Process figures
+    if (metadata.figures_summary) {
+      for (const [figureName, figureData] of Object.entries(metadata.figures_summary)) {
+        for (const image of figureData.images) {
+          captions.set(image.filename, `${figureName}: ${figureData.description}`);
+        }
+      }
+    }
+
+    // Process tables
+    if (metadata.tables_summary) {
+      for (const [tableName, tableData] of Object.entries(metadata.tables_summary)) {
+        for (const image of tableData.images) {
+          captions.set(image.filename, `${tableName}: ${tableData.description}`);
+        }
+      }
+    }
+
+    console.log(`   ✅ Loaded captions for ${captions.size} images from image-metadata.json`);
+  } catch (error) {
+    console.log(`   ⚠️  Failed to parse image-metadata.json: ${error}`);
+  }
+
+  return captions;
+}
+
 async function uploadFiles(paperPath: string, extractedDir: string, datasetId: number): Promise<UploadedFile[]> {
   const uploadedFiles: UploadedFile[] = [];
   const datasetDir = path.join('public/data/datasets', datasetId.toString());
+
+  // Load image captions from metadata
+  console.log('📝 Loading image captions...');
+  const imageCaptions = loadImageMetadata(paperPath);
+  console.log();
 
   // Create dataset directory
   if (!fs.existsSync(datasetDir)) {
@@ -466,12 +530,13 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
       fs.copyFileSync(imgSource, imgDest);
 
       const imgSize = fs.statSync(imgDest).size;
+      const caption = imageCaptions.get(imgFile) || 'Table screenshot';
       uploadedFiles.push({
         type: getFileTypeFromExtension(imgFile), // Using helper function for type safety
         source: imgSource,
         dest: imgDest,
         size: imgSize,
-        description: 'Table screenshot'
+        description: caption
       });
       console.log(`   ✅ ${imgFile} (${(imgSize / 1024).toFixed(1)} KB)`);
     }
@@ -497,12 +562,13 @@ async function uploadFiles(paperPath: string, extractedDir: string, datasetId: n
       fs.copyFileSync(imgSource, imgDest);
 
       const imgSize = fs.statSync(imgDest).size;
+      const caption = imageCaptions.get(imgFile) || 'Figure';
       uploadedFiles.push({
         type: getFileTypeFromExtension(imgFile), // Using helper function for type safety
         source: imgSource,
         dest: imgDest,
         size: imgSize,
-        description: 'Figure'
+        description: caption
       });
       console.log(`   ✅ ${imgFile} (${(imgSize / 1024).toFixed(1)} KB)`);
     }

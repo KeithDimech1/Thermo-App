@@ -2,15 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import LanguageToggle from '@/components/ui/LanguageToggle';
+import { useLanguage } from '@/lib/context/LanguageContext';
 
 export default function NavigationBar() {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const navItems = [
-    { href: '/', label: 'Home', icon: '🏔️' },
-    { href: '/upload', label: 'Upload', icon: '📤' },
-    { href: '/datasets', label: 'Datasets', icon: '📄' },
-    { href: '/samples', label: 'Samples', icon: '🔬' },
+    { href: '/', label: t('home'), icon: '🏔️' },
+    { href: '/upload', label: t('upload'), icon: '📤' },
+    { href: '/datasets', label: t('datasets'), icon: '📄' },
+    { href: '/samples', label: t('samples'), icon: '🔬' },
   ];
 
   const isActive = (href: string) => {
@@ -32,24 +35,27 @@ export default function NavigationBar() {
           </Link>
 
           {/* Navigation Links */}
-          <div className="flex space-x-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all
-                  ${
-                    isActive(item.href)
-                      ? 'bg-thermo-gold text-thermo-forest shadow-md'
-                      : 'text-thermo-cream hover:bg-thermo-forest-light hover:text-thermo-gold'
-                  }
-                `}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-              </Link>
-            ))}
+          <div className="flex items-center space-x-4">
+            <div className="flex space-x-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`
+                    flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all
+                    ${
+                      isActive(item.href)
+                        ? 'bg-thermo-gold text-thermo-forest shadow-md'
+                        : 'text-thermo-cream hover:bg-thermo-forest-light hover:text-thermo-gold'
+                    }
+                  `}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+            <LanguageToggle />
           </div>
         </div>
       </div>

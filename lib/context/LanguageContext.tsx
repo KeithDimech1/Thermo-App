@@ -12,8 +12,13 @@ interface LanguageContextType {
 
 const translations = {
   en: {
-    // Navigation
+    // Top Navigation
+    home: 'Home',
+    upload: 'Upload',
     datasets: 'Datasets',
+    samples: 'Samples',
+
+    // Dataset Tabs
     overview: 'Overview',
     pdfs: 'PDFs',
     figures: 'Figures',
@@ -49,8 +54,13 @@ const translations = {
     file: 'File',
   },
   es: {
-    // Navigation
+    // Top Navigation
+    home: 'Inicio',
+    upload: 'Subir',
     datasets: 'Conjuntos de datos',
+    samples: 'Muestras',
+
+    // Dataset Tabs
     overview: 'Resumen',
     pdfs: 'PDFs',
     figures: 'Figuras',

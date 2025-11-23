@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { DataFile } from '@/lib/types/thermo-data';
 import { useLanguage } from '@/lib/context/LanguageContext';
-import LanguageToggle from '@/components/ui/LanguageToggle';
 
 interface FiguresContentProps {
   figureFiles: DataFile[];
@@ -21,10 +20,7 @@ export default function FiguresContent({ figureFiles }: FiguresContentProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">{t('figures')}</h2>
-        <LanguageToggle />
-      </div>
+      <h2 className="text-2xl font-bold text-gray-900">{t('figures')}</h2>
 
       {figureFiles.length === 0 ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">

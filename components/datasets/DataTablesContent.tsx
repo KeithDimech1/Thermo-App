@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { DataFile } from '@/lib/types/thermo-data';
 import CSVActions from '@/components/datasets/CSVActions';
 import { useLanguage } from '@/lib/context/LanguageContext';
-import LanguageToggle from '@/components/ui/LanguageToggle';
 
 interface TablePair {
   tableName: string;
@@ -29,14 +28,11 @@ export default function DataTablesContent({ tablePairs }: DataTablesContentProps
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t('dataTables')}</h2>
-          <p className="text-sm text-gray-600">
-            {t('tableScreenshotPairedData')}
-          </p>
-        </div>
-        <LanguageToggle />
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">{t('dataTables')}</h2>
+        <p className="text-sm text-gray-600">
+          {t('tableScreenshotPairedData')}
+        </p>
       </div>
 
       {tablePairs.length === 0 ? (

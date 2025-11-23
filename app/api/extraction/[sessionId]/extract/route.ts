@@ -60,10 +60,10 @@ export async function POST(
       );
     }
 
-    // Check state
-    if (session.state !== 'analyzed' && session.state !== 'extracting') {
+    // Check state - allow analyzed, extracting, or extracted (for multiple table extractions)
+    if (session.state !== 'analyzed' && session.state !== 'extracting' && session.state !== 'extracted') {
       return NextResponse.json(
-        { error: `Invalid state: ${session.state}. Expected: analyzed or extracting` },
+        { error: `Invalid state: ${session.state}. Expected: analyzed, extracting, or extracted` },
         { status: 400 }
       );
     }
@@ -72,23 +72,12 @@ export async function POST(
     await updateExtractionState(sessionId, 'extracting');
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 1: Load paper context (summary + index from analysis phase)
+    // STEP 1: Load paper context (index from analysis phase)
     // ═══════════════════════════════════════════════════════════════════
     console.log(`[Extract] Loading paper context...`);
 
-    const summaryPath = `${sessionId}/paper-summary.md`;
     const indexPath = `${sessionId}/paper-index.md`;
-
-    let paperSummary = '';
     let paperIndex = '';
-
-    try {
-      const summaryBuffer = await downloadFile('extractions', summaryPath);
-      paperSummary = summaryBuffer.toString('utf-8');
-      console.log(`[Extract] ✓ Loaded paper summary (${summaryBuffer.length} bytes)`);
-    } catch (error) {
-      console.warn(`[Extract] ⚠ Could not load paper-summary.md:`, error);
-    }
 
     try {
       const indexBuffer = await downloadFile('extractions', indexPath);
@@ -157,7 +146,6 @@ Your task: Extract the table from the provided screenshot into CSV format with M
 
     const userPrompt = `# Paper Context
 
-${paperSummary ? `## Paper Summary\n${paperSummary}\n` : ''}
 ${paperIndex ? `## Paper Index\n${paperIndex}\n` : ''}
 
 # Table to Extract

@@ -43,9 +43,11 @@ async function renderPageToPng(
     });
 
     if (result.exitCode !== 0) {
+      console.error(`[PDF Screenshot] Python script stderr:`, result.stderr);
+      console.error(`[PDF Screenshot] Python script stdout:`, result.stdout);
       return {
         success: false,
-        error: result.stderr || 'Python script failed',
+        error: result.stderr || result.stdout || 'Python script failed',
       };
     }
 

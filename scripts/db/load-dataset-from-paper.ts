@@ -15,6 +15,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { query } from '../../lib/db/connection';
 import { FILE_TYPES, getFileTypeFromExtension } from '../../lib/constants/file-types';
+import { extractPaperTitle } from '../../lib/utils/extract-paper-title';
 
 interface ParsedMetadata {
   datasetName: string;
@@ -301,12 +302,19 @@ function parseMetadata(indexContent: string, dirName: string): ParsedMetadata {
   const labMatch = indexContent.match(/\*\*Laboratory:\*\*\s*(.+)/);
   const laboratory = labMatch ? labMatch[1].trim() : null;
 
-  // Generate dataset name
+  // Generate dataset name - use paper title if available
   let datasetName: string;
-  if (authors.length > 0 && publicationYear) {
+  const paperTitle = extractPaperTitle(fullCitation);
+
+  if (paperTitle) {
+    // Use the extracted paper title as the dataset name
+    datasetName = paperTitle;
+  } else if (authors.length > 0 && publicationYear) {
+    // Fallback to "Author Year" format
     const firstAuthorLast = authors[0].split(' ').pop() || authors[0];
     datasetName = `${firstAuthorLast} ${publicationYear}`;
   } else {
+    // Last resort: use directory name
     datasetName = dirName.replace(/-/g, ' ');
   }
 

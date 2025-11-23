@@ -6,7 +6,6 @@ import { query } from '@/lib/db/connection';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
 import SupplementaryFilesSection from '@/components/datasets/SupplementaryFilesSection';
-import { extractPaperTitle } from '@/lib/utils/extract-paper-title';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,9 +86,6 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
   const authors = parsePostgresArray(dataset.authors);
   const analysisMethods = parsePostgresArray(dataset.analysisMethods);
 
-  // Extract paper title from full citation
-  const paperTitle = extractPaperTitle(dataset.fullCitation);
-
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -105,11 +101,7 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
             <h1 className="text-4xl font-bold text-gray-900">
               {dataset.datasetName}
             </h1>
-            {paperTitle && (
-              <h2 className="text-xl font-bold text-gray-700 mt-2">
-                {paperTitle}
-              </h2>
-            )}
+            {/* Note: paperTitle removed - dataset.datasetName now contains the full paper title */}
           </div>
 
           {/* FAIR Score Badge - Note: Not in datasets table, use FAIR Assessment tab */}

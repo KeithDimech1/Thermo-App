@@ -105,25 +105,65 @@ export async function POST(
       `INSERT INTO datasets (
         dataset_name,
         description,
+        full_citation,
+        authors,
+        publication_journal,
+        publication_year,
+        publication_volume_pages,
+        doi,
+        pdf_filename,
+        pdf_url,
+        supplementary_files_url,
+        study_location,
+        laboratory,
+        mineral_analyzed,
+        sample_count,
+        age_range_min_ma,
+        age_range_max_ma,
         publication_reference,
         publication_doi,
         study_area,
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()
       )
       RETURNING id`,
       [
         metadata.dataset_name,
         metadata.description,
-        metadata.full_citation, // Map to publication_reference
-        metadata.doi, // Map to publication_doi
-        metadata.study_location // Map to study_area
+        metadata.full_citation,
+        metadata.authors,
+        metadata.publication_journal,
+        metadata.publication_year,
+        metadata.publication_volume_pages,
+        metadata.doi,
+        metadata.pdf_filename,
+        metadata.pdf_url,
+        metadata.supplementary_files_url,
+        metadata.study_location,
+        metadata.laboratory,
+        metadata.mineral_analyzed,
+        metadata.sample_count,
+        metadata.age_range_min_ma,
+        metadata.age_range_max_ma,
+        metadata.full_citation, // Also map to publication_reference for backwards compatibility
+        metadata.doi, // Also map to publication_doi for backwards compatibility
+        metadata.study_location // Also map to study_area for backwards compatibility
       ]
     );
 
     const datasetId = dataset!.id;
     console.log(`[Load] Created dataset ID: ${datasetId}`);
+
+    // ========================================
+    // STEP 2.5: Add Authors to People Table and Link to Dataset
+    // ========================================
+    console.log('[Load] Step 2.5: Populating people table with authors...');
+
+    if (metadata.authors && metadata.authors.length > 0) {
+      await populateAuthors(datasetId, metadata.authors);
+      console.log(`[Load] Linked ${metadata.authors.length} authors to dataset`);
+    }
 
     // ========================================
     // STEP 3: Copy Files from Extractions to Datasets Bucket
@@ -163,11 +203,11 @@ export async function POST(
     // Copy CSVs
     console.log('[Load] Copying CSV files...');
     try {
-      const extractedFiles = await listFiles('extractions', `${sessionId}/extracted`);
+      const extractedFiles = await listFiles('extractions', `${sessionId}/tables`);
       const csvFiles = extractedFiles.filter(f => f.name.endsWith('.csv'));
 
       for (const csvFile of csvFiles) {
-        const csvBuffer = await downloadFile('extractions', `${sessionId}/extracted/${csvFile.name}`);
+        const csvBuffer = await downloadFile('extractions', `${sessionId}/tables/${csvFile.name}`);
         const csvUrl = await uploadFile(
           'datasets',
           `${datasetId}/csv/${csvFile.name}`,
@@ -248,6 +288,40 @@ export async function POST(
       }
     } catch (err) {
       console.log('[Load] No figure images found (this is OK)');
+    }
+
+    // Copy metadata files (paper-index.md, tables.md, table-index.json, plain-text.txt)
+    console.log('[Load] Copying extraction metadata files...');
+    const metadataFiles = [
+      { source: `${sessionId}/paper-index.md`, name: 'paper-index.md', type: 'text/markdown', description: 'Quick reference guide with paper metadata and table list' },
+      { source: `${sessionId}/tables.md`, name: 'tables.md', type: 'text/markdown', description: 'Visual table reference with metadata' },
+      { source: `${sessionId}/table-index.json`, name: 'table-index.json', type: 'application/json', description: 'Structured table metadata (JSON)' },
+      { source: `${sessionId}/text/plain-text.txt`, name: 'plain-text.txt', type: 'text/plain', description: 'Extracted PDF text content' }
+    ];
+
+    for (const metaFile of metadataFiles) {
+      try {
+        const metaBuffer = await downloadFile('extractions', metaFile.source);
+        const metaUrl = await uploadFile(
+          'datasets',
+          `${datasetId}/metadata/${metaFile.name}`,
+          metaBuffer,
+          metaFile.type
+        );
+
+        uploadedFiles.push({
+          file_name: metaFile.name,
+          file_path: metaUrl,
+          file_type: metaFile.type,
+          mime_type: metaFile.type,
+          file_size_bytes: metaBuffer.length,
+          display_name: metaFile.name.replace(/\.(md|json|txt)$/i, ''),
+          description: metaFile.description
+        });
+        console.log(`   ✓ Copied ${metaFile.name} (${(metaBuffer.length / 1024).toFixed(1)} KB)`);
+      } catch (err) {
+        console.log(`   ⚠️  Could not copy ${metaFile.name} (this is OK - may not exist)`);
+      }
     }
 
     console.log(`[Load] Uploaded ${uploadedFiles.length} files`);
@@ -474,6 +548,53 @@ export async function POST(
 // Helper Functions
 // ========================================
 
+/**
+ * Add authors to people table and link them to the dataset
+ *
+ * For each author:
+ * 1. Check if person exists by name (case-insensitive)
+ * 2. If not, create new person record
+ * 3. Link person to dataset via dataset_people_roles with role='author'
+ *
+ * @param datasetId - Dataset ID to link authors to
+ * @param authors - Array of author names
+ */
+async function populateAuthors(datasetId: number, authors: string[]): Promise<void> {
+  for (const authorName of authors) {
+    if (!authorName || authorName.trim().length === 0) {
+      continue; // Skip empty names
+    }
+
+    const cleanName = authorName.trim();
+
+    // Check if person already exists (case-insensitive)
+    let person = await queryOne<{ id: number }>(
+      'SELECT id FROM people WHERE LOWER(name) = LOWER($1)',
+      [cleanName]
+    );
+
+    // If person doesn't exist, create them
+    if (!person) {
+      person = await queryOne<{ id: number }>(
+        'INSERT INTO people (name, created_at) VALUES ($1, NOW()) RETURNING id',
+        [cleanName]
+      );
+      console.log(`[Load]   Created new person: ${cleanName} (ID: ${person!.id})`);
+    } else {
+      console.log(`[Load]   Found existing person: ${cleanName} (ID: ${person.id})`);
+    }
+
+    // Link person to dataset (if not already linked)
+    // Use ON CONFLICT to avoid duplicates
+    await query(
+      `INSERT INTO dataset_people_roles (dataset_id, person_id, role, created_at)
+       VALUES ($1, $2, 'author', NOW())
+       ON CONFLICT (dataset_id, person_id, role) DO NOTHING`,
+      [datasetId, person!.id]
+    );
+  }
+}
+
 function parsePaperMetadata(content: string, pdfFilename: string) {
   // Extract title
   const titleMatch = content.match(/\*\*Title:\*\*\s*(.+)/);
@@ -556,13 +677,8 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
   const age_range_min_ma = ageRangeMatch?.[1] ? parseFloat(ageRangeMatch[1]) : null;
   const age_range_max_ma = ageRangeMatch?.[2] ? parseFloat(ageRangeMatch[2]) : null;
 
-  // Generate dataset name (FirstAuthorLastName YEAR)
-  let dataset_name = 'Unknown Dataset';
-  if (authors.length > 0 && publication_year && authors[0]) {
-    const nameParts = authors[0].split(' ');
-    const firstAuthorLast = nameParts[nameParts.length - 1] || authors[0];
-    dataset_name = `${firstAuthorLast} ${publication_year}`;
-  }
+  // Use full paper title as dataset name
+  const dataset_name = title || 'Unknown Dataset';
 
   // Generate full citation (Author1, Author2, ... (Year). Title. Journal, Volume, Pages.)
   let full_citation = null;

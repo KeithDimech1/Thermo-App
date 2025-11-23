@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import { EarthBankDataset } from '@/lib/types/earthbank-types';
 
 // MIGRATED TO EARTHBANK SCHEMA - IDEA-014 Session 11
@@ -7,14 +10,53 @@ interface DatasetCardProps {
   sampleCount?: number;
   aftGrainCount?: number;
   aheGrainCount?: number;
+  displayMode?: 'title' | 'authors';
 }
 
 export default function DatasetCard({
   dataset,
   sampleCount = 0,
   aftGrainCount = 0,
-  aheGrainCount = 0
+  aheGrainCount = 0,
+  displayMode = 'title'
 }: DatasetCardProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/datasets/${dataset.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete dataset');
+      }
+
+      // Reload the page to reflect the deletion
+      window.location.reload();
+    } catch (error) {
+      alert(`Error deleting dataset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const cancelDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(false);
+  };
   // Parse authors if it's a PostgreSQL array string
   const parsePostgresArray = (val: any): string[] => {
     if (!val) return [];
@@ -34,15 +76,32 @@ export default function DatasetCard({
   const analysisMethods = parsePostgresArray(dataset.analysisMethods);
 
   return (
-    <Link
-      href={`/datasets/${dataset.id}`}
-      className="block bg-white shadow-md hover:shadow-xl transition-shadow rounded-lg p-6 border border-gray-200 hover:border-amber-400"
-    >
-      {/* Header */}
-      <div className="mb-4">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">
-          {dataset.datasetName}
-        </h3>
+    <div className="relative block bg-white shadow-md hover:shadow-xl transition-shadow rounded-lg p-6 border border-gray-200 hover:border-amber-400">
+      <Link href={`/datasets/${dataset.id}`} className="block">
+        {/* Header */}
+        <div className="mb-4">
+          {/* Primary Display (Title or Authors based on toggle) */}
+          <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            {displayMode === 'title' ? (
+              dataset.datasetName
+            ) : (
+              authors.length > 0 ? (
+                <>
+                  {authors.slice(0, 3).join(', ')}
+                  {authors.length > 3 && ' et al.'}
+                </>
+              ) : (
+                <span className="text-gray-400 italic">No authors listed</span>
+              )
+            )}
+          </h3>
+
+          {/* Secondary Display */}
+          {displayMode === 'authors' && (
+            <p className="text-sm text-gray-500 mb-2">
+              {dataset.datasetName}
+            </p>
+          )}
 
         {/* Laboratory */}
         {dataset.laboratory && (
@@ -69,8 +128,8 @@ export default function DatasetCard({
           </p>
         )}
 
-        {/* Authors */}
-        {authors.length > 0 && (
+        {/* Authors - only show if in title mode */}
+        {displayMode === 'title' && authors.length > 0 && (
           <p className="text-sm text-gray-600 mb-1">
             <span className="font-semibold">Authors:</span>{' '}
             <span className="italic">
@@ -165,12 +224,42 @@ export default function DatasetCard({
         </p>
       )}
 
-      {/* View Details Link */}
-      <div className="mt-4 pt-3 border-t border-gray-200">
-        <span className="text-amber-700 font-semibold text-sm hover:text-amber-900">
-          View Details & Download Data →
-        </span>
+        {/* View Details Link */}
+        <div className="mt-4 pt-3 border-t border-gray-200">
+          <span className="text-amber-700 font-semibold text-sm hover:text-amber-900">
+            View Details & Download Data →
+          </span>
+        </div>
+      </Link>
+
+      {/* Delete Button */}
+      <div className="mt-3 pt-3 border-t border-gray-200 flex justify-end gap-2">
+        {!showDeleteConfirm ? (
+          <button
+            onClick={handleDelete}
+            className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded hover:bg-red-100 transition-colors"
+          >
+            Delete Dataset
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={cancelDelete}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 border border-red-700 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+            </button>
+          </>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }

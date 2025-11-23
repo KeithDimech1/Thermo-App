@@ -135,7 +135,7 @@ export default function UploadPage() {
               Drop PDF here or click to browse
             </h3>
             <p className="text-slate-600 mb-4">
-              Maximum file size: 50 MB
+              Maximum file size: 150 MB
             </p>
             <label htmlFor="file-input" className="cursor-pointer">
               <span className="inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition">

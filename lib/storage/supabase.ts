@@ -16,6 +16,29 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Initialize Supabase client (singleton pattern)
 let supabaseClient: SupabaseClient | null = null;
 
+/**
+ * Sanitize filename to remove invalid characters for Supabase Storage
+ *
+ * Removes/replaces:
+ * - Unicode dashes (em dash, en dash) → regular hyphen
+ * - Special characters → underscore
+ * - Multiple spaces → single space
+ * - Leading/trailing spaces
+ */
+export function sanitizeFilename(filename: string): string {
+  return filename
+    // Replace Unicode dashes with regular hyphen
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    // Replace em dash and en dash
+    .replace(/[—–]/g, '-')
+    // Replace other problematic characters
+    .replace(/[^\w\s\-\.\/]/g, '_')
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    // Trim
+    .trim();
+}
+
 function getSupabaseClient(): SupabaseClient {
   if (!supabaseClient) {
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -48,22 +71,43 @@ export async function uploadFile(
 ): Promise<string> {
   const supabase = getSupabaseClient();
 
+  // Sanitize the path to remove invalid characters
+  const sanitizedPath = sanitizeFilename(path);
+
+  // Check file size (Supabase Pro: 5GB limit, Free: 50MB limit)
+  const fileSizeMB = file.length / (1024 * 1024);
+  const MAX_SIZE_MB = 5000; // 5GB for paid plans
+
+  if (fileSizeMB > MAX_SIZE_MB) {
+    throw new Error(
+      `File too large (${fileSizeMB.toFixed(1)} MB). Maximum allowed: ${MAX_SIZE_MB} MB. ` +
+      `Consider compressing the PDF or splitting it into smaller files.`
+    );
+  }
+
   // Upload with upsert (overwrites if exists)
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, file, {
+    .upload(sanitizedPath, file, {
       upsert: true,
       contentType: contentType,
     });
 
   if (error) {
+    // Enhanced error message for common issues
+    if (error.message.includes('maximum allowed size')) {
+      throw new Error(
+        `File upload failed: File size (${fileSizeMB.toFixed(1)} MB) exceeds Supabase storage limit. ` +
+        `Try compressing the PDF or check your Supabase plan limits.`
+      );
+    }
     throw new Error(`Supabase Storage upload failed: ${error.message}`);
   }
 
   // Get public URL
   const { data: { publicUrl } } = supabase.storage
     .from(bucket)
-    .getPublicUrl(path);
+    .getPublicUrl(sanitizedPath);
 
   return publicUrl;
 }

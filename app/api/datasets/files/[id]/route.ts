@@ -40,9 +40,15 @@ export async function GET(
       );
     }
 
-    // Resolve file path
-    // Paths starting with /data/ are in the public directory
-    // Other paths starting with / are absolute from project root
+    // Files are now stored in Supabase Storage
+    // The file_path contains the full public URL
+    // Redirect to the Supabase public URL directly
+    if (file.file_path.startsWith('http://') || file.file_path.startsWith('https://')) {
+      return NextResponse.redirect(file.file_path);
+    }
+
+    // Fallback: If file_path is a local path, try to serve from filesystem
+    // (This handles legacy data or locally stored files)
     let filePath: string;
     if (file.file_path.startsWith('/data/')) {
       // Convert /data/... to public/data/...

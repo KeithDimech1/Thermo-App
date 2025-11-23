@@ -61,7 +61,34 @@ You will receive the full text of a research paper. Analyze it carefully and ret
    - Extract figure captions exactly as written
    - Estimate page numbers based on text markers
 
-Return ONLY valid JSON. No markdown code blocks, no explanations.`;
+## CRITICAL JSON FORMATTING RULES:
+- Return ONLY valid, parseable JSON (RFC 8259 compliant)
+- Use double quotes (") for all strings, never single quotes (')
+- Escape quotes inside strings: \\"
+- Escape backslashes: \\\\
+- NO trailing commas before } or ]
+- NO markdown code blocks (no \`\`\`json or \`\`\`)
+- NO explanatory text before or after the JSON
+- NO newlines inside string values (use spaces instead)
+- All property names must be double-quoted
+
+Example of CORRECT formatting:
+{
+  "paper_metadata": {
+    "title": "This is a \\"quoted\\" title",
+    "authors": ["Smith", "Jones"]
+  }
+}
+
+Example of INCORRECT formatting (DO NOT USE):
+{
+  'paper_metadata': {  ← WRONG: single quotes
+    "title": "Title with unescaped " quote",  ← WRONG: unescaped quote
+    "authors": ["Smith", "Jones",]  ← WRONG: trailing comma
+  },  ← WRONG: trailing comma
+}
+
+Return ONLY the JSON object. Start with { and end with }. Nothing else.`;
 
 /**
  * Create user message for paper analysis

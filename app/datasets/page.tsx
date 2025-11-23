@@ -1,7 +1,7 @@
-import { Metadata } from 'next';
 import { getAllDatasets } from '@/lib/db/earthbank-queries';
 import { query } from '@/lib/db/connection';
-import DatasetCard from '@/components/datasets/DatasetCard';
+import DatasetsClient from '@/components/datasets/DatasetsClient';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Datasets',
@@ -53,44 +53,11 @@ export default async function PapersPage() {
   const datasets = await getAllDatasets();
   const statsMap = await getDatasetStats();
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">📄 Datasets</h1>
-        <p className="text-lg text-slate-600">
-          Browse thermochronology datasets with downloadable data files
-        </p>
-        <p className="text-sm text-slate-500 mt-2">
-          {datasets.length} {datasets.length === 1 ? 'dataset' : 'datasets'} available
-        </p>
-      </div>
+  // Convert Map to plain object for client component
+  const statsObject: Record<string, DatasetStats> = {};
+  statsMap.forEach((value, key) => {
+    statsObject[key] = value;
+  });
 
-      {/* Datasets Grid */}
-      {datasets.length === 0 ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
-          <div className="text-6xl mb-4">📭</div>
-          <h2 className="text-2xl font-semibold text-slate-900 mb-2">No Datasets Found</h2>
-          <p className="text-slate-600">
-            No datasets are currently available in the database.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {datasets.map(dataset => {
-            const stats = statsMap.get(dataset.id);
-            return (
-              <DatasetCard
-                key={dataset.id}
-                dataset={dataset}
-                sampleCount={stats?.sampleCount || 0}
-                aftGrainCount={stats?.aftGrainCount || 0}
-                aheGrainCount={stats?.aheGrainCount || 0}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  return <DatasetsClient datasets={datasets} statsMap={statsObject} />;
 }

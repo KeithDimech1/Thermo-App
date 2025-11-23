@@ -128,15 +128,48 @@ export async function POST(
     let analysisResult: AnalysisResult;
     try {
       // Remove markdown code blocks if present
-      const jsonText = analysisText
+      let jsonText = analysisText
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim();
 
+      // Try to extract JSON if there's additional text
+      // Look for the first { and last } to extract just the JSON object
+      const firstBrace = jsonText.indexOf('{');
+      const lastBrace = jsonText.lastIndexOf('}');
+
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+      }
+
+      // Common JSON fixes for Claude responses
+      // Fix single quotes (but be careful with apostrophes in text)
+      // Fix trailing commas before } or ]
+      jsonText = jsonText
+        .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+        .replace(/\n/g, ' ')            // Replace newlines with spaces
+        .replace(/\r/g, '');            // Remove carriage returns
+
       analysisResult = JSON.parse(jsonText);
     } catch (error) {
       console.error(`[Analyze API] JSON parse error:`, error);
-      throw new Error('Failed to parse Claude API response as JSON');
+      console.error(`[Analyze API] Raw response (first 500 chars):`, analysisText.substring(0, 500));
+      console.error(`[Analyze API] Raw response (last 500 chars):`, analysisText.substring(Math.max(0, analysisText.length - 500)));
+
+      // Save the failed response for debugging
+      try {
+        await uploadFile(
+          'extractions',
+          `${sessionId}/debug-failed-response.txt`,
+          Buffer.from(analysisText, 'utf-8'),
+          'text/plain'
+        );
+        console.log(`[Analyze API] Saved failed response to debug-failed-response.txt`);
+      } catch (uploadError) {
+        console.error(`[Analyze API] Failed to save debug response:`, uploadError);
+      }
+
+      throw new Error(`Failed to parse Claude API response as JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     console.log(`[Analyze API] Parsed analysis result:`, {

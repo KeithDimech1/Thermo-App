@@ -424,11 +424,14 @@ export async function getAllDatasets(): Promise<EarthBankDataset[]> {
   const sql = `
     SELECT
       d.*,
-      (
-        SELECT array_agg(p.name)
-        FROM dataset_people_roles dpr
-        JOIN people p ON dpr.person_id = p.id
-        WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+      COALESCE(
+        (
+          SELECT array_agg(p.name)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
       ) as authors
     FROM datasets d
     ORDER BY d.id ASC
@@ -469,11 +472,14 @@ export async function getDatasetById(id: string): Promise<EarthBankDataset | nul
   const sql = `
     SELECT
       d.*,
-      (
-        SELECT array_agg(p.name)
-        FROM dataset_people_roles dpr
-        JOIN people p ON dpr.person_id = p.id
-        WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+      COALESCE(
+        (
+          SELECT array_agg(p.name)
+          FROM dataset_people_roles dpr
+          JOIN people p ON dpr.person_id = p.id
+          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
+        ),
+        d.authors
       ) as authors
     FROM datasets d
     WHERE d.id = $1

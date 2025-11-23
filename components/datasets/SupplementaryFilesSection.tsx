@@ -18,10 +18,17 @@ interface SupplementaryFile {
 
 // Helper function to convert file path to public URL
 function getPublicUrl(filePath: string): string {
-  // File paths in database are stored as: extract-xxx/tables/table-1.csv or similar
-  // We need to construct the full Supabase public URL
+  // File paths in database are already full Supabase public URLs
+  // Example: https://ggkrikijxollyolifdqs.supabase.co/storage/v1/object/public/datasets/8/figures/figure-1.png
+
+  // If it's already a full URL, return it as-is
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
+
+  // Fallback: construct URL for relative paths
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = 'extractions'; // Assuming all supplementary files are in extractions bucket
+  const bucket = 'datasets'; // Updated to use datasets bucket
 
   if (!supabaseUrl) {
     console.warn('NEXT_PUBLIC_SUPABASE_URL not set, using file path as-is');

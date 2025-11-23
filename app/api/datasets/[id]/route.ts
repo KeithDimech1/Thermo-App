@@ -40,7 +40,7 @@ export async function DELETE(
       'SELECT session_id FROM extraction_sessions WHERE dataset_id = $1',
       [datasetId]
     );
-    const extractionSessionId = extractionResult.length > 0 ? extractionResult[0].session_id : null;
+    const extractionSessionId = extractionResult[0]?.session_id ?? null;
 
     // 2. Delete dataset from database (CASCADE will handle all related tables)
     const deleteResult = await query(

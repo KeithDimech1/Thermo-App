@@ -4,12 +4,11 @@
  * Captures screenshots of specific PDF pages for table/figure backup.
  * Ensures visual fallback even when CSV extraction fails.
  *
- * Uses PyMuPDF (via Python bridge) instead of pdf-to-png-converter
- * to avoid native binding issues.
+ * Uses PDF.js (JavaScript) for serverless compatibility.
  */
 
 import { uploadFile } from '@/lib/storage/supabase';
-import { executePythonScript } from '@/lib/utils/python-bridge';
+import { renderPageToPng } from '@/lib/utils/pdf-utils';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -21,45 +20,7 @@ export interface TableScreenshotInfo {
   imagePath: string;
 }
 
-/**
- * Render a PDF page to PNG using PyMuPDF
- */
-async function renderPageToPng(
-  pdfPath: string,
-  pageNumber: number,
-  outputPath: string,
-  zoom: number = 2.0
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const scriptPath = path.join(process.cwd(), 'lib/utils/pdf-to-png.py');
-
-    const result = await executePythonScript(scriptPath, [
-      pdfPath,
-      pageNumber.toString(),
-      outputPath,
-      zoom.toString(),
-    ], {
-      timeout: 30000, // 30 second timeout per page
-    });
-
-    if (result.exitCode !== 0) {
-      console.error(`[PDF Screenshot] Python script stderr:`, result.stderr);
-      console.error(`[PDF Screenshot] Python script stdout:`, result.stdout);
-      return {
-        success: false,
-        error: result.stderr || result.stdout || 'Python script failed',
-      };
-    }
-
-    const parsed = JSON.parse(result.stdout);
-    return parsed;
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
+// Note: renderPageToPng is now imported from '@/lib/utils/pdf-utils'
 
 /**
  * Capture screenshots of table pages from PDF

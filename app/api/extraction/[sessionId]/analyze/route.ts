@@ -15,7 +15,7 @@ import {
   updatePaperMetadata,
   markSessionFailed,
 } from '@/lib/db/extraction-queries';
-import { extractPDFText, checkPyMuPDFInstalled } from '@/lib/utils/python-bridge';
+import { extractPDFText, checkPDFJSAvailable } from '@/lib/utils/pdf-utils';
 import { createMessage, isAnthropicConfigured } from '@/lib/anthropic/client';
 import { captureTableScreenshots, captureFigureScreenshots } from '@/lib/extraction/pdf-screenshot';
 import {
@@ -58,9 +58,9 @@ export async function POST(
       throw new Error('Anthropic API key not configured');
     }
 
-    const pymupdfInstalled = await checkPyMuPDFInstalled();
-    if (!pymupdfInstalled) {
-      throw new Error('PyMuPDF not installed. Please install: pip install pymupdf');
+    const pdfjsAvailable = await checkPDFJSAvailable();
+    if (!pdfjsAvailable) {
+      throw new Error('PDF.js not properly configured');
     }
 
     // Get session

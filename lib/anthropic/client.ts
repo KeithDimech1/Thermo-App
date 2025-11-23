@@ -49,7 +49,7 @@ export async function createMessageWithContent(
   systemPrompt: string,
   content: Array<
     | { type: 'text'; text: string }
-    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+    | { type: 'image'; source: { type: 'base64'; media_type: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'; data: string } }
   >,
   options?: {
     maxTokens?: number;

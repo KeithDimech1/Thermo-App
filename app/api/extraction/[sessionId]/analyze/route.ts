@@ -100,8 +100,7 @@ export async function POST(
     const pdfText = await extractPDFText(tempPdfPath);
     console.log(`[Analyze API] Extracted ${pdfText.length} characters`);
 
-    // Clean up temp file
-    await fs.rm(tempDir, { recursive: true, force: true });
+    // NOTE: Don't clean up temp file yet - we need it for screenshot capture later
 
     // Step 3: Send to Claude API for analysis
     console.log(`[Analyze API] Sending to Claude API...`);
@@ -175,6 +174,10 @@ export async function POST(
       console.error(`[Analyze API] Screenshot capture failed (non-fatal):`, screenshotError);
       // Continue with workflow even if screenshots fail
     }
+
+    // Clean up temp PDF file now that we're done with it
+    await fs.rm(tempDir, { recursive: true, force: true });
+    console.log(`[Analyze API] Cleaned up temp PDF file`);
 
     // Step 6: Upload extracted text to Supabase Storage
     console.log(`[Analyze API] Uploading analysis files to Supabase Storage...`);

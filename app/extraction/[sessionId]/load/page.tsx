@@ -264,15 +264,24 @@ export default function LoadPage({ params }: PageProps) {
         ) : (
           // Success State
           <div className="space-y-6">
-            {/* Success Banner */}
+            {/* Success Banner with Primary CTA */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="text-3xl">✅</div>
                 <h2 className="text-2xl font-bold text-green-900">Load Complete!</h2>
               </div>
-              <p className="text-green-800">
-                Dataset created successfully. Visit ThermoFAIR to perform FAIR assessment.
+              <p className="text-green-800 mb-4">
+                Dataset created successfully. View your dataset or perform FAIR assessment.
               </p>
+
+              {/* Primary CTA Button */}
+              <Link
+                href={`/datasets/${loadResult.dataset_id}`}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md"
+              >
+                <span className="text-xl">📄</span>
+                <span>View Dataset</span>
+              </Link>
             </div>
 
             {/* Dataset Info */}

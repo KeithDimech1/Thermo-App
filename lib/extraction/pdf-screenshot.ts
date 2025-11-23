@@ -9,7 +9,7 @@
  */
 
 import { uploadFile } from '@/lib/storage/supabase';
-import { execSync } from 'child_process';
+import { executePythonScript } from '@/lib/utils/python-bridge';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -32,14 +32,24 @@ async function renderPageToPng(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const scriptPath = path.join(process.cwd(), 'lib/utils/pdf-to-png.py');
-    const command = `python3 "${scriptPath}" "${pdfPath}" ${pageNumber} "${outputPath}" ${zoom}`;
 
-    const result = execSync(command, {
-      encoding: 'utf-8',
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+    const result = await executePythonScript(scriptPath, [
+      pdfPath,
+      pageNumber.toString(),
+      outputPath,
+      zoom.toString(),
+    ], {
+      timeout: 30000, // 30 second timeout per page
     });
 
-    const parsed = JSON.parse(result);
+    if (result.exitCode !== 0) {
+      return {
+        success: false,
+        error: result.stderr || 'Python script failed',
+      };
+    }
+
+    const parsed = JSON.parse(result.stdout);
     return parsed;
   } catch (error) {
     return {

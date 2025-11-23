@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDatasetById } from '@/lib/db/earthbank-queries';
 import { query } from '@/lib/db/connection';
+import { getDataFilesByDataset } from '@/lib/db/queries';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
 import SupplementaryFilesSection from '@/components/datasets/SupplementaryFilesSection';
@@ -81,6 +82,11 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
   }
 
   const stats = await getDatasetStats(id);
+  const datasetIdInt = parseInt(id, 10);
+  const allFiles = await getDataFilesByDataset(datasetIdInt);
+
+  // Find paper-index.md file
+  const paperIndexFile = allFiles.find(f => f.file_name === 'paper-index.md');
 
   // Parse PostgreSQL array fields
   const authors = parsePostgresArray(dataset.authors);
@@ -134,6 +140,14 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Authors */}
+          {authors.length > 0 && (
+            <div className="md:col-span-2">
+              <p className="text-sm font-semibold text-gray-700 mb-1">👤 Authors</p>
+              <p className="text-gray-900">{authors.join(', ')}</p>
+            </div>
+          )}
+
           {/* Journal */}
           {dataset.publicationJournal && (
             <div>
@@ -182,8 +196,8 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* PDF Link and Supplementary Materials */}
-        {(dataset.pdfUrl || dataset.supplementaryFilesUrl) && (
+        {/* PDF Link, Paper Index, and Supplementary Materials */}
+        {(dataset.pdfUrl || dataset.supplementaryFilesUrl || paperIndexFile) && (
           <div className="mt-4 pt-4 border-t border-amber-200 flex flex-wrap gap-3">
             {dataset.pdfUrl && (
               <a
@@ -195,6 +209,16 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
                 📎 View Full PDF
               </a>
             )}
+            {paperIndexFile && (
+              <a
+                href={paperIndexFile.file_path}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+              >
+                📋 Paper Index & Metadata
+              </a>
+            )}
             {dataset.supplementaryFilesUrl && (
               <a
                 href={dataset.supplementaryFilesUrl}
@@ -202,7 +226,7 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
               >
-                📊 Supplementary Data
+                📊 Supplementary Data Package
               </a>
             )}
           </div>
@@ -235,14 +259,6 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
 
       {/* Metadata Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Authors */}
-        {authors.length > 0 && (
-          <div className="p-4 bg-white rounded-lg border border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 mb-2">👤 Authors</p>
-            <p className="text-sm text-gray-900">{authors.join(', ')}</p>
-          </div>
-        )}
-
         {/* Mineral Analyzed */}
         {dataset.mineralAnalyzed && (
           <div className="p-4 bg-white rounded-lg border border-gray-200">

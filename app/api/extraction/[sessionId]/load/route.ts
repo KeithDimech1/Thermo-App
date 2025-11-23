@@ -444,21 +444,10 @@ export async function POST(
         interoperable_score,
         reusable_score,
         total_score,
-        has_persistent_id,
-        has_descriptive_metadata,
-        has_keywords,
-        has_open_access,
-        has_standard_protocol,
-        uses_standard_format,
-        uses_controlled_vocab,
-        has_field_definitions,
-        has_license,
-        has_provenance,
-        has_qc_metrics,
         created_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, NOW(), NOW()
       )`,
       [
         datasetId,
@@ -466,18 +455,7 @@ export async function POST(
         fairAssessment.accessible_score,
         fairAssessment.interoperable_score,
         fairAssessment.reusable_score,
-        fairAssessment.total_score,
-        fairAssessment.has_persistent_id || false,
-        fairAssessment.has_descriptive_metadata || false,
-        fairAssessment.has_keywords || false,
-        fairAssessment.has_open_access || false,
-        fairAssessment.has_standard_protocol || false,
-        fairAssessment.uses_standard_format || false,
-        fairAssessment.uses_controlled_vocab || false,
-        fairAssessment.has_field_definitions || false,
-        fairAssessment.has_license || false,
-        fairAssessment.has_provenance || false,
-        fairAssessment.has_qc_metrics || false
+        fairAssessment.total_score
       ]
     );
 

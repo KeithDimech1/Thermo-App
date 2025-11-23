@@ -4,6 +4,8 @@
  * Replaces PyMuPDF/Python bridge with serverless-friendly solution.
  * unpdf is designed for edge/serverless environments (Vercel, Cloudflare Workers, etc.)
  * Zero dependencies, ~1.4MB, no native bindings.
+ *
+ * Note: PNG rendering removed - extraction now uses plain text (more reliable)
  */
 
 import { getDocumentProxy } from 'unpdf';
@@ -77,11 +79,10 @@ export async function extractPDFMetadata(pdfPath: string): Promise<{
 }
 
 /**
- * Render a PDF page to PNG using unpdf
+ * PNG rendering disabled - extraction now uses plain text instead
  *
- * NOTE: PNG rendering is currently disabled for serverless compatibility.
- * Screenshots are optional - the extraction workflow continues without them.
- * Future: Consider using @napi-rs/canvas or pdfium for serverless PNG rendering.
+ * This is more reliable and fully serverless-compatible.
+ * Screenshots were causing native binding issues on Vercel.
  */
 export async function renderPageToPng(
   _pdfPath: string,
@@ -89,18 +90,11 @@ export async function renderPageToPng(
   _outputPath: string,
   _zoom: number = 2.0
 ): Promise<{ success: boolean; error?: string; width?: number; height?: number }> {
-  // PNG rendering disabled for serverless compatibility
-  // Text extraction still works perfectly
+  // PNG rendering disabled - extraction uses text-based approach
   return {
     success: false,
-    error: 'PNG rendering disabled for serverless compatibility (text extraction still works)',
+    error: 'PNG rendering disabled (extraction uses text-based approach)',
   };
-
-  // TODO: Implement serverless-compatible PNG rendering if needed
-  // Options:
-  // 1. Use @napi-rs/canvas (Rust-based, smaller than node-canvas)
-  // 2. Use external service like Cloudinary or Imgix
-  // 3. Generate screenshots client-side in browser
 }
 
 /**

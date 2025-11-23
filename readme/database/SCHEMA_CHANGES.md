@@ -1,6 +1,30 @@
 # Database Schema Changes
 
 **Auto-Generated:** This file tracks all schema changes detected by comparing snapshots.
+**Last Updated:** 2025-11-23 20:50:00
+
+---
+
+## 2025-11-23 (Snapshot Refresh - No Schema Changes)
+
+### 📊 Schema Snapshot Updated
+
+**Type:** Documentation refresh (no actual schema changes)
+**Status:** ✓ Current snapshot now reflects post-migration state
+
+**Changes:**
+- Updated `.schema-snapshot.sql` to current Supabase schema
+- Snapshot now shows 5 EarthBank tables (earthbank_*)
+- Previous snapshot was from Neon database (obsolete)
+
+**Tables in Current Snapshot:**
+- `earthbank_samples` (29 columns, camelCase)
+- `earthbank_ftDatapoints` (33 columns, camelCase)
+- `earthbank_ftTrackLengthData` (10 columns, camelCase)
+- `earthbank_heDatapoints` (14 columns, camelCase)
+- `earthbank_heWholeGrainData` (34 columns, camelCase)
+
+**Note:** No new schema changes since 2025-11-21 migration. This update just refreshes documentation to match current production state.
 
 ---
 

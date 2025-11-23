@@ -1,6 +1,51 @@
 # Documentation Changes
 
 Auto-generated changelog tracking documentation updates.
+**Last Updated:** 2025-11-23 20:50:00
+
+---
+
+## 2025-11-23 20:50:00 (BigTidy: Project Tidy + Schema Snapshot Refresh)
+
+### ✅ Phase 1-2: Project Structure Tidied
+
+**Files Moved:**
+- `logs_result.csv` → `build-data/assets/` (100 KB data file)
+- `.env.local.bak` → `build-data/archive/` (2.6 KB backup)
+
+**Updates:**
+- ✓ `.gitignore` updated (added `tsconfig.tsbuildinfo`)
+- ✓ Build artifact folders created (`build-data/assets/`, `build-data/archive/`)
+- ✓ Root directory cleaned (2 files moved)
+
+### 🔄 Phase 3: Living Documentation Updated
+
+**Project Index Refreshed:**
+- ✓ `PROJECT_INDEX.json` updated
+- ✓ 235 code files indexed (+29 from last run)
+  - 113 TypeScript files (with full function signatures)
+  - 58 Python files (with full function signatures)
+  - 5 JavaScript files
+  - 3 Shell scripts (parsed)
+  - 38 SQL files (listed only)
+- ✓ 71 markdown documentation files
+- ✓ 94 directories cataloged
+
+**Database Schema:**
+- ✓ Schema snapshot refreshed (`.schema-snapshot.sql`)
+- ✓ `SCHEMA_CHANGES.md` updated (snapshot refresh documented)
+- ✓ Current state: 5 EarthBank tables (camelCase, post-IDEA-014)
+- ℹ️ No schema changes since 2025-11-21 migration
+
+**Code Documentation:**
+- ℹ️ No new code files to document (working tree clean)
+- ✓ Existing documentation in `readme/` remains current
+
+**Statistics:**
+- Total documented files: 235 code + 71 docs
+- Database tables documented: 5
+- Lines of schema SQL: 162
+- Project directories: 94
 
 ---
 

@@ -88,24 +88,45 @@ export async function POST(
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 2: Load table screenshot
+    // STEP 2: Load plain text from PDF (more reliable than screenshots)
     // ═══════════════════════════════════════════════════════════════════
-    console.log(`[Extract] Loading table screenshot...`);
+    console.log(`[Extract] Loading PDF plain text...`);
 
-    const screenshotPath = `${sessionId}/images/tables/table-${table.table_number}.png`;
-    let tableScreenshotBase64: string | undefined;
+    const textPath = `${sessionId}/text/plain-text.txt`;
+    let pdfText = '';
 
     try {
-      const screenshotBuffer = await downloadFile('extractions', screenshotPath);
-      tableScreenshotBase64 = screenshotBuffer.toString('base64');
-      console.log(`[Extract] ✓ Loaded table screenshot (${screenshotBuffer.length} bytes)`);
+      const textBuffer = await downloadFile('extractions', textPath);
+      pdfText = textBuffer.toString('utf-8');
+      console.log(`[Extract] ✓ Loaded PDF text (${pdfText.length} characters)`);
     } catch (error) {
-      console.error(`[Extract] ❌ Failed to load table screenshot:`, error);
-      await markSessionFailed(sessionId, `Failed to load table screenshot: ${error}`, 'extract');
+      console.error(`[Extract] ❌ Failed to load PDF text:`, error);
+      await markSessionFailed(sessionId, `Failed to load PDF text: ${error}`, 'extract');
       return NextResponse.json(
-        { error: 'Table screenshot not found - run analysis phase first' },
+        { error: 'PDF text not found - run analysis phase first' },
         { status: 400 }
       );
+    }
+
+    // Extract relevant section around the table's page
+    let tableContext = pdfText;
+    if (table.page_number) {
+      const pageMarker = `--- Page ${table.page_number} ---`;
+      const pageStart = pdfText.indexOf(pageMarker);
+      if (pageStart !== -1) {
+        // Get 3 pages of context (current + before + after)
+        const prevPageMarker = `--- Page ${table.page_number - 1} ---`;
+        const nextNextPageMarker = `--- Page ${table.page_number + 2} ---`;
+
+        const contextStart = pdfText.indexOf(prevPageMarker);
+        const contextEnd = pdfText.indexOf(nextNextPageMarker);
+
+        const start = contextStart !== -1 ? contextStart : pageStart;
+        const end = contextEnd !== -1 ? contextEnd : pdfText.length;
+
+        tableContext = pdfText.substring(start, end);
+        console.log(`[Extract] ✓ Extracted context for page ${table.page_number} (${tableContext.length} chars)`);
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -115,20 +136,20 @@ export async function POST(
 
     const systemPrompt = `You are a data extraction assistant specializing in scientific literature.
 
-Your task: Extract the table from the provided screenshot into CSV format with MAXIMUM ACCURACY.
+Your task: Extract the table from the provided text into CSV format with MAXIMUM ACCURACY.
 
 ## Instructions:
 
-1. **Examine the table screenshot carefully**
-2. **Count the exact number of columns** in the image
-3. **Extract ALL rows** maintaining the exact column structure
-4. **Use EXACT column headers** as shown in the image
+1. **Examine the text carefully** to find Table ${table.table_number}
+2. **Extract the table structure** (headers and data rows)
+3. **Count the exact number of columns**
+4. **Use EXACT column headers** as shown in the text
 5. **Preserve all data values** exactly as they appear (numbers, symbols, text)
 
 ## Formatting Rules:
 
 - Return ONLY the CSV data (no markdown, no explanations)
-- First row: Original column headers from image
+- First row: Original column headers from table
 - Subsequent rows: Data values
 - Use commas as delimiters
 - Quote text containing commas, quotes, or newlines
@@ -139,8 +160,8 @@ Your task: Extract the table from the provided screenshot into CSV format with M
 
 ## Quality Checks:
 
-- Column count in CSV must match image EXACTLY
-- Row count in CSV must match image
+- Column count in CSV must match table exactly
+- Row count in CSV must match table
 - Data must align with headers
 - No completely empty columns`;
 
@@ -154,11 +175,16 @@ ${paperIndex ? `## Paper Index\n${paperIndex}\n` : ''}
 **Caption:** ${table.caption || 'No caption provided'}
 **Estimated Columns:** ${table.estimated_columns || 'Unknown'}
 **Estimated Rows:** ${table.estimated_rows || 'Unknown'}
+**Page Number:** ${table.page_number || 'Unknown'}
+
+# Relevant Text from PDF
+
+${tableContext}
 
 # Instructions
 
-Extract the table from the screenshot below into CSV format.
-Use the paper context above to understand the domain and terminology.
+Extract Table ${table.table_number} from the text above into CSV format.
+Use the paper context to understand the domain and terminology.
 Return ONLY the CSV data (no markdown code blocks, no explanations).`;
 
     // ═══════════════════════════════════════════════════════════════════
@@ -169,14 +195,6 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
     const response = await createMessageWithContent(
       systemPrompt,
       [
-        {
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: 'image/png',
-            data: tableScreenshotBase64,
-          },
-        },
         {
           type: 'text',
           text: userPrompt,

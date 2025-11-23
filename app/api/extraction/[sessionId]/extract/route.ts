@@ -559,6 +559,10 @@ export async function POST(
 
     console.log(`[Extract API] CSV uploaded to: ${csvUrl}`);
 
+    // Update session state to 'extracted'
+    await updateExtractionState(sessionId, 'extracted', 3);
+    console.log(`[Extract API] State updated to extracted`);
+
     // Return success response
     const result: ExtractionResult = {
       success: true,

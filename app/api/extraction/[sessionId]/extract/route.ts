@@ -101,7 +101,7 @@ export async function POST(
       console.log(`[Extract] ✓ Loaded table screenshot (${screenshotBuffer.length} bytes)`);
     } catch (error) {
       console.error(`[Extract] ❌ Failed to load table screenshot:`, error);
-      await markSessionFailed(sessionId, `Failed to load table screenshot: ${error}`);
+      await markSessionFailed(sessionId, `Failed to load table screenshot: ${error}`, 'extract');
       return NextResponse.json(
         { error: 'Table screenshot not found - run analysis phase first' },
         { status: 400 }
@@ -208,7 +208,7 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
       console.log(`[Extract] ✓ Parsed ${csvData.length} rows`);
     } catch (error) {
       console.error(`[Extract] ❌ CSV parse error:`, error);
-      await markSessionFailed(sessionId, `Failed to parse CSV: ${error}`);
+      await markSessionFailed(sessionId, `Failed to parse CSV: ${error}`, 'extract');
       return NextResponse.json(
         { error: 'Failed to parse extracted CSV data', details: String(error) },
         { status: 500 }
@@ -218,7 +218,7 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
     // Basic sanity check - must have at least 1 row
     if (csvData.length === 0) {
       console.error(`[Extract] ❌ No data extracted`);
-      await markSessionFailed(sessionId, 'No data in extracted CSV');
+      await markSessionFailed(sessionId, 'No data in extracted CSV', 'extract');
       return NextResponse.json(
         { error: 'Extraction returned no data' },
         { status: 500 }
@@ -285,7 +285,8 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
 
     await markSessionFailed(
       sessionId,
-      `Extraction failed: ${error instanceof Error ? error.message : String(error)}`
+      `Extraction failed: ${error instanceof Error ? error.message : String(error)}`,
+      'extract'
     );
 
     return NextResponse.json(

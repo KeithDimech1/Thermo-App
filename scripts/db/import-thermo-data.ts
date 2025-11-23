@@ -15,7 +15,7 @@
  *
  * Thermochronology Data Import Script (LEGACY - NEEDS UPDATING)
  *
- * Imports FAIR-formatted CSV data into PostgreSQL/Neon database
+ * Imports FAIR-formatted CSV data into PostgreSQL (Supabase) database
  * Handles transactions, error recovery, and progress reporting
  *
  * Usage:
@@ -62,7 +62,7 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes('neon.tech') || DATABASE_URL.includes('supabase')
+  ssl: DATABASE_URL.includes('supabase')
     ? { rejectUnauthorized: false }
     : undefined
 });

@@ -40,7 +40,7 @@ The `scripts/` directory contains utilities for data extraction, database manage
 - Used by `/bigtidy` for schema snapshots
 
 **`verify-connection.sh`** - Connection tester
-- Verifies you're connected to correct database (neondb)
+- Verifies you're connected to correct database (Supabase postgres database)
 
 ### Import Scripts
 
@@ -66,7 +66,7 @@ The `scripts/` directory contains utilities for data extraction, database manage
 
 **`test-connection.ts`** - Test database connection
 **`test-earthbank-queries.ts`** - Test query functions
-**`check-neon-data.ts`** - Verify Neon data integrity
+**`check-supabase-data.ts`** - Verify Supabase data integrity
 **`check-datasets-columns.ts`** - Schema validation
 **`export-schema.ts`** - Export schema snapshot
 **`generate-schema-snapshot.ts`** - Generate schema docs
@@ -371,7 +371,7 @@ npx tsx scripts/db/reset-database.ts
 
 **Node.js packages:**
 - exceljs - Excel template reading
-- @vercel/postgres - Neon connection
+- @vercel/postgres - Supabase connection
 - tsx - TypeScript execution
 
 ---

@@ -1,19 +1,20 @@
 /**
  * File upload utility for IDEA-015
  * Handles PDF uploads, validation, and storage
+ *
+ * ERROR-021: Migrated to Supabase Storage (was local filesystem)
  */
 
-import fs from 'fs/promises';
-import path from 'path';
 import { nanoid } from 'nanoid';
+import { uploadFile, deleteDirectory, fileExists } from '@/lib/storage/supabase';
 
 /**
  * Uploaded file metadata
  */
 export interface UploadedFile {
   filename: string;
-  path: string;          // Full filesystem path
-  relativePath: string;  // Relative path for database (e.g., /uploads/session/file.pdf)
+  path: string;          // Supabase Storage public URL
+  relativePath: string;  // Supabase Storage public URL (same as path)
   size: number;
   mimetype: string;
 }
@@ -69,78 +70,77 @@ export function validatePDF(file: File): { valid: boolean; error?: string } {
 }
 
 /**
- * Save uploaded PDF to uploads directory
- * Creates directory structure: public/uploads/{sessionId}/original.pdf
+ * Save uploaded PDF to Supabase Storage
+ * Uploads to: extractions/{sessionId}/original.pdf
+ *
+ * ERROR-021: Migrated from local filesystem to Supabase Storage
  */
 export async function saveUploadedPDF(
   file: File,
   sessionId: string
 ): Promise<UploadedFile> {
-  // Create uploads directory for this session
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-  await fs.mkdir(uploadDir, { recursive: true });
-
-  // Save as original.pdf
-  const filename = 'original.pdf';
-  const fullPath = path.join(uploadDir, filename);
-
-  // Convert File to Buffer and write
+  // Convert File to Buffer
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  await fs.writeFile(fullPath, buffer);
+
+  // Upload to Supabase Storage (extractions bucket)
+  const filename = 'original.pdf';
+  const storagePath = `${sessionId}/${filename}`;
+  const publicUrl = await uploadFile('extractions', storagePath, buffer, file.type);
 
   // Return file metadata
   return {
     filename: file.name, // Original filename
-    path: fullPath,
-    relativePath: `/uploads/${sessionId}/${filename}`,
+    path: publicUrl,
+    relativePath: publicUrl,
     size: file.size,
     mimetype: file.type
   };
 }
 
 /**
- * Delete session upload directory and all files
+ * Delete session files from Supabase Storage
+ *
+ * ERROR-021: Migrated from local filesystem to Supabase Storage
  */
 export async function deleteSessionFiles(sessionId: string): Promise<void> {
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-
   try {
-    await fs.rm(uploadDir, { recursive: true, force: true });
+    await deleteDirectory('extractions', sessionId);
   } catch (error) {
     // Ignore if directory doesn't exist
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw error;
-    }
+    console.warn(`Failed to delete session files for ${sessionId}:`, error);
   }
 }
 
 /**
- * Check if session upload directory exists
+ * Check if session files exist in Supabase Storage
+ *
+ * ERROR-021: Migrated from local filesystem to Supabase Storage
  */
 export async function sessionFilesExist(sessionId: string): Promise<boolean> {
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-
   try {
-    await fs.access(uploadDir);
-    return true;
+    return await fileExists('extractions', `${sessionId}/original.pdf`);
   } catch {
     return false;
   }
 }
 
 /**
- * Get session file path
+ * Get session file storage path (for Supabase Storage)
+ *
+ * ERROR-021: Returns Supabase Storage path, not filesystem path
  */
 export function getSessionFilePath(sessionId: string, filename: string = 'original.pdf'): string {
-  return path.join(process.cwd(), 'public', 'uploads', sessionId, filename);
+  return `${sessionId}/${filename}`;
 }
 
 /**
- * Get session directory path
+ * Get session directory storage path (for Supabase Storage)
+ *
+ * ERROR-021: Returns Supabase Storage path, not filesystem path
  */
 export function getSessionDirectory(sessionId: string): string {
-  return path.join(process.cwd(), 'public', 'uploads', sessionId);
+  return sessionId;
 }
 
 /**

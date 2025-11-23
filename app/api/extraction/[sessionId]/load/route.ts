@@ -9,19 +9,20 @@
  * Steps:
  * 1. Parse paper metadata from paper-index.md
  * 2. Create dataset record in datasets table
- * 3. Upload files to public/data/datasets/[dataset_id]/
- * 4. Track files in data_files table
+ * 3. Copy files from extractions bucket to datasets bucket
+ * 4. Track files in data_files table (with Supabase Storage URLs)
  * 5. Perform FAIR analysis against Kohn 2024 standards
  * 6. Generate FAIR reports (fair-compliance.json, extraction-report.md)
  * 7. Update database with FAIR scores
  * 8. Return success response with dataset info
+ *
+ * ERROR-021: Migrated to Supabase Storage
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs/promises';
 import { query, queryOne } from '@/lib/db/connection';
 import { FILE_TYPES, getFileTypeFromExtension } from '@/lib/constants/file-types';
+import { downloadFile, uploadFile, listFiles } from '@/lib/storage/supabase';
 
 interface LoadResponse {
   success: boolean;
@@ -77,15 +78,14 @@ export async function POST(
       ['loading', sessionId]
     );
 
-    const sessionDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-
     // ========================================
     // STEP 1: Parse Paper Metadata
     // ========================================
-    console.log('[Load] Step 1: Parsing paper metadata...');
+    console.log('[Load] Step 1: Parsing paper metadata from Supabase Storage...');
 
-    const paperIndexPath = path.join(sessionDir, 'paper-index.md');
-    const paperIndexContent = await fs.readFile(paperIndexPath, 'utf-8');
+    // Download paper-index.md from Supabase Storage
+    const paperIndexBuffer = await downloadFile('extractions', `${sessionId}/paper-index.md`);
+    const paperIndexContent = paperIndexBuffer.toString('utf-8');
 
     const metadata = parsePaperMetadata(paperIndexContent, session.pdf_filename);
 
@@ -105,45 +105,20 @@ export async function POST(
       `INSERT INTO datasets (
         dataset_name,
         description,
-        full_citation,
-        publication_year,
-        publication_journal,
-        publication_volume_pages,
-        doi,
-        pdf_filename,
-        pdf_url,
-        supplementary_files_url,
-        study_location,
-        mineral_analyzed,
-        sample_count,
-        age_range_min_ma,
-        age_range_max_ma,
-        authors,
-        laboratory,
+        publication_reference,
+        publication_doi,
+        study_area,
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, NOW()
+        $1, $2, $3, $4, $5, NOW()
       )
       RETURNING id`,
       [
         metadata.dataset_name,
         metadata.description,
-        metadata.full_citation,
-        metadata.publication_year,
-        metadata.publication_journal,
-        metadata.publication_volume_pages,
-        metadata.doi,
-        metadata.pdf_filename,
-        metadata.pdf_url,
-        metadata.supplementary_files_url,
-        metadata.study_location,
-        metadata.mineral_analyzed,
-        metadata.sample_count,
-        metadata.age_range_min_ma,
-        metadata.age_range_max_ma,
-        metadata.authors,
-        metadata.laboratory
+        metadata.full_citation, // Map to publication_reference
+        metadata.doi, // Map to publication_doi
+        metadata.study_location // Map to study_area
       ]
     );
 
@@ -151,61 +126,67 @@ export async function POST(
     console.log(`[Load] Created dataset ID: ${datasetId}`);
 
     // ========================================
-    // STEP 3: Upload Files to Public Directory
+    // STEP 3: Copy Files from Extractions to Datasets Bucket
     // ========================================
-    console.log('[Load] Step 3: Uploading files to public directory...');
-
-    const datasetDir = path.join(process.cwd(), 'public', 'data', 'datasets', datasetId.toString());
-    await fs.mkdir(datasetDir, { recursive: true });
-    await fs.mkdir(path.join(datasetDir, 'csv'), { recursive: true });
-    await fs.mkdir(path.join(datasetDir, 'tables'), { recursive: true });
-    await fs.mkdir(path.join(datasetDir, 'figures'), { recursive: true });
+    console.log('[Load] Step 3: Copying files from extractions to datasets bucket...');
 
     const uploadedFiles: Array<{
       file_name: string;
       file_path: string;
       file_type: string;
       file_size_bytes: number;
+      mime_type?: string;
       row_count?: number;
       display_name?: string;
       description?: string;
     }> = [];
 
-    // Upload PDF
-    const pdfSource = path.join(sessionDir, 'original.pdf');
-    const pdfDest = path.join(datasetDir, metadata.pdf_filename);
-    await fs.copyFile(pdfSource, pdfDest);
-    const pdfStats = await fs.stat(pdfDest);
+    // Copy PDF
+    console.log('[Load] Copying PDF...');
+    const pdfBuffer = await downloadFile('extractions', `${sessionId}/original.pdf`);
+    const pdfUrl = await uploadFile(
+      'datasets',
+      `${datasetId}/${metadata.pdf_filename}`,
+      pdfBuffer,
+      'application/pdf'
+    );
     uploadedFiles.push({
       file_name: metadata.pdf_filename,
-      file_path: `data/datasets/${datasetId}/${metadata.pdf_filename}`,
+      file_path: pdfUrl,
       file_type: FILE_TYPES.PDF,
-      file_size_bytes: pdfStats.size,
+      mime_type: 'application/pdf',
+      file_size_bytes: pdfBuffer.length,
       display_name: metadata.pdf_filename,
       description: 'Original research paper PDF'
     });
 
-    // Upload CSVs
-    const extractedDir = path.join(sessionDir, 'extracted');
+    // Copy CSVs
+    console.log('[Load] Copying CSV files...');
     try {
-      const csvFiles = await fs.readdir(extractedDir);
-      for (const csvFile of csvFiles.filter(f => f.endsWith('.csv'))) {
-        const csvSource = path.join(extractedDir, csvFile);
-        const csvDest = path.join(datasetDir, 'csv', csvFile);
-        await fs.copyFile(csvSource, csvDest);
-        const csvStats = await fs.stat(csvDest);
+      const extractedFiles = await listFiles('extractions', `${sessionId}/extracted`);
+      const csvFiles = extractedFiles.filter(f => f.name.endsWith('.csv'));
+
+      for (const csvFile of csvFiles) {
+        const csvBuffer = await downloadFile('extractions', `${sessionId}/extracted/${csvFile.name}`);
+        const csvUrl = await uploadFile(
+          'datasets',
+          `${datasetId}/csv/${csvFile.name}`,
+          csvBuffer,
+          'text/csv'
+        );
 
         // Count rows (excluding header)
-        const csvContent = await fs.readFile(csvDest, 'utf-8');
+        const csvContent = csvBuffer.toString('utf-8');
         const rowCount = csvContent.split('\n').filter(line => line.trim()).length - 1;
 
         uploadedFiles.push({
-          file_name: csvFile,
-          file_path: `data/datasets/${datasetId}/csv/${csvFile}`,
+          file_name: csvFile.name,
+          file_path: csvUrl,
           file_type: FILE_TYPES.CSV,
-          file_size_bytes: csvStats.size,
+          mime_type: 'text/csv',
+          file_size_bytes: csvBuffer.length,
           row_count: rowCount,
-          display_name: csvFile.replace('.csv', '').replace(/_/g, ' '),
+          display_name: csvFile.name.replace('.csv', '').replace(/_/g, ' '),
           description: `Extracted data table (${rowCount} rows)`
         });
       }
@@ -213,22 +194,27 @@ export async function POST(
       console.log('[Load] No extracted CSV files found (this is OK)');
     }
 
-    // Upload table images
-    const tablesImageDir = path.join(sessionDir, 'images', 'tables');
+    // Copy table images
+    console.log('[Load] Copying table images...');
     try {
-      const tableImages = await fs.readdir(tablesImageDir);
+      const tableImages = await listFiles('extractions', `${sessionId}/images/tables`);
+
       for (const imgFile of tableImages) {
-        const imgSource = path.join(tablesImageDir, imgFile);
-        const imgDest = path.join(datasetDir, 'tables', imgFile);
-        await fs.copyFile(imgSource, imgDest);
-        const imgStats = await fs.stat(imgDest);
+        const imgBuffer = await downloadFile('extractions', `${sessionId}/images/tables/${imgFile.name}`);
+        const imgUrl = await uploadFile(
+          'datasets',
+          `${datasetId}/tables/${imgFile.name}`,
+          imgBuffer,
+          getFileTypeFromExtension(imgFile.name)
+        );
 
         uploadedFiles.push({
-          file_name: imgFile,
-          file_path: `data/datasets/${datasetId}/tables/${imgFile}`,
-          file_type: getFileTypeFromExtension(imgFile),
-          file_size_bytes: imgStats.size,
-          display_name: imgFile.replace(/\.(png|jpg|jpeg|tiff)$/i, ''),
+          file_name: imgFile.name,
+          file_path: imgUrl,
+          file_type: getFileTypeFromExtension(imgFile.name),
+          mime_type: getFileTypeFromExtension(imgFile.name),
+          file_size_bytes: imgBuffer.length,
+          display_name: imgFile.name.replace(/\.(png|jpg|jpeg|tiff)$/i, ''),
           description: 'Table screenshot from paper'
         });
       }
@@ -236,22 +222,27 @@ export async function POST(
       console.log('[Load] No table images found (this is OK)');
     }
 
-    // Upload figure images
-    const figuresImageDir = path.join(sessionDir, 'images', 'figures');
+    // Copy figure images
+    console.log('[Load] Copying figure images...');
     try {
-      const figureImages = await fs.readdir(figuresImageDir);
+      const figureImages = await listFiles('extractions', `${sessionId}/images/figures`);
+
       for (const imgFile of figureImages) {
-        const imgSource = path.join(figuresImageDir, imgFile);
-        const imgDest = path.join(datasetDir, 'figures', imgFile);
-        await fs.copyFile(imgSource, imgDest);
-        const imgStats = await fs.stat(imgDest);
+        const imgBuffer = await downloadFile('extractions', `${sessionId}/images/figures/${imgFile.name}`);
+        const imgUrl = await uploadFile(
+          'datasets',
+          `${datasetId}/figures/${imgFile.name}`,
+          imgBuffer,
+          getFileTypeFromExtension(imgFile.name)
+        );
 
         uploadedFiles.push({
-          file_name: imgFile,
-          file_path: `data/datasets/${datasetId}/figures/${imgFile}`,
-          file_type: getFileTypeFromExtension(imgFile),
-          file_size_bytes: imgStats.size,
-          display_name: imgFile.replace(/\.(png|jpg|jpeg|tiff)$/i, ''),
+          file_name: imgFile.name,
+          file_path: imgUrl,
+          file_type: getFileTypeFromExtension(imgFile.name),
+          mime_type: getFileTypeFromExtension(imgFile.name),
+          file_size_bytes: imgBuffer.length,
+          display_name: imgFile.name.replace(/\.(png|jpg|jpeg|tiff)$/i, ''),
           description: 'Figure image from paper'
         });
       }
@@ -273,22 +264,18 @@ export async function POST(
           file_name,
           file_path,
           file_type,
-          display_name,
           file_size_bytes,
-          row_count,
+          mime_type,
           description,
-          upload_status,
-          created_at,
-          updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'available', NOW(), NOW())`,
+          created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
         [
           datasetId,
           file.file_name,
           file.file_path,
           file.file_type,
-          file.display_name,
           file.file_size_bytes,
-          file.row_count || null,
+          file.mime_type || null,
           file.description
         ]
       );
@@ -351,16 +338,24 @@ export async function POST(
       }
     };
 
-    // Save fair-compliance.json
-    const fairJsonPath = path.join(sessionDir, 'fair-compliance.json');
-    await fs.writeFile(fairJsonPath, JSON.stringify(fairComplianceJson, null, 2), 'utf-8');
+    // Upload fair-compliance.json to datasets bucket
+    await uploadFile(
+      'datasets',
+      `${datasetId}/fair-compliance.json`,
+      Buffer.from(JSON.stringify(fairComplianceJson, null, 2), 'utf-8'),
+      'application/json'
+    );
 
-    // Generate extraction-report.md
+    // Generate and upload extraction-report.md
     const reportMd = generateExtractionReport(metadata, uploadedFiles, fairAssessment);
-    const reportPath = path.join(sessionDir, 'extraction-report.md');
-    await fs.writeFile(reportPath, reportMd, 'utf-8');
+    await uploadFile(
+      'datasets',
+      `${datasetId}/extraction-report.md`,
+      Buffer.from(reportMd, 'utf-8'),
+      'text/markdown'
+    );
 
-    console.log('[Load] Generated FAIR reports');
+    console.log('[Load] Generated and uploaded FAIR reports');
 
     // ========================================
     // STEP 7: Update Database with FAIR Scores
@@ -370,30 +365,45 @@ export async function POST(
     await query(
       `INSERT INTO fair_score_breakdown (
         dataset_id,
-        table4_score, table4_reasoning,
-        table5_score, table5_reasoning,
-        table6_score, table6_reasoning,
-        table10_score, table10_reasoning,
-        findable_score, findable_reasoning,
-        accessible_score, accessible_reasoning,
-        interoperable_score, interoperable_reasoning,
-        reusable_score, reusable_reasoning,
-        total_score, grade,
-        created_at, updated_at
+        findable_score,
+        accessible_score,
+        interoperable_score,
+        reusable_score,
+        total_score,
+        has_persistent_id,
+        has_descriptive_metadata,
+        has_keywords,
+        has_open_access,
+        has_standard_protocol,
+        uses_standard_format,
+        uses_controlled_vocab,
+        has_field_definitions,
+        has_license,
+        has_provenance,
+        has_qc_metrics,
+        created_at,
+        updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW(), NOW()
       )`,
       [
         datasetId,
-        fairAssessment.table4_score, fairAssessment.table4_reasoning,
-        fairAssessment.table5_score, fairAssessment.table5_reasoning,
-        fairAssessment.table6_score, fairAssessment.table6_reasoning,
-        fairAssessment.table10_score, fairAssessment.table10_reasoning,
-        fairAssessment.findable_score, fairAssessment.findable_reasoning,
-        fairAssessment.accessible_score, fairAssessment.accessible_reasoning,
-        fairAssessment.interoperable_score, fairAssessment.interoperable_reasoning,
-        fairAssessment.reusable_score, fairAssessment.reusable_reasoning,
-        fairAssessment.total_score, fairAssessment.grade
+        fairAssessment.findable_score,
+        fairAssessment.accessible_score,
+        fairAssessment.interoperable_score,
+        fairAssessment.reusable_score,
+        fairAssessment.total_score,
+        fairAssessment.has_persistent_id || false,
+        fairAssessment.has_descriptive_metadata || false,
+        fairAssessment.has_keywords || false,
+        fairAssessment.has_open_access || false,
+        fairAssessment.has_standard_protocol || false,
+        fairAssessment.uses_standard_format || false,
+        fairAssessment.uses_controlled_vocab || false,
+        fairAssessment.has_field_definitions || false,
+        fairAssessment.has_license || false,
+        fairAssessment.has_provenance || false,
+        fairAssessment.has_qc_metrics || false
       ]
     );
 

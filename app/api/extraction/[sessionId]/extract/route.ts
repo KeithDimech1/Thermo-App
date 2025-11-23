@@ -1,9 +1,12 @@
 /**
  * POST /api/extraction/[sessionId]/extract
  * Extract table data from PDF using Anthropic API (Step 2 of extraction workflow)
+ *
+ * ERROR-021: Migrated to Supabase Storage
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 import {
@@ -12,7 +15,8 @@ import {
   markSessionFailed,
 } from '@/lib/db/extraction-queries';
 import { extractPDFText } from '@/lib/utils/python-bridge';
-import { createMessage } from '@/lib/anthropic/client';
+import { createMessage, createMessageWithContent } from '@/lib/anthropic/client';
+import { downloadFile, uploadFile } from '@/lib/storage/supabase';
 import {
   EXTRACTION_SYSTEM_PROMPT,
   createExtractionUserMessage,
@@ -65,6 +69,7 @@ async function extractTableAttempt(
   pdfText: string,
   pdfFilename: string,
   attemptNumber: number,
+  tableScreenshotBase64?: string,
   previousError?: Error
 ): Promise<{ csvData: Array<Record<string, string>>; stats: ReturnType<typeof getCSVStats> }> {
   const dataType = table.data_type || 'Unknown';
@@ -88,16 +93,39 @@ async function extractTableAttempt(
     userMessage = generateRetryPrompt(userMessage, previousError, attemptNumber);
   }
 
-  // Call Claude API
-  console.log(`[Extract] Sending to Claude API...`);
-  const response = await createMessage(
-    EXTRACTION_SYSTEM_PROMPT,
-    userMessage,
-    {
-      maxTokens: 8000,
-      temperature: 0.1,
-    }
-  );
+  // Call Claude API (with visual validation if screenshot available)
+  console.log(`[Extract] Sending to Claude API${tableScreenshotBase64 ? ' (with table screenshot)' : ''}...`);
+
+  const response = tableScreenshotBase64
+    ? await createMessageWithContent(
+        EXTRACTION_SYSTEM_PROMPT,
+        [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: tableScreenshotBase64,
+            },
+          },
+          {
+            type: 'text',
+            text: userMessage + '\n\n**CRITICAL: You have been provided with a screenshot of the actual table from the PDF. You MUST visually validate your extraction against this image to ensure accuracy.**',
+          },
+        ],
+        {
+          maxTokens: 8000,
+          temperature: 0.1,
+        }
+      )
+    : await createMessage(
+        EXTRACTION_SYSTEM_PROMPT,
+        userMessage,
+        {
+          maxTokens: 8000,
+          temperature: 0.1,
+        }
+      );
 
   // Extract text content from response
   const contentBlock = response.content.find(block => block.type === 'text');
@@ -300,16 +328,39 @@ Return a JSON object:
 
 Return ONLY the JSON object, no explanations.`;
 
-  // Call Claude for validation
-  console.log(`[Extract] Sending CSV to Claude for quality review...`);
-  const validationResponse = await createMessage(
-    'You are a data extraction quality reviewer. Your task is to analyze extracted table data and identify quality issues.',
-    validationPrompt,
-    {
-      maxTokens: 2000,
-      temperature: 0.0, // Deterministic
-    }
-  );
+  // Call Claude for validation (with visual comparison if screenshot available)
+  console.log(`[Extract] Sending CSV to Claude for quality review${tableScreenshotBase64 ? ' (with visual comparison)' : ''}...`);
+
+  const validationResponse = tableScreenshotBase64
+    ? await createMessageWithContent(
+        'You are a data extraction quality reviewer. Your task is to analyze extracted table data and identify quality issues.',
+        [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: tableScreenshotBase64,
+            },
+          },
+          {
+            type: 'text',
+            text: validationPrompt + '\n\n**CRITICAL: You have been provided with a screenshot of the actual table from the PDF. You MUST compare the extracted CSV against this visual image to verify accuracy. Check that all values match the visual table exactly.**',
+          },
+        ],
+        {
+          maxTokens: 2000,
+          temperature: 0.0, // Deterministic
+        }
+      )
+    : await createMessage(
+        'You are a data extraction quality reviewer. Your task is to analyze extracted table data and identify quality issues.',
+        validationPrompt,
+        {
+          maxTokens: 2000,
+          temperature: 0.0, // Deterministic
+        }
+      );
 
   // Parse validation response
   const validationContentBlock = validationResponse.content.find(block => block.type === 'text');
@@ -406,25 +457,51 @@ export async function POST(
       console.log(`[Extract API] State updated to extracting`);
     }
 
-    // Load cached text from plain-text.txt (extracted during analysis)
-    const sessionDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-    const plainTextPath = path.join(sessionDir, 'text', 'plain-text.txt');
-
-    console.log(`[Extract API] Loading cached text from ${plainTextPath}...`);
+    // Load cached text from Supabase Storage (extracted during analysis)
+    console.log(`[Extract API] Loading cached text from Supabase Storage...`);
     let pdfText: string;
     try {
-      pdfText = await fs.readFile(plainTextPath, 'utf-8');
+      const textBuffer = await downloadFile('extractions', `${sessionId}/text/plain-text.txt`);
+      pdfText = textBuffer.toString('utf-8');
       console.log(`[Extract API] Loaded ${pdfText.length} characters from cache`);
     } catch (error) {
       // Fallback: Extract text if cache doesn't exist (shouldn't happen)
       console.warn(`[Extract API] Cache miss - extracting text from PDF...`);
-      const pdfPath = path.join(process.cwd(), 'public', session.pdf_path);
-      pdfText = await extractPDFText(pdfPath);
+
+      // Download PDF to temp file and extract text
+      const pdfBuffer = await downloadFile('extractions', `${sessionId}/original.pdf`);
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'thermo-'));
+      const tempPdfPath = path.join(tempDir, 'temp.pdf');
+      await fs.writeFile(tempPdfPath, pdfBuffer);
+
+      pdfText = await extractPDFText(tempPdfPath);
+
+      // Clean up temp file
+      await fs.rm(tempDir, { recursive: true, force: true });
+
       console.log(`[Extract API] Extracted ${pdfText.length} characters`);
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // PHASE 2: RETRY WRAPPER WITH VALIDATION
+    // PHASE 2: DOWNLOAD TABLE SCREENSHOT FOR VISUAL VALIDATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    console.log(`[Extract API] Downloading table screenshot for visual validation...`);
+    let tableScreenshotBase64: string | undefined;
+
+    try {
+      const screenshotPath = `${sessionId}/images/tables/table-${table.table_number}.png`;
+      const screenshotBuffer = await downloadFile('extractions', screenshotPath);
+      tableScreenshotBase64 = screenshotBuffer.toString('base64');
+      console.log(`[Extract API] ✓ Table screenshot loaded (${screenshotBuffer.length} bytes)`);
+    } catch (error) {
+      console.warn(`[Extract API] ⚠ Table screenshot not found - proceeding without visual validation`);
+      console.warn(`[Extract API] Screenshot path: ${sessionId}/images/tables/table-${table.table_number}.png`);
+      // Continue without screenshot - extraction will work but without visual validation
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 3: RETRY WRAPPER WITH VALIDATION
     // ═══════════════════════════════════════════════════════════════════
 
     console.log(`[Extract API] Starting extraction with retry wrapper...`);
@@ -438,6 +515,7 @@ export async function POST(
           pdfText,
           session.pdf_filename,
           attemptNumber,
+          tableScreenshotBase64,
           lastError
         );
       },
@@ -468,17 +546,18 @@ export async function POST(
 
     // ═══════════════════════════════════════════════════════════════════
 
-    // Save CSV to file
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-    await fs.mkdir(uploadsDir, { recursive: true });
-
+    // Upload CSV to Supabase Storage
     const csvFilename = `table_${table.table_number}.csv`;
-    const csvPath = path.join(uploadsDir, csvFilename);
     const csvText = arrayToCSV(csvData);
-    await fs.writeFile(csvPath, csvText);
 
-    const relativeCsvPath = `uploads/${sessionId}/${csvFilename}`;
-    console.log(`[Extract API] CSV saved to: ${relativeCsvPath}`);
+    const csvUrl = await uploadFile(
+      'extractions',
+      `${sessionId}/extracted/${csvFilename}`,
+      Buffer.from(csvText, 'utf-8'),
+      'text/csv'
+    );
+
+    console.log(`[Extract API] CSV uploaded to: ${csvUrl}`);
 
     // Return success response
     const result: ExtractionResult = {
@@ -486,7 +565,7 @@ export async function POST(
       sessionId,
       tableNumber: table.table_number,
       csvData,
-      csvPath: relativeCsvPath,
+      csvPath: csvUrl, // Supabase Storage URL
       stats: {
         totalRows: stats.totalRows,
         totalColumns: stats.totalColumns,

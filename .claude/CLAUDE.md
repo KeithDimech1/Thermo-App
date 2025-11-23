@@ -1,8 +1,8 @@
 # AusGeochem - Thermochronology Database
 
-**Last Updated:** 2025-11-18
+**Last Updated:** 2025-11-21
 **Project:** AusGeochem Thermochronology Data Platform
-**Type:** Next.js + PostgreSQL (Neon) + EarthBank FAIR Integration
+**Type:** Next.js + PostgreSQL (Supabase) + EarthBank FAIR Integration
 **Purpose:** Extract, manage, and share geological dating data (fission-track & (U-Th)/He)
 
 ---
@@ -195,8 +195,8 @@ Project has been initialized with `/setupproject`. The following global commands
 **Environment Setup:**
 ```bash
 # .env.local (REQUIRED for migrations and scripts)
-DATABASE_URL="postgresql://user:pass@host:port/neondb?sslmode=require"  # Pooled (Neon serverless)
-DIRECT_URL="postgresql://user:pass@host:port/neondb?sslmode=require"    # Direct (migrations only)
+DATABASE_URL="postgresql://postgres.PROJECT:PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"  # Pooled (Supabase connection pooler)
+DIRECT_URL="postgresql://postgres.PROJECT:PASSWORD@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"    # Direct (migrations via pooler)
 ```
 
 **⚠️ CRITICAL: Never use `psql "$DIRECT_URL"` directly!**
@@ -213,7 +213,7 @@ npm run db:psql
 npm run db:psql-pooled
 ./scripts/db/psql-pooled.sh
 
-# Verify you're connected to neondb
+# Verify you're connected to Supabase
 npm run db:verify-connection
 ```
 
@@ -221,13 +221,19 @@ npm run db:verify-connection
 - **Use `lib/db/connection.ts` for TypeScript database access**
 - **Use `scripts/db/psql-*.sh` for shell/psql commands**
 - Auto-loads `.env.local` (works in Next.js AND standalone TypeScript scripts)
-- Connection pool with SSL for Neon
+- Connection pool with SSL for Supabase
 - Helpers: `query()`, `queryOne()`, `transaction()`
 - Slow query detection (>1000ms logged)
 
 **Why both URLs?**
-- `DATABASE_URL` - Pooled for serverless (faster cold starts)
-- `DIRECT_URL` - Direct for migrations (Prisma requirement)
+- `DATABASE_URL` - Pooled via Supabase connection pooler (IPv4, port 5432)
+- `DIRECT_URL` - Same as DATABASE_URL (Supabase pooler works for migrations)
+
+**Connection Pooler Benefits:**
+- IPv4 compatible (works on Vercel and locally)
+- Handles connection limits automatically
+- Better for serverless environments
+- Port 5432 (standard PostgreSQL)
 
 **See:** `scripts/db/README.md` for full documentation
 
@@ -249,7 +255,7 @@ import {
 
 ### Data Flow
 ```
-PDF Paper → /thermoextract → EarthBank Templates (Excel) → Import Script → PostgreSQL (Neon)
+PDF Paper → /thermoextract → EarthBank Templates (Excel) → Import Script → PostgreSQL (Supabase)
                                                                            ↓
                                Next.js App ← API Routes ← lib/db/queries.ts
 ```
@@ -318,11 +324,12 @@ scripts/ai/             # AI plugin scripts (if added)
 
 ## 📋 Current State & Priorities
 
-### Production Status (as of 2025-11-18)
+### Production Status (as of 2025-11-21)
 - ✅ Complete Schema v2 (EarthBank FAIR + Kohn 2024 compliant)
 - ✅ Import scripts operational (EarthBank template ingestion)
 - ✅ `/thermoextract` command (AI-powered PDF extraction)
-- ✅ Database connection (Neon serverless PostgreSQL)
+- ✅ Database connection (Supabase PostgreSQL with connection pooler)
+- ✅ Database migration (Neon → Supabase complete, ERROR-021)
 - 🚧 UI components (sample list, detail pages, visualizations)
 - 🚧 Data export (database → EarthBank templates)
 - 🚧 Advanced analysis (radial plots, thermal modeling)
@@ -339,7 +346,8 @@ scripts/ai/             # AI plugin scripts (if added)
 ## 🌐 Production Deployment
 
 **Hosting:** Vercel (serverless Next.js)
-**Database:** Neon PostgreSQL (serverless, auto-scaling)
+**Database:** Supabase PostgreSQL (serverless, auto-scaling, connection pooler)
+**Region:** AWS Singapore (ap-southeast-1)
 **Environment:** `.env.local.example` template provided
 
 **Build:**

@@ -55,8 +55,7 @@ async function testConnection() {
     console.log(`\n  Full URL: ${safeUrl}\n`);
 
     // Create pool with SSL detection
-    const useSSL = DATABASE_URL.includes('neon.tech') ||
-                   DATABASE_URL.includes('supabase') ||
+    const useSSL = DATABASE_URL.includes('supabase') ||
                    DATABASE_URL.includes('sslmode=require');
 
     pool = new Pool({
@@ -133,7 +132,7 @@ async function testConnection() {
         console.log('\nTroubleshooting:');
         console.log('  1. Create the database first');
         console.log('  2. For local: createdb qc_results');
-        console.log('  3. For Neon: database is auto-created');
+        console.log('  3. For Supabase: database is auto-created');
       }
     } else {
       console.error(error);

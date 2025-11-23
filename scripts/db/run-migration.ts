@@ -41,7 +41,7 @@ if (!migrationFile) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: DATABASE_URL.includes('neon.tech') || DATABASE_URL.includes('supabase')
+  ssl: DATABASE_URL.includes('supabase')
     ? { rejectUnauthorized: false }
     : undefined
 });

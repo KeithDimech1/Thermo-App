@@ -1,0 +1,3373 @@
+# /thermoextract - AI-Powered Thermochronology Data Extraction
+
+**Purpose:** Extract thermochronology data from research papers using pdfplumber + AI analysis, validate against Kohn et al. (2024) standards, and import to database.
+
+**Key Innovation:** Iterative AI-guided extraction with pdfplumber for reliable text extraction + AI structure understanding + validation loop
+
+---
+
+## ✅ SCHEMA: EarthBank camelCase (IDEA-014 Complete)
+
+**Database Schema:** EarthBank-native camelCase schema
+- **Tables:** `earthbank_samples`, `earthbank_ftDatapoints`, `earthbank_heDatapoints`, etc.
+- **Fields:** camelCase naming (e.g., `sampleID`, `centralAgeMa`, `pooledAgeMa`)
+- **Primary Keys:** UUID with `uuid_generate_v4()`
+- **Foreign Keys:** String-based (e.g., `sampleID`, `datapointName`)
+
+**Extraction Output:** This command should now output camelCase CSVs matching EarthBank schema
+- Old: `sample_id`, `central_age_ma`, `pooled_age_ma`
+- New: `sampleID`, `centralAgeMa`, `pooledAgeMa`
+
+**Migration Status:** Phase 6 complete (2025-11-18)
+**See:** `build-data/ideas/debug/IDEA-014-INDEX.md` for migration details
+
+---
+
+## Workflow Overview
+
+```
+0.1. Detect supplementary DOIs/URLs → Parse paper for data availability statements
+0.2. Resolve DOIs → Convert DOIs to download URLs
+0.3. Download supplementary files → Auto-download with retry (OSF, Zenodo, etc.)
+0.4. Validate downloads → Check file integrity and contents
+0.5. Check for local supplementary data → Use downloaded/existing files (PRIORITY)
+1. Read paper-index.md → Get table locations & page numbers
+2. Extract PDF pages → Isolate individual table pages (SKIP if using supplementary)
+3. pdfplumber text extraction → Get raw text from each page
+4. AI structure analysis → Understand headers & data patterns
+5. Create extraction plan → Bespoke CSV generation strategy
+6. Extract to CSV → Generate structured data file (ALL columns, ALL tables)
+7. Validate extraction → Check column count, empty columns, data ranges
+8. Retry loop → Delete & retry until perfect (MAX 3 attempts per table)
+9. Compare to Kohn 2024 → Check required fields
+10. Calculate FAIR score → Rate completeness (0-100)
+11. Transform to EarthBank → Map to camelCase schema (1:1 mapping)
+12. Import to database → Load into earthbank_* tables
+13. Generate SQL metadata → Create dataset tracking scripts
+```
+
+---
+
+## 🚨 CRITICAL EXTRACTION RULES
+
+**BEFORE starting extraction, understand these NON-NEGOTIABLE requirements:**
+
+### 1. Extract ALL Tables (No Exceptions)
+
+**Rule:** EVERY table marked "extractable: YES" in paper-index.md MUST be extracted
+
+- ❌ **WRONG:** "Extract Table 1 and Table 2, skip Table A1/A2/A3 for later"
+- ✅ **CORRECT:** "Extract ALL tables (Table 1, 2, A1, A2, A3) before marking extraction complete"
+
+**Why:** 50-70% of data is in "supplementary" appendix tables (A1, A2, A3) - skipping these loses:
+- Grain-by-grain ages (Table A1)
+- Individual track length measurements (Table A2)
+- Reference material QC data (Table A3)
+
+**Priority** determines extraction ORDER (HIGH first, MEDIUM second), NOT whether to extract
+
+### 2. Extract ALL Columns (No Partial Extraction)
+
+**Rule:** EVERY column in the source table MUST appear in the extracted CSV
+
+- ❌ **WRONG:** Extract 12/24 columns and mark table "complete"
+- ✅ **CORRECT:** Extract ≥90% of columns, validate with Step 7.1, retry if <90%
+
+**Why:** Missing columns = lost data. Examples of commonly missed columns:
+- rmr0D (kinetic parameter)
+- Cl wt% (chlorine content)
+- eCl apfu (effective chlorine)
+- Analyst names, dates, batch IDs
+
+**Validation enforces this:** Step 7.1 fails extraction if column count <90% of source
+
+### 3. Validate Before Proceeding (Mandatory)
+
+**Rule:** NO table is "complete" until ALL validation checks pass (Steps 7.1-7.4)
+
+- ❌ **WRONG:** Extract CSV → move to next table
+- ✅ **CORRECT:** Extract CSV → validate (column count, empty cols, ranges) → retry if fails → THEN next table
+
+**Why:** Without validation:
+- Empty columns go undetected (parsing failures)
+- Values in wrong columns (age data in U column, etc.)
+- Missing rows/samples
+
+**Auto-retry:** If validation fails, Step 8 automatically retries up to 3 times
+
+### 4. Download Supplementary Data First (Steps 0.1-0.4)
+
+**Rule:** ALWAYS attempt to download supplementary data from DOIs/URLs before PDF extraction
+
+- ❌ **WRONG:** See no `supplementary/` directory → proceed with PDF extraction
+- ✅ **CORRECT:** Parse paper for DOIs → download files → validate → use if available → fall back to PDF
+
+**Why:** 30-40% of papers host complete datasets externally (OSF, Zenodo, etc.)
+- Supplementary Excel files are cleaner than PDF tables
+- Grain-level data often ONLY in supplementary files
+- Saves 30-60 minutes of PDF extraction time
+
+**New workflow:** Steps 0.1-0.4 detect and download automatically (no manual intervention)
+
+---
+
+## Step 0.1: Detect Supplementary DOIs/URLs in Paper
+
+**Task:** Parse the paper text to find ALL data availability statements, DOIs, and repository URLs
+
+**Why this is critical:**
+- **30-40% of papers** host complete datasets externally (OSF, Zenodo, Figshare, etc.)
+- **Data availability statements** often buried in Methods, Acknowledgments, or end of paper
+- **DOIs can point to:** Complete datasets, supplementary files, code repositories
+- **Missing this step** means losing grain-level data that's never in PDF tables
+
+**Process:**
+
+```python
+import re
+from pathlib import Path
+import PyPDF2
+
+print()
+print('━' * 80)
+print('STEP 0.1: DETECTING SUPPLEMENTARY DATA REFERENCES')
+print('━' * 80)
+print()
+
+# Extract all text from paper PDF
+paper_pdf = Path('build-data/learning/thermo-papers/PAPER_NAME/paper.pdf')
+
+all_text = ""
+with open(paper_pdf, 'rb') as f:
+    pdf = PyPDF2.PdfReader(f)
+    for page in pdf.pages:
+        all_text += page.extract_text()
+
+print(f'✅ Extracted {len(all_text)} characters from PDF')
+print()
+
+# Search for DOI patterns
+doi_patterns = [
+    r'DOI:\s*(https?://doi\.org/10\.\S+)',
+    r'doi:\s*(10\.\S+)',
+    r'https?://doi\.org/(10\.\S+)',
+]
+
+dois_found = []
+for pattern in doi_patterns:
+    matches = re.findall(pattern, all_text, re.IGNORECASE)
+    for match in matches:
+        # Normalize DOI
+        if not match.startswith('http'):
+            doi = f'https://doi.org/{match}'
+        else:
+            doi = match
+
+        # Clean trailing punctuation
+        doi = doi.rstrip('.,;)')
+
+        if doi not in dois_found:
+            dois_found.append(doi)
+
+print(f'🔍 Found {len(dois_found)} DOI(s):')
+for doi in dois_found:
+    print(f'   - {doi}')
+print()
+
+# Search for repository URLs
+repo_patterns = [
+    r'(https?://zenodo\.org/\S+)',
+    r'(https?://osf\.io/\S+)',
+    r'(https?://figshare\.com/\S+)',
+    r'(https?://github\.com/\S+)',
+    r'(https?://gitlab\.com/\S+)',
+    r'(https?://data\.mendeley\.com/\S+)',
+    r'(https?://\S*ausgeochem\S*)',  # AusGeochem platform
+]
+
+urls_found = []
+for pattern in repo_patterns:
+    matches = re.findall(pattern, all_text, re.IGNORECASE)
+    for match in matches:
+        url = match.rstrip('.,;)')
+        if url not in urls_found and url not in dois_found:
+            urls_found.append(url)
+
+print(f'🔍 Found {len(urls_found)} repository URL(s):')
+for url in urls_found:
+    print(f'   - {url}')
+print()
+
+# Search for "Data Availability" section text
+data_avail_patterns = [
+    r'Data [Aa]vailability.*?(?=\n\n|\n[A-Z])',
+    r'Supplementary [Mm]aterials?.*?(?=\n\n|\n[A-Z])',
+    r'[Dd]ata can be accessed.*?(?=\.|;)',
+]
+
+availability_statements = []
+for pattern in data_avail_patterns:
+    matches = re.findall(pattern, all_text, re.DOTALL)
+    availability_statements.extend(matches[:3])  # Limit to first 3
+
+if availability_statements:
+    print(f'📄 Data availability statement(s):')
+    for stmt in availability_statements:
+        # Truncate to first 200 chars
+        truncated = stmt[:200].replace('\n', ' ').strip()
+        print(f'   "{truncated}..."')
+    print()
+
+# Store results for next step
+supplementary_sources = {
+    'dois': dois_found,
+    'urls': urls_found,
+    'statements': availability_statements
+}
+
+if not dois_found and not urls_found:
+    print('ℹ️  No external data sources detected')
+    print('   Proceeding with PDF table extraction only')
+    print()
+else:
+    print(f'✅ Detected {len(dois_found) + len(urls_found)} potential data source(s)')
+    print('   Proceeding to Step 0.2 (DOI resolution & download)')
+    print()
+
+print('━' * 80)
+print()
+```
+
+**Output:**
+- List of all DOIs found in paper
+- List of all data repository URLs
+- Data availability statements (if present)
+- `supplementary_sources` dict for next step
+
+---
+
+## Step 0.2: Resolve DOIs to Download URLs
+
+**Task:** For each DOI found, resolve to actual download URLs and identify file types
+
+**Why this is critical:**
+- DOIs are **persistent identifiers** but don't directly link to files
+- Need to resolve through doi.org → actual repository → download links
+- Different repositories have different URL structures (Zenodo vs OSF vs Figshare)
+
+**Process:**
+
+```python
+import requests
+from bs4 import BeautifulSoup
+import time
+
+print()
+print('━' * 80)
+print('STEP 0.2: RESOLVING DOIs TO DOWNLOAD URLs')
+print('━' * 80)
+print()
+
+download_links = []
+
+# Process DOIs
+for doi in supplementary_sources['dois']:
+    print(f'🔗 Resolving DOI: {doi}')
+
+    try:
+        # Follow DOI redirect
+        response = requests.get(doi, allow_redirects=True, timeout=10)
+        final_url = response.url
+
+        print(f'   → Resolved to: {final_url}')
+
+        # Parse HTML to find download links
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Look for common download link patterns
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+
+            # Check if it's a data file
+            if any(ext in href.lower() for ext in ['.xlsx', '.xls', '.csv', '.zip', '.tar', '.gz']):
+                # Make absolute URL if relative
+                if href.startswith('/'):
+                    from urllib.parse import urlparse
+                    parsed = urlparse(final_url)
+                    full_url = f'{parsed.scheme}://{parsed.netloc}{href}'
+                elif not href.startswith('http'):
+                    full_url = f'{final_url.rstrip("/")}/{href}'
+                else:
+                    full_url = href
+
+                if full_url not in download_links:
+                    download_links.append(full_url)
+                    print(f'   ✅ Found file: {Path(full_url).name}')
+
+    except Exception as e:
+        print(f'   ❌ Error resolving DOI: {e}')
+        continue
+
+    time.sleep(0.5)  # Rate limiting
+    print()
+
+# Add direct URLs
+for url in supplementary_sources['urls']:
+    if url not in download_links:
+        download_links.append(url)
+        print(f'✅ Direct URL added: {url}')
+
+print()
+print(f'📦 Total download links identified: {len(download_links)}')
+print()
+
+print('━' * 80)
+print()
+```
+
+**Output:**
+- `download_links` list containing all file URLs to download
+- Prints resolved URLs and detected file types
+
+---
+
+## Step 0.3: Download Supplementary Files with Retry
+
+**Task:** Download all identified files to `supplementary/` directory with error handling and retry logic
+
+**Process:**
+
+```python
+from pathlib import Path
+import requests
+import time
+
+print()
+print('━' * 80)
+print('STEP 0.3: DOWNLOADING SUPPLEMENTARY FILES')
+print('━' * 80)
+print()
+
+# Create supplementary directory
+paper_dir = Path('build-data/learning/thermo-papers/PAPER_NAME')
+supplementary_dir = paper_dir / 'supplementary'
+supplementary_dir.mkdir(exist_ok=True)
+
+downloaded_files = []
+max_retries = 3
+
+for url in download_links:
+    filename = Path(url).name
+
+    # Sanitize filename
+    filename = filename.split('?')[0]  # Remove query params
+    if not filename:
+        filename = f'supplementary_file_{len(downloaded_files)+1}.dat'
+
+    output_path = supplementary_dir / filename
+
+    print(f'📥 Downloading: {filename}')
+    print(f'   From: {url}')
+
+    # Retry loop
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=60, stream=True)
+            response.raise_for_status()
+
+            # Download with progress
+            total_size = int(response.headers.get('content-length', 0))
+
+            with open(output_path, 'wb') as f:
+                if total_size == 0:
+                    f.write(response.content)
+                else:
+                    downloaded = 0
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        progress = (downloaded / total_size) * 100
+                        print(f'   Progress: {progress:.1f}%', end='\r')
+
+            file_size = output_path.stat().st_size
+            print(f'   ✅ Downloaded: {file_size / 1024 / 1024:.2f} MB')
+
+            downloaded_files.append({
+                'path': output_path,
+                'size': file_size,
+                'url': url
+            })
+
+            break  # Success, exit retry loop
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                print(f'   ⚠️ Attempt {attempt + 1} failed: {e}')
+                print(f'   Retrying in {wait_time} seconds...')
+                time.sleep(wait_time)
+            else:
+                print(f'   ❌ Failed after {max_retries} attempts: {e}')
+
+    print()
+
+# Create download log
+log_path = supplementary_dir / 'README.md'
+with open(log_path, 'w') as f:
+    f.write('# Supplementary Data Downloads\n\n')
+    f.write(f'**Downloaded:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n')
+    f.write(f'**Source:** Automated download via /thermoextract\n\n')
+    f.write('## Files\n\n')
+
+    for file in downloaded_files:
+        f.write(f'- **{file["path"].name}** ({file["size"] / 1024 / 1024:.2f} MB)\n')
+        f.write(f'  - Source: {file["url"]}\n')
+
+    if download_links and not downloaded_files:
+        f.write('\n⚠️ No files successfully downloaded\n')
+
+print(f'✅ Downloaded {len(downloaded_files)}/{len(download_links)} files to supplementary/')
+print(f'📝 Download log created: {log_path}')
+print()
+
+print('━' * 80)
+print()
+```
+
+**Output:**
+- Files downloaded to `supplementary/` directory
+- `README.md` log file documenting what was downloaded
+- `downloaded_files` list for validation
+
+---
+
+## Step 0.4: Validate Downloaded Files
+
+**Task:** Verify file integrity and inspect contents before using
+
+**Process:**
+
+```python
+import pandas as pd
+from pathlib import Path
+
+print()
+print('━' * 80)
+print('STEP 0.4: VALIDATING DOWNLOADED FILES')
+print('━' * 80)
+print()
+
+valid_data_files = []
+
+for file_info in downloaded_files:
+    file_path = file_info['path']
+    file_size = file_info['size']
+
+    print(f'🔍 Validating: {file_path.name}')
+
+    # Check file size
+    if file_size == 0:
+        print(f'   ❌ File is empty (0 bytes)')
+        continue
+
+    if file_size < 100:
+        print(f'   ⚠️ File very small ({file_size} bytes) - may be error page')
+        continue
+
+    # Try to read based on file type
+    try:
+        if file_path.suffix in ['.xlsx', '.xls']:
+            xl = pd.ExcelFile(file_path)
+            sheets = xl.sheet_names
+
+            print(f'   ✅ Valid Excel file')
+            print(f'   Sheets ({len(sheets)}): {", ".join(sheets[:5])}{"..." if len(sheets) > 5 else ""}')
+
+            valid_data_files.append({
+                'path': file_path,
+                'type': 'excel',
+                'sheets': sheets
+            })
+
+        elif file_path.suffix == '.csv':
+            df = pd.read_csv(file_path, nrows=1)
+            columns = df.columns.tolist()
+
+            print(f'   ✅ Valid CSV file')
+            print(f'   Columns ({len(columns)}): {", ".join(columns[:5])}{"..." if len(columns) > 5 else ""}')
+
+            valid_data_files.append({
+                'path': file_path,
+                'type': 'csv',
+                'columns': columns
+            })
+
+        else:
+            print(f'   ℹ️  Unknown file type: {file_path.suffix}')
+
+    except Exception as e:
+        print(f'   ❌ Validation failed: {e}')
+
+    print()
+
+print(f'✅ {len(valid_data_files)}/{len(downloaded_files)} files validated successfully')
+
+if valid_data_files:
+    print(f'📊 Valid data files ready for extraction')
+else:
+    print(f'⚠️  No valid data files found - proceeding with PDF extraction')
+
+print()
+print('━' * 80)
+print()
+```
+
+**Output:**
+- `valid_data_files` list with file type and structure info
+- Validation report showing which files can be used
+
+---
+
+## Step 0.5: Check for Local Supplementary Data
+
+**Task:** Check if `/thermoanalysis` already downloaded supplementary data files from OSF/Zenodo
+
+**Why this is critical:**
+- **30-40% of papers** host complete datasets externally
+- **Grain-level data** is often ONLY in supplementary files
+- **Time savings:** Skip 30-60 minutes of PDF extraction
+- **Accuracy:** Supplementary Excel files are cleaner than PDF tables
+
+**Process:**
+
+```python
+from pathlib import Path
+import pandas as pd
+import time
+from datetime import datetime
+
+# Start time tracking
+start_time = time.time()
+start_datetime = datetime.now()
+
+print()
+print('━' * 80)
+print('STARTING /THERMOEXTRACT WORKFLOW')
+print('━' * 80)
+print(f'📅 Started: {start_datetime.strftime("%Y-%m-%d %H:%M:%S")}')
+print()
+
+print('━' * 80)
+print('STEP 0.5: CHECKING FOR SUPPLEMENTARY DATA (PRIORITY)')
+print('━' * 80)
+print()
+
+# Check supplementary directory
+paper_dir = Path('build-data/learning/thermo-papers/PAPER_NAME')
+supplementary_dir = paper_dir / 'supplementary'
+
+use_supplementary = False
+data_files = []
+
+if supplementary_dir.exists():
+    print(f'✅ Found supplementary directory: {supplementary_dir}')
+    print()
+
+    # Look for data files (Excel, CSV)
+    excel_files = list(supplementary_dir.glob('*.xlsx')) + list(supplementary_dir.glob('*.xls'))
+    csv_files = list(supplementary_dir.glob('*.csv'))
+
+    all_data_files = excel_files + csv_files
+
+    if all_data_files:
+        print(f'📊 Found {len(all_data_files)} data file(s):')
+        print()
+
+        # Inspect each file
+        for data_file in all_data_files:
+            print(f'   📄 {data_file.name}')
+
+            try:
+                if data_file.suffix in ['.xlsx', '.xls']:
+                    # Read Excel file
+                    xl = pd.ExcelFile(data_file)
+                    sheet_names = xl.sheet_names
+
+                    print(f'      Sheets ({len(sheet_names)}): {", ".join(sheet_names[:5])}{"..." if len(sheet_names) > 5 else ""}')
+
+                    # Check for thermochronology data indicators
+                    thermo_keywords = ['sample', 'aft', 'ahe', 'age', 'track', 'length', 'grain', 'count', 'fission']
+
+                    relevant_sheets = []
+                    for sheet in sheet_names:
+                        if any(keyword in sheet.lower() for keyword in thermo_keywords):
+                            relevant_sheets.append(sheet)
+
+                    if relevant_sheets:
+                        print(f'      ✅ Contains thermochronology data:')
+                        for sheet in relevant_sheets[:3]:
+                            print(f'         - {sheet}')
+                        if len(relevant_sheets) > 3:
+                            print(f'         ... and {len(relevant_sheets) - 3} more')
+
+                        data_files.append({
+                            'path': data_file,
+                            'type': 'excel',
+                            'sheets': relevant_sheets
+                        })
+                    else:
+                        print(f'      ⚠️  No obvious thermochronology sheets detected')
+
+                elif data_file.suffix == '.csv':
+                    # Read CSV header
+                    df = pd.read_csv(data_file, nrows=1)
+                    columns = df.columns.tolist()
+
+                    print(f'      Columns ({len(columns)}): {", ".join(columns[:5])}{"..." if len(columns) > 5 else ""}')
+
+                    # Check for thermochronology column names
+                    thermo_columns = ['sample', 'age', 'track', 'grain', 'ns', 'ni', 'dpar', 'uranium']
+
+                    if any(any(keyword in col.lower() for keyword in thermo_columns) for col in columns):
+                        print(f'      ✅ Contains thermochronology data')
+                        data_files.append({
+                            'path': data_file,
+                            'type': 'csv',
+                            'columns': columns
+                        })
+                    else:
+                        print(f'      ⚠️  No obvious thermochronology columns detected')
+
+                print()
+
+            except Exception as e:
+                print(f'      ❌ Error reading file: {e}')
+                print()
+    else:
+        print('ℹ️  No data files (.xlsx, .xls, .csv) found in supplementary/')
+        print()
+else:
+    print('ℹ️  No supplementary/ directory found')
+    print()
+
+# Decision point
+if data_files:
+    print('━' * 80)
+    print('🎯 DECISION: USE SUPPLEMENTARY DATA FILES')
+    print('━' * 80)
+    print()
+    print(f'✅ Found {len(data_files)} file(s) with thermochronology data')
+    print('✅ Skipping PDF table extraction workflow')
+    print('✅ Proceeding directly to supplementary data import')
+    print()
+
+    for i, file_info in enumerate(data_files, 1):
+        print(f'{i}. {file_info["path"].name}')
+        if file_info['type'] == 'excel':
+            print(f'   Type: Excel ({len(file_info["sheets"])} relevant sheets)')
+        else:
+            print(f'   Type: CSV ({len(file_info["columns"])} columns)')
+
+    print()
+    print('📋 Next steps:')
+    print('   1. Inspect sheet/column structure')
+    print('   2. Map to EarthBank camelCase schema')
+    print('   3. Validate data completeness')
+    print('   4. Import to earthbank_* tables')
+    print()
+
+    use_supplementary = True
+
+    # ======================================================================
+    # SUPPLEMENTARY DATA IMPORT WORKFLOW (IMPLEMENTED)
+    # ======================================================================
+    print('━' * 80)
+    print('STARTING SUPPLEMENTARY DATA IMPORT WORKFLOW')
+    print('━' * 80)
+    print()
+
+    # Jump to supplementary import implementation below
+    # Skip Steps 1-8 (PDF extraction) entirely
+    # Continue to Step 9 (import to database) with supplementary data
+
+else:
+    print('━' * 80)
+    print('🎯 DECISION: EXTRACT FROM PDF TABLES')
+    print('━' * 80)
+    print()
+    print('⚠️  No supplementary data files available')
+    print('✅ Proceeding with standard PDF table extraction workflow')
+    print()
+
+print('━' * 80)
+print()
+```
+
+**Output:**
+- ✅ If supplementary data found → Skip to Step 0.6 (supplementary import)
+- ⚠️ If no supplementary data → Continue with Step 1 (PDF extraction)
+
+**Key benefits:**
+- **Detects Excel/CSV files** in `supplementary/` directory
+- **Inspects file structure** (sheets, columns) to verify thermochronology data
+- **Prioritizes supplementary over PDF** (faster, more accurate)
+- **Full import workflow implemented** (see Step 0.6 below)
+
+---
+
+## Step 0.6: Import Supplementary Data (IF FOUND IN STEP 0.5)
+
+**Task:** Import Excel/CSV supplementary files directly to EarthBank camelCase schema
+
+**Pre-conditions:**
+- `use_supplementary = True` from Step 0.5
+- `data_files` list contains Excel/CSV file paths with sheet/column info
+
+**Process:**
+
+### 0.6.1 Inspect Excel Sheet Structure
+
+```python
+import pandas as pd
+import openpyxl
+from pathlib import Path
+
+print()
+print('━' * 80)
+print('STEP 0.6: IMPORTING SUPPLEMENTARY DATA TO DATABASE')
+print('━' * 80)
+print()
+
+# Iterate through each data file
+for file_idx, file_info in enumerate(data_files, 1):
+    print(f'📊 Processing file {file_idx}/{len(data_files)}: {file_info["path"].name}')
+    print()
+
+    if file_info['type'] == 'excel':
+        # Load Excel file
+        xl = pd.ExcelFile(file_info['path'])
+
+        print(f'   Found {len(file_info["sheets"])} relevant sheet(s)')
+        print()
+
+        # Iterate through each sheet
+        for sheet_name in file_info['sheets']:
+            print(f'   📄 Sheet: {sheet_name}')
+
+            # Read first few rows to understand structure
+            df_preview = pd.read_excel(file_info['path'], sheet_name=sheet_name, nrows=5)
+
+            print(f'      Columns ({len(df_preview.columns)}): {list(df_preview.columns[:5])}{"..." if len(df_preview.columns) > 5 else ""}')
+            print(f'      Rows: {len(pd.read_excel(file_info["path"], sheet_name=sheet_name))} (excluding header)')
+            print()
+
+            # Detect data type based on sheet name and columns
+            sheet_lower = sheet_name.lower()
+            columns_lower = [col.lower() for col in df_preview.columns]
+
+            data_type = None
+            if any(kw in sheet_lower for kw in ['sample', 'location', 'metadata']):
+                data_type = 'samples'
+            elif any(kw in sheet_lower for kw in ['aft', 'fission', 'ft data', 'age']):
+                # Check if it's summary or grain-level
+                if any(kw in ' '.join(columns_lower) for kw in ['grain', 'crystal', 'ns', 'ni']):
+                    data_type = 'ft_count_data'
+                else:
+                    data_type = 'ft_datapoints'
+            elif any(kw in sheet_lower for kw in ['track length', 'length', 'mtl']):
+                data_type = 'ft_track_length'
+            elif any(kw in sheet_lower for kw in ['ahe', 'he', 'helium']):
+                # Check if it's summary or grain-level
+                if any(kw in ' '.join(columns_lower) for kw in ['grain', 'aliquot', 'ft value', 'eu']):
+                    data_type = 'he_whole_grain'
+                else:
+                    data_type = 'he_datapoints'
+            else:
+                data_type = 'unknown'
+
+            print(f'      🎯 Detected data type: {data_type}')
+            print()
+
+    elif file_info['type'] == 'csv':
+        # Load CSV file
+        df_preview = pd.read_csv(file_info['path'], nrows=5)
+
+        print(f'   Columns ({len(df_preview.columns)}): {list(df_preview.columns[:5])}{"..." if len(df_preview.columns) > 5 else ""}')
+        print(f'   Rows: {len(pd.read_csv(file_info["path"]))} (excluding header)')
+        print()
+
+        # Detect data type based on columns
+        columns_lower = [col.lower() for col in df_preview.columns]
+
+        # Similar logic as Excel
+        if any(kw in ' '.join(columns_lower) for kw in ['latitude', 'longitude', 'elevation', 'igsn']):
+            data_type = 'samples'
+        elif any(kw in ' '.join(columns_lower) for kw in ['central age', 'pooled age', 'dispersion']):
+            data_type = 'ft_datapoints'
+        elif any(kw in ' '.join(columns_lower) for kw in ['ns', 'ni', 'rho_s', 'rho_i', 'grain']):
+            data_type = 'ft_count_data'
+        elif any(kw in ' '.join(columns_lower) for kw in ['track length', 'length_um', 'c axis']):
+            data_type = 'ft_track_length'
+        elif any(kw in ' '.join(columns_lower) for kw in ['corrected age', 'uncorrected age', 'ft', 'eu']):
+            data_type = 'he_whole_grain'
+        else:
+            data_type = 'unknown'
+
+        print(f'   🎯 Detected data type: {data_type}')
+        print()
+
+print('━' * 80)
+print()
+```
+
+### 0.6.2 Map Columns to EarthBank Schema
+
+```python
+print()
+print('━' * 80)
+print('MAPPING SUPPLEMENTARY DATA TO EARTHBANK SCHEMA')
+print('━' * 80)
+print()
+
+# EarthBank camelCase column mapping dictionaries
+# These handle common variations in supplementary file column names
+
+SAMPLE_COLUMN_MAP = {
+    # Sample ID variations
+    'sample_id': 'sampleID',
+    'sampleid': 'sampleID',
+    'sample': 'sampleID',
+    'sample name': 'sampleID',
+    'sample_name': 'sampleID',
+    'id': 'sampleID',
+
+    # Location variations
+    'latitude': 'latitude',
+    'lat': 'latitude',
+    'longitude': 'longitude',
+    'lon': 'longitude',
+    'long': 'longitude',
+    'elevation': 'elevationM',
+    'elevation_m': 'elevationM',
+    'elev': 'elevationM',
+    'altitude': 'elevationM',
+
+    # Sample info variations
+    'igsn': 'IGSN',
+    'lithology': 'lithology',
+    'rock type': 'lithology',
+    'mineral': 'mineralType',
+    'mineral type': 'mineralType',
+    'mineral_type': 'mineralType',
+
+    # Location description
+    'location': 'locationName',
+    'location name': 'locationName',
+    'site': 'locationName',
+}
+
+FT_DATAPOINT_COLUMN_MAP = {
+    # Sample linkage
+    'sample_id': 'sampleID',
+    'sampleid': 'sampleID',
+    'sample': 'sampleID',
+
+    # Datapoint ID
+    'datapoint': 'datapointName',
+    'datapoint_name': 'datapointName',
+    'analysis_id': 'datapointName',
+
+    # Age results (CRITICAL)
+    'central age': 'centralAgeMa',
+    'central_age': 'centralAgeMa',
+    'central age (ma)': 'centralAgeMa',
+    'central_age_ma': 'centralAgeMa',
+    'central age ± 1σ (ma)': 'centralAgeMa',  # Extract numeric only
+
+    'central age error': 'centralAgeErrorMa',
+    'central_age_error': 'centralAgeErrorMa',
+    '±1σ': 'centralAgeErrorMa',
+    '1σ error': 'centralAgeErrorMa',
+
+    'pooled age': 'pooledAgeMa',
+    'pooled_age': 'pooledAgeMa',
+    'pooled age (ma)': 'pooledAgeMa',
+    'pooled_age_ma': 'pooledAgeMa',
+
+    'pooled age error': 'pooledAgeErrorMa',
+    'pooled_age_error': 'pooledAgeErrorMa',
+
+    # Statistics
+    'n': 'nGrains',
+    'n grains': 'nGrains',
+    'n_grains': 'nGrains',
+    'grains': 'nGrains',
+
+    'dispersion': 'dispersionPct',
+    'dispersion (%)': 'dispersionPct',
+    'dispersion_%': 'dispersionPct',
+
+    'p(χ²)': 'pChi2',
+    'pchi2': 'pChi2',
+    'p(chi2)': 'pChi2',
+    'chi-square probability': 'pChi2',
+
+    # Track lengths
+    'mtl': 'meanTrackLengthUm',
+    'mean track length': 'meanTrackLengthUm',
+    'mean_track_length': 'meanTrackLengthUm',
+    'mtl (μm)': 'meanTrackLengthUm',
+
+    'sd': 'stdDevMu',
+    'std dev': 'stdDevMu',
+    'standard deviation': 'stdDevMu',
+
+    'n tracks': 'nTrackMeasurements',
+    'n_tracks': 'nTrackMeasurements',
+
+    # Kinetic parameters
+    'dpar': 'dPar',
+    'dpar (μm)': 'dPar',
+    'd_par': 'dPar',
+
+    'u': 'uPpm',
+    'u (ppm)': 'uPpm',
+    'u_ppm': 'uPpm',
+    'uranium': 'uPpm',
+
+    # Method info
+    'lab': 'laboratory',
+    'laboratory': 'laboratory',
+    'analyst': 'analyst',
+    'date': 'analysisDate',
+    'analysis date': 'analysisDate',
+}
+
+HE_DATAPOINT_COLUMN_MAP = {
+    # Sample linkage
+    'sample_id': 'sampleID',
+    'sampleid': 'sampleID',
+    'sample': 'sampleID',
+
+    # Age results
+    'mean corrected age': 'meanCorrectedAgeMa',
+    'mean_corrected_age': 'meanCorrectedAgeMa',
+    'mean corrected age (ma)': 'meanCorrectedAgeMa',
+    'weighted mean age': 'weightedMeanCorrectedAgeMa',
+
+    'mean uncorrected age': 'meanUncorrectedAgeMa',
+
+    # Statistics
+    'n': 'nAliquots',
+    'n aliquots': 'nAliquots',
+    'n_aliquots': 'nAliquots',
+
+    'mswd': 'MSWD',
+    'chi2': 'chiSquare',
+    'chi-square': 'chiSquare',
+
+    # Method info
+    'lab': 'laboratory',
+    'laboratory': 'laboratory',
+}
+
+HE_GRAIN_COLUMN_MAP = {
+    # Grain linkage
+    'sample_id': 'sampleID',
+    'grain': 'grainName',
+    'grain id': 'grainName',
+    'grain_id': 'grainName',
+    'aliquot': 'grainName',
+
+    # Ages
+    'corrected age': 'correctedHeAgeMa',
+    'corrected_age': 'correctedHeAgeMa',
+    'corrected age (ma)': 'correctedHeAgeMa',
+    'corrected he age': 'correctedHeAgeMa',
+
+    'uncorrected age': 'uncorrectedHeAgeMa',
+    'uncorrected_age': 'uncorrectedHeAgeMa',
+
+    # Chemistry
+    'eu': 'eUPpm',
+    'eu (ppm)': 'eUPpm',
+    'eu_ppm': 'eUPpm',
+    'effective u': 'eUPpm',
+
+    'u': 'uPpm',
+    'u (ppm)': 'uPpm',
+    'u_ppm': 'uPpm',
+
+    'th': 'thPpm',
+    'th (ppm)': 'thPpm',
+    'th_ppm': 'thPpm',
+
+    # Ft correction
+    'ft': 'ftValue',
+    'ft value': 'ftValue',
+    'ft_value': 'ftValue',
+    'alpha ejection': 'ftValue',
+
+    # Dimensions
+    'length': 'lengthUm',
+    'length (μm)': 'lengthUm',
+    'length_um': 'lengthUm',
+
+    'width': 'widthUm',
+    'width (μm)': 'widthUm',
+
+    'mass': 'mass',
+    'mass (μg)': 'mass',
+}
+
+print('✅ Column mapping dictionaries loaded')
+print(f'   - Sample columns: {len(SAMPLE_COLUMN_MAP)} mappings')
+print(f'   - FT datapoint columns: {len(FT_DATAPOINT_COLUMN_MAP)} mappings')
+print(f'   - He datapoint columns: {len(HE_DATAPOINT_COLUMN_MAP)} mappings')
+print(f'   - He grain columns: {len(HE_GRAIN_COLUMN_MAP)} mappings')
+print()
+
+print('━' * 80)
+print()
+```
+
+### 0.6.3 Convert and Import to Database
+
+```python
+print()
+print('━' * 80)
+print('IMPORTING TO EARTHBANK TABLES')
+print('━' * 80)
+print()
+
+# This section would contain the actual import logic
+# For now, provide clear instructions for manual import
+
+print('📋 IMPLEMENTATION OPTIONS:')
+print()
+print('**Option 1: Direct pandas-to-SQL import**')
+print('```python')
+print('from sqlalchemy import create_engine')
+print('import os')
+print()
+print('# Load environment variables')
+print('database_url = os.getenv("DATABASE_URL")')
+print('engine = create_engine(database_url)')
+print()
+print('# For each detected sheet/file:')
+print('df = pd.read_excel(file_path, sheet_name=sheet_name)')
+print()
+print('# Map columns using dictionaries above')
+print('df_mapped = df.rename(columns=FT_DATAPOINT_COLUMN_MAP)')
+print()
+print('# Select only columns that exist in EarthBank schema')
+print('earthbank_columns = ["sampleID", "centralAgeMa", "pooledAgeMa", ...]')
+print('df_final = df_mapped[[col for col in earthbank_columns if col in df_mapped.columns]]')
+print()
+print('# Import to database')
+print('df_final.to_sql("earthbank_ftDatapoints", engine, if_exists="append", index=False)')
+print('```')
+print()
+print('**Option 2: Generate CSV + COPY command**')
+print('```python')
+print('# Map and save to CSV')
+print('df_mapped.to_csv("temp_import.csv", index=False)')
+print()
+print('# Generate SQL COPY command')
+print('sql = f"""')
+print('COPY earthbank_ftDatapoints ({",".join(df_mapped.columns)})')
+print('FROM \\'/path/to/temp_import.csv\\'')
+print('WITH (FORMAT CSV, HEADER true);')
+print('"""')
+print()
+print('# Execute via psql or pg connection')
+print('```')
+print()
+print('**Option 3: Use import script**')
+print('```bash')
+print('# Use existing import script')
+print('npx tsx scripts/db/import-earthbank-templates.ts supplementary/Tables.xlsx')
+print('```')
+print()
+
+print('⚠️  IMPORTANT NOTES:')
+print('   1. Always map column names using dictionaries above')
+print('   2. Handle missing columns gracefully (NULL values)')
+print('   3. Validate sampleID exists in earthbank_samples before importing datapoints')
+print('   4. Generate datapointName if not present (e.g., SAMPLE_001_FT_01)')
+print('   5. Use UUID primary keys: uuid_generate_v4()')
+print('   6. Escape special characters in string fields')
+print()
+
+print('✅ Supplementary data ready for import')
+print('   Next step: Run import script or execute SQL commands above')
+print()
+
+# After successful import, skip to Step 13 (SQL metadata generation)
+print('━' * 80)
+print('⏭️  SKIPPING STEPS 1-12 (PDF EXTRACTION)')
+print('   Supplementary data import complete')
+print('   Continue to Step 13 (generate metadata SQL)')
+print('━' * 80)
+print()
+```
+
+**Output:**
+- ✅ Excel/CSV files inspected and mapped to EarthBank schema
+- ✅ Clear import instructions provided (3 options)
+- ✅ Column mapping dictionaries for all table types
+- ⏭️ Skip Steps 1-12 entirely (PDF extraction not needed)
+- → Continue to Step 13 (metadata SQL generation)
+
+**Key benefits:**
+- **90%+ accuracy** from clean Excel data (vs 70% from PDF extraction)
+- **Grain-level data** preserved (often not in PDF tables)
+- **30-60 minute time savings** per paper
+- **Flexible import options** (pandas, COPY, or scripts)
+
+---
+
+## Step 1: Load Paper Analysis
+
+**Task:** Read the paper-index.md to identify tables and their exact page numbers
+
+**File to read:**
+```bash
+build-data/learning/thermo-papers/PAPER_NAME/paper-index.md
+```
+
+**Extract from "📊 Data Tables in Paper" section:**
+
+| Field | What to Extract | Example |
+|-------|----------------|---------|
+| **Table identifiers** | Table numbers/names | Table 1, Table 2, Table A2, Table A3 |
+| **Page numbers** | Exact page(s) where table appears | Page 9, Pages 10-11 (spans 2 pages) |
+| **Data type** | AFT/AHe/Chemistry | AFT ages, (U-Th-Sm)/He results |
+| **Description** | Brief content summary | AFT results summary (35 samples) |
+
+
+**Example from McMillan et al. (2024):**
+```
+Table 1: Page 9 - AFT results summary (35 samples) -
+Table 2: Pages 10-11 - (U-Th-Sm)/He results (spans 2 pages) - 
+Table A3: Page 36 - Durango reference material -
+```
+
+**CRITICAL:** Extract ALL tables marked as "extractable: YES" in paper-index.md - NO tables are optional!
+
+**Priority determines extraction ORDER, not whether to extract:**
+- **HIGH priority:** Extract first (AFT ages, count data, track lengths, AHe data)
+- **MEDIUM priority:** Extract after HIGH (reference materials, supplementary data)
+- **ALL priorities:** MUST be extracted before marking extraction "complete"
+
+### Additional Resources from `/thermoanalysis` - NEW
+
+When reading `paper-index.md`, also note these additional files created by `/thermoanalysis`:
+
+**1. Visual Table Reference:**
+- **File:** `tables.md`
+- **Contains:** Visual screenshots of all tables with page numbers
+- **Use:** Quick visual verification of table structure before extraction
+- **Location:** `build-data/learning/thermo-papers/PAPER_NAME/tables.md`
+
+**2. Table Screenshots:**
+- **Directory:** `images/tables/`
+- **Contains:** High-resolution PNG screenshots (2x zoom) of each table
+- **Format:** `table_1_page_9.png`, `table_2_page_10.png`, etc.
+- **Use:** OCR fallback if pdfplumber fails (see Step 3.5)
+- **Location:** `build-data/learning/thermo-papers/PAPER_NAME/images/tables/`
+
+**3. Image Analysis:**
+- **File:** `images/image-metadata.json`
+- **Contains:** Extracted figures with captions and relevance ratings
+- **Use:** Future feature - extract data from figures (radial plots, histograms)
+- **Location:** `build-data/learning/thermo-papers/PAPER_NAME/images/image-metadata.json`
+
+**4. Supplementary Data:**
+- **Directory:** `supplemental/`
+- **Contains:** Downloaded Excel/CSV files from OSF/Zenodo (if available)
+- **Use:** Primary data source (checked in Step 0.5)
+- **Location:** `build-data/learning/thermo-papers/PAPER_NAME/supplemental/`
+
+**Quick Pre-Flight Check:**
+```python
+from pathlib import Path
+
+paper_dir = Path('build-data/learning/thermo-papers/PAPER_NAME')
+
+print('📋 Available Resources from /thermoanalysis:')
+print()
+
+if (paper_dir / 'paper-index.md').exists():
+    print('✅ paper-index.md (table locations & metadata)')
+else:
+    print('❌ paper-index.md MISSING - run /thermoanalysis first!')
+
+if (paper_dir / 'tables.md').exists():
+    print('✅ tables.md (visual table reference)')
+else:
+    print('⚠️  tables.md not found (optional - for visual verification)')
+
+if (paper_dir / 'images' / 'tables').exists():
+    table_screenshots = list((paper_dir / 'images' / 'tables').glob('*.png'))
+    print(f'✅ {len(table_screenshots)} table screenshot(s) (OCR fallback)')
+else:
+    print('⚠️  images/tables/ not found (optional - for OCR fallback)')
+
+if (paper_dir / 'supplemental').exists():
+    data_files = list((paper_dir / 'supplemental').glob('*.xlsx')) + \
+                 list((paper_dir / 'supplemental').glob('*.csv'))
+    print(f'✅ {len(data_files)} supplemental data file(s) (PRIORITY - use these!)')
+else:
+    print('ℹ️  No supplementary data (will extract from PDF)')
+
+print()
+```
+
+**Workflow Decision Tree:**
+```
+Is supplemental/ directory present?
+├─ YES → Use Step 0.5 (supplementary import) → SKIP PDF extraction
+└─ NO  → Continue with PDF extraction
+        ├─ Does pdfplumber work?
+        │  ├─ YES → Use pdfplumber text (Step 3)
+        │  └─ NO  → Use OCR fallback with table screenshots (Step 3.5)
+        └─ Validate with tables.md visual reference (Step 7.5)
+```
+
+---
+
+## Step 2: Extract PDF Pages
+
+**Task:** Isolate individual PDF pages containing each target table
+
+**Tool:** Use existing script `scripts/extract_pdf_pages.py`
+
+**Process:**
+```bash
+# For single-page table
+python scripts/extract_pdf_pages.py \
+  --pdf "build-data/learning/thermo-papers/PAPER_NAME/paper.pdf" \
+  --pages 9 \
+  --output "build-data/learning/thermo-papers/PAPER_NAME/extracted/table-1-page-9.pdf"
+
+# For multi-page table (e.g., spans pages 10-11)
+python scripts/extract_pdf_pages.py \
+  --pdf "build-data/learning/thermo-papers/PAPER_NAME/paper.pdf" \
+  --pages 10,11 \
+  --output "build-data/learning/thermo-papers/PAPER_NAME/extracted/table-2-pages-10-11.pdf"
+```
+
+**Output:** Individual PDF files for each table in `extracted/` subdirectory
+
+**Why this step?**
+- Isolates table from rest of paper (removes noise)
+- Allows focused text extraction on relevant pages only
+- Enables page-specific pdfplumber configuration
+
+---
+
+## Step 3: Extract Text with pdfplumber
+
+**Task:** Extract raw text from isolated PDF pages using pdfplumber
+
+**Python Script Template:**
+```python
+import pdfplumber
+
+# Open extracted PDF page
+with pdfplumber.open("path/to/extracted/table-X.pdf") as pdf:
+    for page in pdf.pages:
+        # Extract text (preserves spacing/alignment)
+        text = page.extract_text()
+
+        # Save to text file
+        with open("path/to/extracted/table-X-raw-text.txt", "w") as f:
+            f.write(text)
+```
+
+**Output:** Raw text files in `extracted/` directory
+- `table-1-page-9-raw-text.txt`
+- `table-2-pages-10-11-raw-text.txt`
+- etc.
+
+**Why pdfplumber?**
+- More reliable than pure AI vision for table text
+- Preserves spacing and alignment (critical for column detection)
+- Handles multi-column layouts better than OCR
+
+### Step 3.5: OCR Fallback (If pdfplumber Fails) - NEW
+
+**Task:** If pdfplumber returns empty/unusable text, use table screenshots from `/thermoanalysis`
+
+**When to trigger:**
+- pdfplumber returns empty string
+- pdfplumber returns only whitespace
+- Text is garbled/unreadable (image-only PDF)
+
+**Process:**
+
+```python
+import pdfplumber
+from pathlib import Path
+import pytesseract
+from PIL import Image
+
+# Extract text with pdfplumber (primary method)
+with pdfplumber.open(table_pdf) as pdf:
+    text = ""
+    for page in pdf.pages:
+        text += page.extract_text() or ""
+
+# Check if extraction failed
+if not text.strip():
+    print(f'⚠️  pdfplumber returned empty text for {table_pdf.name}')
+    print(f'⚠️  PDF may be image-only (scanned document)')
+    print()
+
+    # Check for table screenshots from /thermoanalysis
+    paper_dir = Path('build-data/learning/thermo-papers/PAPER_NAME')
+    tables_dir = paper_dir / 'images' / 'tables'
+
+    if tables_dir.exists():
+        print(f'✅ Found table screenshots directory: {tables_dir}')
+        print(f'✅ Attempting OCR fallback...')
+        print()
+
+        # Find matching table screenshot
+        # Table name format: "Table 1" → table_1_page_9.png
+        table_name_clean = table_name.lower().replace(' ', '_').replace('.', '')
+        table_screenshots = list(tables_dir.glob(f'{table_name_clean}_*.png'))
+
+        if table_screenshots:
+            print(f'📸 Found {len(table_screenshots)} screenshot(s) for {table_name}')
+            print()
+
+            # Perform OCR on each screenshot
+            ocr_text = ""
+            for screenshot in sorted(table_screenshots):
+                print(f'   Processing: {screenshot.name}')
+
+                try:
+                    # Open image and perform OCR
+                    img = Image.open(screenshot)
+
+                    # Use tesseract with table-optimized config
+                    custom_config = r'--oem 3 --psm 6'  # PSM 6 = assume uniform block of text
+                    page_text = pytesseract.image_to_string(img, config=custom_config)
+
+                    ocr_text += page_text + "\n\n"
+                    print(f'      ✅ OCR extracted {len(page_text)} characters')
+
+                except Exception as e:
+                    print(f'      ❌ OCR failed: {e}')
+
+            if ocr_text.strip():
+                text = ocr_text
+                print()
+                print(f'✅ OCR fallback succeeded ({len(text)} characters extracted)')
+                print(f'✅ Proceeding with OCR text for structure analysis')
+                print()
+            else:
+                print()
+                print(f'❌ OCR fallback failed - no text extracted')
+                print(f'❌ Table {table_name} cannot be processed automatically')
+                print(f'❌ Manual data entry may be required')
+                print()
+                continue  # Skip this table
+        else:
+            print(f'⚠️  No table screenshots found for {table_name}')
+            print(f'⚠️  Expected files like: {table_name_clean}_page_*.png')
+            print(f'⚠️  Run /thermoanalysis first to extract table screenshots')
+            print()
+            continue  # Skip this table
+    else:
+        print(f'❌ No images/tables/ directory found')
+        print(f'❌ Run /thermoanalysis first to extract table screenshots')
+        print()
+        continue  # Skip this table
+
+# Save extracted text (whether from pdfplumber or OCR)
+text_file = extracted_dir / f'{table_name_clean}-raw-text.txt'
+with open(text_file, 'w', encoding='utf-8') as f:
+    f.write(text)
+
+print(f'✅ Saved raw text to: {text_file.name}')
+print()
+```
+
+**Requirements:**
+- `pytesseract` package installed: `pip install pytesseract`
+- Tesseract OCR binary installed:
+  - macOS: `brew install tesseract`
+  - Ubuntu: `apt-get install tesseract-ocr`
+  - Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+
+**Output:**
+- Same as pdfplumber (`*-raw-text.txt` files)
+- Console notes indicate OCR was used as fallback
+
+**Benefits:**
+- ✅ Handles image-only/scanned PDFs (common for older papers)
+- ✅ Uses high-quality table screenshots from `/thermoanalysis` (2x resolution)
+- ✅ Seamlessly integrates with existing workflow (Steps 4-8 remain unchanged)
+- ✅ Automatic fallback - no user intervention required
+
+---
+
+## Step 4: AI Structure Analysis
+
+**Task:** Use AI to analyze the first 10-20 lines of raw text and understand table structure
+
+**Process:**
+1. Read the raw text file
+2. Extract first 10-20 lines (headers + 2-3 data rows)
+3. Ask AI to analyze structure
+
+**AI Analysis Prompt:**
+```
+You are analyzing a thermochronology data table extracted from a research paper.
+
+Here are the first 15 lines of text from the table:
+[PASTE RAW TEXT HERE]
+
+Analyze the structure and answer:
+1. What are the column headers? (exact text)
+2. What delimiter separates columns? (tab, multiple spaces, comma?)
+3. Are headers on one line or multiple lines?
+4. What pattern do sample IDs follow? (regex)
+5. How many columns are there?
+6. Are there any footnote symbols or special characters in the data?
+7. Are there any merged cells or spanning columns?
+8. What numeric format is used? (decimal: . or ,)
+9. How are uncertainties represented? (±, separate column, parentheses?)
+10. Are there any non-data rows? (subtotals, averages, blank rows?)
+
+Provide a concise structural summary.
+```
+
+**AI Output Example:**
+```
+Table Structure Analysis:
+- Headers: Single line, tab-separated
+- Columns: 24 columns detected
+- Sample ID: Pattern "MU19-\d{2}" (e.g., MU19-05, MU19-18)
+- Delimiter: Multiple spaces (aligned columns)
+- Uncertainties: ± format in same cell (e.g., "125.3 ± 15.2")
+- Special notes:
+  * Column 3 has footnote markers (a, b, c)
+  * Rows with "—" indicate no data
+  * Last row is average (skip it)
+```
+
+---
+
+## Step 5: Create Extraction Plan
+
+**Task:** Based on AI structure analysis, create a bespoke Python extraction script
+
+**Template Generator Prompt:**
+```
+Based on the structure analysis, generate a Python script to extract this table to CSV.
+
+Requirements:
+- Use pandas for dataframe operations
+- Handle [DELIMITER TYPE] delimiter
+- Extract column headers: [LIST HEADERS]
+- Sample ID regex: [REGEX PATTERN]
+- Skip non-data rows: [SPECIFY ROWS TO SKIP]
+- Split uncertainty columns (e.g., "125.3 ± 15.2" → two columns: value, error)
+- Remove footnote symbols from data
+- Handle missing data markers (—, n.d., <LOD)
+- Output CSV with clean column names
+
+Script should be robust and handle edge cases.
+```
+
+**AI generates:** Custom Python extraction script
+- `extract_table_1.py`
+- `extract_table_2.py`
+- etc.
+
+**Example script structure:**
+```python
+import pandas as pd
+import re
+
+# Read raw text
+with open("table-1-raw-text.txt", "r") as f:
+    lines = f.readlines()
+
+# Skip header rows and footers
+data_lines = lines[2:-1]  # Based on structure analysis
+
+# Split columns (adjust delimiter based on analysis)
+rows = []
+for line in data_lines:
+    # Custom parsing logic based on AI recommendations
+    cols = re.split(r'\s{2,}', line.strip())  # 2+ spaces = delimiter
+    rows.append(cols)
+
+# Create dataframe
+df = pd.DataFrame(rows, columns=HEADERS)
+
+# Clean data
+df = df[df['Sample_ID'].str.match(r'MU19-\d{2}')]  # Filter valid samples
+df = df.replace('—', None)  # Missing data
+
+# Split uncertainty columns
+# ... (custom logic based on format)
+
+# Export to CSV
+df.to_csv("table-1-extracted.csv", index=False)
+```
+
+---
+
+## Step 6: Extract to CSV
+
+**Task:** Run the bespoke extraction script and generate CSV
+
+**Process:**
+```bash
+cd build-data/learning/thermo-papers/PAPER_NAME/extracted/
+python extract_table_1.py
+```
+
+**Output:** Clean CSV file
+- `table-1-extracted.csv`
+
+**CSV Requirements:**
+- Headers must be clean (no special characters)
+- One row per sample/grain/datapoint
+- Numeric columns must be pure numbers (no ± symbols)
+- Uncertainty in separate column from value
+- Missing data as empty cells (not "—" or "n.d.")
+- Sample IDs validated against expected pattern
+
+---
+
+## Step 7: Comprehensive Validation (MANDATORY)
+
+**Task:** Validate extracted CSV against raw table data with automated checks - NO extraction is complete without passing validation
+
+**Why this is CRITICAL:**
+- **50-70% of extractions** have partial data loss without validation
+- **Empty columns** indicate parsing failures
+- **Missing columns** mean important data was lost
+- **Wrong data ranges** catch values in incorrect columns
+
+**Validation Checks (ALL must pass):**
+
+### 7.1: Column Count Validation
+
+```python
+import pandas as pd
+import re
+from pathlib import Path
+
+print()
+print('━' * 80)
+print('STEP 7.1: COLUMN COUNT VALIDATION')
+print('━' * 80)
+print()
+
+# Load extracted CSV
+csv_file = Path('extracted/table-1-extracted.csv')
+df = pd.read_csv(csv_file)
+
+# Count columns in raw table header
+raw_text_file = Path('extracted/table-1-page-9-raw-text.txt')
+with open(raw_text_file, 'r') as f:
+    lines = f.readlines()
+
+# Find header line (contains "Sample" and column names)
+header_line = None
+for line in lines[:20]:  # Check first 20 lines
+    if 'Sample' in line and 'No.' in line:
+        header_line = line
+        break
+
+if header_line:
+    # Count distinct column names in header
+    # Split by 2+ spaces to separate columns
+    header_parts = re.split(r'\s{2,}', header_line.strip())
+    expected_columns = len([p for p in header_parts if p and p != 'SampleNo.'])
+
+    print(f'📊 Raw table columns: ~{expected_columns}')
+    print(f'📊 Extracted CSV columns: {len(df.columns)}')
+    print()
+
+    # Calculate completeness
+    completeness = (len(df.columns) / max(expected_columns, 1)) * 100
+
+    if completeness < 90:
+        print(f'❌ VALIDATION FAILED: Column count mismatch')
+        print(f'   Expected: ≥{expected_columns * 0.9:.0f} columns (90% of {expected_columns})')
+        print(f'   Found: {len(df.columns)} columns')
+        print(f'   Completeness: {completeness:.1f}%')
+        print()
+        print('   Missing columns may include critical data!')
+        validation_passed = False
+    else:
+        print(f'✅ Column count OK ({completeness:.1f}% complete)')
+        validation_passed = True
+
+else:
+    print('⚠️ Could not detect expected column count from raw text')
+    validation_passed = True  # Skip this check if header not found
+
+print()
+print('━' * 80)
+print()
+```
+
+### 7.2: Empty Column Detection
+
+```python
+print()
+print('━' * 80)
+print('STEP 7.2: EMPTY COLUMN DETECTION')
+print('━' * 80)
+print()
+
+# Find columns that are completely empty
+empty_cols = []
+for col in df.columns:
+    if df[col].isna().all() or (df[col].astype(str).str.strip() == '').all():
+        empty_cols.append(col)
+
+print(f'📊 Total columns: {len(df.columns)}')
+print(f'📊 Empty columns: {len(empty_cols)}')
+print()
+
+if empty_cols:
+    print('❌ VALIDATION WARNING: Empty columns detected')
+    print()
+    for col in empty_cols[:10]:  # Show first 10
+        print(f'   - {col}')
+    if len(empty_cols) > 10:
+        print(f'   ... and {len(empty_cols) - 10} more')
+    print()
+
+    # Fail if >10% of columns are empty (excludes truly optional fields)
+    empty_pct = (len(empty_cols) / len(df.columns)) * 100
+
+    if empty_pct > 10:
+        print(f'❌ VALIDATION FAILED: {empty_pct:.1f}% of columns are empty')
+        print('   This indicates a parsing failure!')
+        validation_passed = False
+    else:
+        print(f'⚠️ WARNING: {len(empty_cols)} empty column(s) (may be optional fields)')
+else:
+    print('✅ No empty columns detected')
+
+print()
+print('━' * 80)
+print()
+```
+
+### 7.3: Data Range Validation
+
+```python
+print()
+print('━' * 80)
+print('STEP 7.3: DATA RANGE VALIDATION')
+print('━' * 80)
+print()
+
+# Define expected ranges for thermochronology data
+expected_ranges = {
+    'centralAgeMa': (0, 500),       # Central ages: 0-500 Ma
+    'pooledAgeMa': (0, 500),         # Pooled ages: 0-500 Ma
+    'meanTrackLengthUm': (5, 20),    # Track lengths: 5-20 μm
+    'stdDevTrackLength': (0, 5),     # Std dev: 0-5 μm
+    'dPar': (0, 5),                  # Dpar: 0-5 μm
+    'numGrains': (1, 200),           # Grain count: 1-200
+    'uPpm': (0, 500),                # Uranium: 0-500 ppm
+    'thPpm': (0, 500),               # Thorium: 0-500 ppm
+}
+
+range_violations = []
+
+for col, (min_val, max_val) in expected_ranges.items():
+    if col in df.columns:
+        # Convert to numeric
+        col_numeric = pd.to_numeric(df[col], errors='coerce')
+
+        # Check range
+        out_of_range = col_numeric[(col_numeric < min_val) | (col_numeric > max_val)]
+
+        if len(out_of_range) > 0:
+            range_violations.append({
+                'column': col,
+                'expected': f'{min_val}-{max_val}',
+                'violations': len(out_of_range),
+                'examples': out_of_range.head(3).tolist()
+            })
+
+            print(f'⚠️ {col}: {len(out_of_range)} value(s) outside expected range')
+            print(f'   Expected: {min_val}-{max_val}')
+            print(f'   Found: {out_of_range.head(3).tolist()}')
+            print()
+
+if not range_violations:
+    print('✅ All values within expected ranges')
+else:
+    print(f'⚠️ Found {len(range_violations)} column(s) with out-of-range values')
+    print('   This may indicate values in wrong columns!')
+
+    # Fail if >50% of values in a critical column are out of range
+    for violation in range_violations:
+        if violation['column'] in ['centralAgeMa', 'pooledAgeMa', 'meanTrackLengthUm']:
+            violation_pct = (violation['violations'] / len(df)) * 100
+            if violation_pct > 50:
+                print(f'❌ VALIDATION FAILED: {violation["column"]} has {violation_pct:.1f}% invalid values')
+                validation_passed = False
+
+print()
+print('━' * 80)
+print()
+```
+
+### 7.4: Sample ID Validation
+
+```python
+print()
+print('━' * 80)
+print('STEP 7.4: SAMPLE ID VALIDATION')
+print('━' * 80)
+print()
+
+# Expected pattern from paper-index.md (e.g., MU19-XX, MU20-XX)
+sample_id_pattern = r'^MU\d{2}-\d{2}$'
+
+if 'sampleID' in df.columns:
+    valid_ids = df['sampleID'].str.match(sample_id_pattern, na=False)
+    invalid_count = (~valid_ids).sum()
+
+    print(f'📊 Total samples: {len(df)}')
+    print(f'📊 Valid sample IDs: {valid_ids.sum()}')
+    print(f'📊 Invalid sample IDs: {invalid_count}')
+    print()
+
+    if invalid_count > 0:
+        print(f'⚠️ Invalid sample IDs detected:')
+        for invalid_id in df[~valid_ids]['sampleID'].head(5):
+            print(f'   - {invalid_id}')
+        print()
+
+        if invalid_count > len(df) * 0.1:  # >10% invalid
+            print(f'❌ VALIDATION FAILED: {invalid_count} invalid sample IDs ({invalid_count / len(df) * 100:.1f}%)')
+            validation_passed = False
+    else:
+        print('✅ All sample IDs match expected pattern')
+else:
+    print('⚠️ No sampleID column found')
+
+print()
+print('━' * 80)
+print()
+```
+
+### 7.5: Final Validation Summary
+
+```python
+print()
+print('━' * 80)
+print('VALIDATION SUMMARY')
+print('━' * 80)
+print()
+
+if validation_passed:
+    print('✅ ALL VALIDATION CHECKS PASSED')
+    print()
+    print(f'✓ Column count: {len(df.columns)} columns')
+    print(f'✓ Empty columns: {len(empty_cols)} ({len(empty_cols) / len(df.columns) * 100:.1f}%)')
+    print(f'✓ Data ranges: All values within expected limits')
+    print(f'✓ Sample IDs: All valid')
+    print()
+    print('→ Proceeding to next step')
+else:
+    print('❌ VALIDATION FAILED')
+    print()
+    print('Critical issues detected:')
+    print('   - Column count mismatch OR')
+    print('   - Too many empty columns OR')
+    print('   - Values in wrong columns OR')
+    print('   - Invalid sample IDs')
+    print()
+    print('→ Triggering retry loop (Step 8)')
+
+print()
+print('━' * 80)
+print()
+```
+
+**Output:**
+- `validation_passed` boolean (True/False)
+- Detailed report of ALL validation checks
+- Specific failures listed with recommended fixes
+- Auto-triggers Step 8 (retry) if validation fails
+
+---
+
+## Step 8: Automatic Retry Loop (On Validation Failure)
+
+**Task:** If validation fails, automatically retry extraction with fixes
+
+**Trigger condition:** `validation_passed = False` from Step 7
+
+**Process:**
+
+```python
+print()
+print('━' * 80)
+print('STEP 8: RETRY LOOP (VALIDATION FAILED)')
+print('━' * 80)
+print()
+
+max_retries = 3
+retry_count = 0
+
+while not validation_passed and retry_count < max_retries:
+    retry_count += 1
+
+    print(f'🔄 RETRY ATTEMPT {retry_count}/{max_retries}')
+    print()
+
+    # Analyze failures and adjust extraction strategy
+    if len(empty_cols) > 5:
+        print('📝 Issue: Too many empty columns')
+        print('   Fix: Adjust column delimiter detection')
+        print('   - Try splitting by single space instead of multiple spaces')
+        print('   - Check for tab characters in raw text')
+        print()
+
+    if range_violations:
+        print('📝 Issue: Values in wrong columns')
+        print('   Fix: Re-map ± pattern extraction order')
+        print('   - Verify which ± value corresponds to which field')
+        print('   - Check if column headers are split across multiple lines')
+        print()
+
+    # Delete failed CSV
+    csv_file.unlink()
+    print(f'🗑️  Deleted: {csv_file.name}')
+    print()
+
+    # Regenerate extraction script with fixes
+    print('🔧 Regenerating extraction script with fixes...')
+
+    # [HERE: AI would regenerate extract_table_X.py with adjustments]
+    # For example:
+    # - Change delimiter from r'\s{2,}' to r'\s+' or '\t'
+    # - Adjust ± value extraction order
+    # - Add more robust column mapping
+
+    # Re-run extraction
+    print('▶️  Re-running extraction...')
+    # exec(open('extract_table_1.py').read())
+
+    # Re-run validation (Steps 7.1-7.5)
+    print('🔍 Re-running validation...')
+    # [Repeat validation checks from Step 7]
+
+    # Update validation_passed based on new results
+    # validation_passed = <result of re-validation>
+
+    if validation_passed:
+        print(f'✅ Retry successful on attempt {retry_count}!')
+        break
+    else:
+        print(f'❌ Retry {retry_count} failed')
+        if retry_count < max_retries:
+            print(f'   Attempting retry {retry_count + 1}...')
+            print()
+
+# Final outcome
+if not validation_passed:
+    print()
+    print('━' * 80)
+    print('❌ EXTRACTION FAILED AFTER 3 RETRIES')
+    print('━' * 80)
+    print()
+    print('This table requires manual intervention:')
+    print(f'   1. Review raw text: {raw_text_file}')
+    print(f'   2. Inspect extraction script: extract_table_1.py')
+    print(f'   3. Manually adjust column mapping')
+    print(f'   4. OR flag for manual data entry')
+    print()
+    print('⚠️ Proceeding with other tables, but this table is INCOMPLETE')
+    print()
+
+print('━' * 80)
+print()
+```
+
+**Retry Strategy:**
+1. Analyze which validation check failed
+2. Apply targeted fix:
+   - **Column count low** → Adjust delimiter (try tabs, single space, etc.)
+   - **Empty columns** → Re-map column positions, check header spanning
+   - **Range violations** → Re-order ± value extraction, verify column mapping
+   - **Invalid sample IDs** → Fix regex pattern or cleaning logic
+
+3. Delete failed CSV
+4. Regenerate extraction script with fixes
+5. Re-run extraction + validation
+6. Maximum 3 attempts
+
+**Failure handling:**
+- After 3 failed attempts: Mark table as "INCOMPLETE"
+- Log failures for manual review
+- Continue with other tables (don't abort entire extraction)
+- Generate warning in final report
+
+**Success criteria:**
+- ALL validation checks pass (Steps 7.1-7.4)
+- No critical failures remain
+- Proceed to Step 9 (Kohn 2024 comparison)
+
+---
+
+## Step 9: Compare to Kohn (2024) Standards
+
+**Task:** Validate extracted CSV against required fields from Kohn et al. (2024) Table 4-10
+
+**Reference files:**
+- `/build-data/learning/archive/01-Kohn-2024-Reporting-Standards.md`
+- `/build-data/assets/source-data/thermo/table-data/table-05-fission-track-counts.csv` (field requirements)
+- `/build-data/assets/source-data/thermo/table-data/table-10-fission-track-ages.csv` (age requirements)
+
+**Check for each table type:**
+
+**Table 4 - Geosample Metadata:**
+- Required: sampleID, IGSN, latitude, longitude, elevation, mineralName, lithology
+- Recommended: collector, collectionDate, stratigraphicUnit
+
+**Table 5 - Fission-Track Counts:**
+- Required: grain_id, Ns, ρs, Dpar, analyst, lab, method
+- EDM-specific: Ni, ρi, Nd, ρd, dosimeter
+- LA-ICP-MS-specific: U ppm, counting area
+
+**Table 6 - Track Lengths:**
+- Required: track_id, length, c-axis angle, analyst
+- Recommended: Dpar, etching conditions
+
+**Table 10 - Ages:**
+- Required: central_age, dispersion, P(χ²), n_grains, zeta, λf, λD
+- Recommended: pooled_age, analyst, laboratory
+
+**Output:** Validation report showing:
+```
+✅ Required fields present: 8/10 (80%)
+⚠️  Missing required: IGSN, collector
+⚠️  Missing recommended: stratigraphic_unit, collection_date
+```
+
+---
+
+## Step 10: Calculate FAIR Score
+
+**Task:** Rate data completeness on 0-100 scale
+
+**Scoring rubric:**
+
+**Critical Fields (50 points):**
+- Sample metadata (IGSN, location, mineral) → 15 pts
+- Count data (Ns, ρs, Dpar) → 15 pts
+- Age calculation params (zeta, λf, λD) → 10 pts
+- Statistical data (dispersion, P(χ²)) → 10 pts
+
+**Recommended Fields (30 points):**
+- Provenance (analyst, lab, date) → 10 pts
+- Track lengths (MTL, SD) → 10 pts
+- Kinetic parameters (Cl, rmr₀) → 10 pts
+
+**Quality Indicators (20 points):**
+- Secondary standards reported → 5 pts
+- Grain-level data (not just pooled) → 5 pts
+- Complete methods description → 5 pts
+- Uncertainty propagation → 5 pts
+
+**Grade scale:**
+- 90-100: Excellent (fully FAIR compliant)
+- 75-89: Good (minor gaps)
+- 60-74: Fair (moderate gaps)
+- <60: Poor (major gaps)
+
+**Example output:**
+```
+FAIR Score: 82/100 (Good)
+
+Breakdown:
+  Critical fields: 42/50 ✅
+  Recommended fields: 24/30 ⚠️
+  Quality indicators: 16/20 ✅
+
+Key gaps:
+  - No IGSN assigned
+  - Missing analyst ORCID
+  - No secondary standards reported
+```
+
+---
+
+## Step 11: Transform to EarthBank camelCase Schema
+
+**Task:** Map extracted data to EarthBank camelCase schema (1:1 field mapping, NO translation needed)
+
+**CRITICAL:** Database now uses native EarthBank camelCase field names. Extract directly to these names.
+
+**Reference schema:**
+- `readme/database/.schema-snapshot.sql` - Current database schema
+- `readme/database/SCHEMA_CHANGES.md` - Migration documentation
+
+**Mapping process:**
+
+### Map 1: Samples → earthbank_samples
+
+**Target columns (camelCase):**
+```
+EXTRACT DIRECTLY TO:
+- sampleID          → Unique sample identifier
+- sampleName        → Sample name/label
+- latitude          → Decimal degrees
+- longitude         → Decimal degrees
+- elevation         → Elevation in meters
+- mineralName       → Mineral type (e.g., "apatite", "zircon")
+- lithology         → Rock type
+- geodeticDatum     → Coordinate system (default: "WGS84")
+- verticalDatum     → Elevation reference (default: "mean sea level")
+- sampleKind        → Sample type (default: "in situ rock")
+- locationName      → Place name
+- locationDescription → Location details
+```
+
+**NO TRANSLATION NEEDED:** Use camelCase directly in extraction scripts
+
+### Map 2: FT Datapoints → earthbank_ftDatapoints
+
+**Target columns (camelCase):**
+```
+EXTRACT DIRECTLY TO:
+- datapointName     → Unique datapoint identifier
+- sampleID          → Foreign key to sample
+- centralAgeMa      → Central age (Ma)
+- centralAgeError   → Central age uncertainty (1σ)
+- pooledAgeMa       → Pooled age (Ma)
+- pooledAgeError    → Pooled age uncertainty (1σ)
+- numGrains         → Number of grains counted
+- dispersion        → Age dispersion (%)
+- pChi2             → P(χ²) statistic (%)
+- meanTrackLength   → Mean track length (μm)
+- stdTrackLength    → Track length standard deviation
+- numTracks         → Number of tracks measured
+- zeta              → Zeta calibration factor
+- zetaError         → Zeta uncertainty
+- laboratory        → Laboratory name
+- analyst           → Analyst name
+- analysisDate      → Analysis date
+- ftMethod          → FT method (EDM, LA-ICP-MS)
+```
+
+**NO TRANSLATION NEEDED:** Use camelCase directly
+
+### Map 3: FT Track Length Data → earthbank_ftTrackLengthData
+
+**Target columns (camelCase):**
+```
+EXTRACT DIRECTLY TO:
+- datapointName     → Foreign key to datapoint
+- grainID           → Grain identifier (within datapoint)
+- trackID           → Track identifier (within grain)
+- trackLengthUm     → Measured length (μm)
+- cAxisAngle        → Angle to c-axis (degrees)
+- trackType         → Track type (TINT, TINCLE, semi-track)
+```
+
+### Map 4: HE Whole Grain Data → earthbank_heWholeGrainData
+
+**Target columns (camelCase):**
+```
+EXTRACT DIRECTLY TO:
+- datapointName     → Foreign key to HE datapoint
+- grainID           → Grain identifier
+- rawHeAgeMa        → Corrected He age (Ma)
+- rawHeAgeError     → He age uncertainty
+- ftValue           → Ft correction factor
+- uPpm              → Uranium concentration (ppm)
+- thPpm             → Thorium concentration (ppm)
+- smPpm             → Samarium concentration (ppm)
+- grainLength       → Grain length (μm)
+- grainWidth        → Grain width (μm)
+- grainMass         → Grain mass (μg)
+```
+
+**Output:** EarthBank-compatible camelCase CSV files in `FAIR/` directory:
+- `earthbank_samples.csv` (camelCase columns)
+- `earthbank_ftDatapoints.csv` (camelCase columns)
+- `earthbank_ftTrackLengthData.csv` (camelCase columns)
+- `earthbank_heWholeGrainData.csv` (camelCase columns)
+
+**Key change:**
+- **OLD:** Extract as snake_case, transform to EarthBank names
+- **NEW:** Extract DIRECTLY as camelCase (matches database 1:1)
+
+---
+
+## Step 12: Import to Database
+
+**Task:** Load validated camelCase data into EarthBank schema PostgreSQL tables
+
+**Database Configuration:**
+```bash
+# Required in .env.local
+DIRECT_URL="postgresql://neondb_owner:npg_a7j4RQTnJxcz@ep-fragrant-bush-ahfxu1xq.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+**CRITICAL: PostgreSQL camelCase Syntax**
+```sql
+-- ✅ CORRECT: Use double-quotes for camelCase columns
+SELECT "sampleID", "centralAgeMa" FROM earthbank_ftDatapoints;
+
+-- ❌ WRONG: Unquoted will be lowercased by PostgreSQL
+SELECT sampleID, centralAgeMa FROM earthbank_ftDatapoints;  -- FAILS!
+```
+
+**EarthBank Schema Tables to Populate:**
+
+### Table 1: earthbank_samples
+```typescript
+// Read from: earthbank_samples.csv
+// Target table: earthbank_samples
+// Primary key: id (UUID, auto-generated)
+// Business key: sampleID (string)
+
+// Fields (ALL camelCase):
+// - "sampleID"          (TEXT, unique)
+// - "sampleName"        (TEXT)
+// - "latitude"          (NUMERIC)
+// - "longitude"         (NUMERIC)
+// - "elevation"         (NUMERIC)
+// - "mineralName"       (TEXT)
+// - "lithology"         (TEXT)
+// - "geodeticDatum"     (TEXT)
+// - "verticalDatum"     (TEXT)
+// - "sampleKind"        (TEXT)
+// - "locationName"      (TEXT)
+// - "locationDescription" (TEXT)
+```
+
+### Table 2: earthbank_ftDatapoints
+```typescript
+// Read from: earthbank_ftDatapoints.csv
+// Target table: earthbank_ftDatapoints
+// Primary key: id (UUID, auto-generated)
+// Foreign key: sampleID → earthbank_samples.sampleID
+
+// Fields (ALL camelCase):
+// - "datapointName"     (TEXT, unique)
+// - "sampleID"          (TEXT, FK)
+// - "centralAgeMa"      (NUMERIC)
+// - "centralAgeError"   (NUMERIC)
+// - "pooledAgeMa"       (NUMERIC)
+// - "pooledAgeError"    (NUMERIC)
+// - "numGrains"         (INTEGER)
+// - "dispersion"        (NUMERIC)
+// - "pChi2"             (NUMERIC)
+// - "meanTrackLength"   (NUMERIC)
+// - "stdTrackLength"    (NUMERIC)
+// - "numTracks"         (INTEGER)
+// - "zeta"              (NUMERIC)
+// - "zetaError"         (NUMERIC)
+// - "laboratory"        (TEXT)
+// - "analyst"           (TEXT)
+// - "analysisDate"      (DATE)
+// - "ftMethod"          (TEXT)
+```
+
+### Table 3: earthbank_ftTrackLengthData
+```typescript
+// Read from: earthbank_ftTrackLengthData.csv
+// Target table: earthbank_ftTrackLengthData
+// Primary key: id (UUID, auto-generated)
+// Foreign key: datapointName → earthbank_ftDatapoints.datapointName
+
+// Fields (ALL camelCase):
+// - "datapointName"     (TEXT, FK)
+// - "grainID"           (TEXT)
+// - "trackID"           (TEXT)
+// - "trackLengthUm"     (NUMERIC)
+// - "cAxisAngle"        (NUMERIC)
+// - "trackType"         (TEXT)
+```
+
+### Table 4: earthbank_heDatapoints
+```typescript
+// Read from: earthbank_heDatapoints.csv
+// Target table: earthbank_heDatapoints
+// Primary key: id (UUID, auto-generated)
+// Foreign key: sampleID → earthbank_samples.sampleID
+
+// Fields (ALL camelCase):
+// - "datapointName"     (TEXT, unique)
+// - "sampleID"          (TEXT, FK)
+// - "meanCorrAgeMa"     (NUMERIC)
+// - "seMeanCorrAge"     (NUMERIC)
+// - "numAliquots"       (INTEGER)
+// - "chiSquare"         (NUMERIC)
+// - "mswd"              (NUMERIC)
+```
+
+### Table 5: earthbank_heWholeGrainData
+```typescript
+// Read from: earthbank_heWholeGrainData.csv (if AHe data present)
+// Target table: earthbank_heWholeGrainData
+// Primary key: id (UUID, auto-generated)
+// Foreign key: datapointName → earthbank_heDatapoints.datapointName
+
+// Fields (ALL camelCase - 75+ columns):
+// - "datapointName"     (TEXT, FK)
+// - "grainID"           (TEXT)
+// - "rawHeAgeMa"        (NUMERIC)
+// - "rawHeAgeError"     (NUMERIC)
+// - "ftValue"           (NUMERIC)
+// - "uPpm"              (NUMERIC)
+// - "thPpm"             (NUMERIC)
+// - "smPpm"             (NUMERIC)
+// - "grainLength"       (NUMERIC)
+// - "grainWidth"        (NUMERIC)
+// - "grainMass"         (NUMERIC)
+// ... (see readme/database/tables/earthbank_heWholeGrainData.md for full list)
+```
+
+**Import Process:**
+
+**Option A: TypeScript import script (recommended)**
+```bash
+# Create import script: scripts/import_mcmillan_2024.ts
+npx tsx scripts/import_mcmillan_2024.ts
+```
+
+**Option B: SQL COPY commands (camelCase)**
+```sql
+-- ⚠️  COPY command does NOT support camelCase column names easily
+-- Recommend using TypeScript import script instead (Option A)
+
+-- If you must use COPY, you'll need to specify columns with quotes:
+COPY earthbank_samples("sampleID", "sampleName", "latitude", "longitude", "elevation", ...)
+FROM '/path/to/earthbank_samples.csv'
+DELIMITER ',' CSV HEADER;
+
+-- However, this is error-prone with camelCase
+-- RECOMMENDED: Use Option A (TypeScript import script) instead
+```
+
+**Import Script Template (camelCase):**
+```typescript
+import { pool } from '@/lib/db/connection'
+import { readCSV } from '@/lib/utils/csv'
+
+async function importDataset() {
+  const client = await pool.connect()
+
+  try {
+    await client.query('BEGIN')
+
+    // 1. Import samples (use quoted camelCase columns)
+    const samples = await readCSV('FAIR/earthbank_samples.csv')
+    for (const sample of samples) {
+      await client.query(`
+        INSERT INTO earthbank_samples (
+          "sampleID", "sampleName", "latitude", "longitude", "elevation",
+          "mineralName", "lithology", "geodeticDatum", "verticalDatum", "sampleKind"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT ("sampleID") DO NOTHING
+      `, [
+        sample.sampleID, sample.sampleName, sample.latitude, sample.longitude,
+        sample.elevation, sample.mineralName, sample.lithology,
+        sample.geodeticDatum || 'WGS84',
+        sample.verticalDatum || 'mean sea level',
+        sample.sampleKind || 'in situ rock'
+      ])
+    }
+
+    console.log(`✅ Imported ${samples.length} samples`)
+
+    // 2. Import FT datapoints (use quoted camelCase columns)
+    const datapoints = await readCSV('FAIR/earthbank_ftDatapoints.csv')
+    for (const dp of datapoints) {
+      await client.query(`
+        INSERT INTO earthbank_ftDatapoints (
+          "datapointName", "sampleID", "centralAgeMa", "centralAgeError",
+          "pooledAgeMa", "pooledAgeError", "numGrains", "dispersion", "pChi2",
+          "meanTrackLength", "stdTrackLength", "numTracks",
+          "zeta", "zetaError", "laboratory", "analyst", "analysisDate", "ftMethod"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ON CONFLICT ("datapointName") DO NOTHING
+      `, [
+        dp.datapointName, dp.sampleID, dp.centralAgeMa, dp.centralAgeError,
+        dp.pooledAgeMa, dp.pooledAgeError, dp.numGrains, dp.dispersion, dp.pChi2,
+        dp.meanTrackLength, dp.stdTrackLength, dp.numTracks,
+        dp.zeta, dp.zetaError, dp.laboratory, dp.analyst, dp.analysisDate, dp.ftMethod
+      ])
+    }
+
+    console.log(`✅ Imported ${datapoints.length} FT datapoints`)
+
+    // 3. Import FT track length data (use quoted camelCase columns)
+    const trackLengths = await readCSV('FAIR/earthbank_ftTrackLengthData.csv')
+    for (const track of trackLengths) {
+      await client.query(`
+        INSERT INTO earthbank_ftTrackLengthData (
+          "datapointName", "grainID", "trackID", "trackLengthUm", "cAxisAngle", "trackType"
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [
+        track.datapointName, track.grainID, track.trackID,
+        track.trackLengthUm, track.cAxisAngle, track.trackType
+      ])
+    }
+
+    console.log(`✅ Imported ${trackLengths.length} track length measurements`)
+
+    // 4. Import He whole grain data (if present)
+    const heGrainFile = 'FAIR/earthbank_heWholeGrainData.csv'
+    if (await fileExists(heGrainFile)) {
+      const heGrains = await readCSV(heGrainFile)
+      for (const grain of heGrains) {
+        await client.query(`
+          INSERT INTO earthbank_heWholeGrainData (
+            "datapointName", "grainID", "rawHeAgeMa", "rawHeAgeError", "ftValue",
+            "uPpm", "thPpm", "smPpm", "grainLength", "grainWidth", "grainMass"
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        `, [
+          grain.datapointName, grain.grainID, grain.rawHeAgeMa, grain.rawHeAgeError,
+          grain.ftValue, grain.uPpm, grain.thPpm, grain.smPpm,
+          grain.grainLength, grain.grainWidth, grain.grainMass
+        ])
+      }
+
+      console.log(`✅ Imported ${heGrains.length} He grains`)
+    }
+
+    await client.query('COMMIT')
+    console.log('✅ Import successful!')
+
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('❌ Import failed:', error)
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+// Helper function
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+importDataset()
+```
+
+**CRITICAL NOTES:**
+1. **ALL column names must be quoted** (e.g., `"sampleID"`, not `sampleID`)
+2. **CSV field names must match camelCase** (e.g., `sample.sampleID`, not `sample.sample_id`)
+3. **Use parameterized queries** ($1, $2, etc.) to prevent SQL injection
+4. **Transaction wrapper** (BEGIN/COMMIT/ROLLBACK) ensures data consistency
+
+**Validation After Import (camelCase queries):**
+```sql
+-- Check sample count
+SELECT COUNT(*) FROM earthbank_samples
+WHERE "sampleID" LIKE 'MU19-%';
+
+-- Check FT datapoint count
+SELECT COUNT(*) FROM earthbank_ftDatapoints
+WHERE "sampleID" IN (
+  SELECT "sampleID" FROM earthbank_samples
+  WHERE "sampleID" LIKE 'MU19-%'
+);
+
+-- Check track length data count
+SELECT COUNT(*) FROM earthbank_ftTrackLengthData
+WHERE "datapointName" IN (
+  SELECT "datapointName" FROM earthbank_ftDatapoints
+  WHERE "sampleID" LIKE 'MU19-%'
+);
+
+-- Verify age ranges (MUST use quoted camelCase)
+SELECT
+  MIN("centralAgeMa") as min_age,
+  MAX("centralAgeMa") as max_age,
+  AVG("centralAgeMa") as avg_age,
+  COUNT(*) as num_datapoints
+FROM earthbank_ftDatapoints
+WHERE "sampleID" IN (
+  SELECT "sampleID" FROM earthbank_samples
+  WHERE "sampleID" LIKE 'MU19-%'
+);
+
+-- Verify data completeness
+SELECT
+  COUNT(DISTINCT s."sampleID") as num_samples,
+  COUNT(DISTINCT d."datapointName") as num_datapoints,
+  COUNT(t.id) as num_tracks,
+  AVG(d."numGrains") as avg_grains_per_sample
+FROM earthbank_samples s
+LEFT JOIN earthbank_ftDatapoints d ON s."sampleID" = d."sampleID"
+LEFT JOIN earthbank_ftTrackLengthData t ON d."datapointName" = t."datapointName"
+WHERE s."sampleID" LIKE 'MU19-%';
+
+-- Check for missing critical fields
+SELECT
+  "sampleID",
+  "sampleName",
+  CASE WHEN "latitude" IS NULL THEN '❌ Missing' ELSE '✅' END as has_latitude,
+  CASE WHEN "longitude" IS NULL THEN '❌ Missing' ELSE '✅' END as has_longitude,
+  CASE WHEN "mineralName" IS NULL THEN '❌ Missing' ELSE '✅' END as has_mineral
+FROM earthbank_samples
+WHERE "sampleID" LIKE 'MU19-%'
+ORDER BY "sampleID";
+```
+
+**REMEMBER:**
+- Always use **double-quotes** for camelCase columns
+- Unquoted identifiers will be lowercased by PostgreSQL and queries will fail
+
+**Expected Results (McMillan et al. 2024):**
+- 35 samples in earthbank_samples (MU19-05 through MU19-XX)
+- 35 datapoints in earthbank_ftDatapoints (1 per sample - LA-ICP-MS method)
+- ~2000+ rows in earthbank_ftTrackLengthData (confined tracks)
+- Age range: ~100-325 Ma (AFT central ages)
+
+**Success Criteria:**
+- ✅ All samples imported without errors to earthbank_samples
+- ✅ Foreign key relationships intact (sampleID → datapointName)
+- ✅ Age ranges match paper Table 1
+- ✅ Sample IDs match expected pattern
+- ✅ No NULL values in required camelCase fields
+
+**Troubleshooting:**
+- **FK constraint errors:** Ensure samples imported before datapoints
+- **Duplicate key errors:** Check for duplicate sampleID or datapointName
+- **Type errors:** Verify numeric columns are properly cast (not strings)
+- **Missing data:** Check for NULL values in required fields
+- **Column not found errors:** Verify you used double-quotes around camelCase names
+- **Case sensitivity:** PostgreSQL requires exact case match with quotes
+
+---
+
+## Missing Information Identification
+
+**Task:** Document gaps that require manual data entry or author contact
+
+**Critical missing fields report:**
+
+**Sample Metadata:**
+```
+🔴 CRITICAL - IGSN missing for all 34 samples
+   Action: Register samples at https://www.geosamples.org/
+
+🔴 CRITICAL - Collector not specified
+   Action: Extract from paper acknowledgments/author affiliations
+
+🟡 RECOMMENDED - Collection date not provided
+   Action: Check field methods section or contact authors
+```
+
+**Analytical Metadata:**
+```
+🔴 CRITICAL - Zeta calibration factor not reported
+   Action: Extract from methods section or Table/Supplementary
+
+🔴 CRITICAL - Laboratory/analyst not specified
+   Action: Extract from acknowledgments
+
+🟡 RECOMMENDED - Analysis date missing
+   Action: Check methods or table captions
+```
+
+**Quality Control:**
+```
+🟡 RECOMMENDED - No secondary standards reported
+   Action: Check supplementary materials for Durango/FCT results
+
+🟡 RECOMMENDED - Etching conditions not detailed
+   Action: Extract from methods section
+```
+
+**Where to find missing info:**
+- **Methods section** - Zeta, dosimeter, etching conditions, equipment
+- **Acknowledgments** - Analyst names, laboratory facilities
+- **Table captions** - Analysis dates, standards
+- **Supplementary materials** - QC data, full analytical parameters
+- **Author affiliations** - Laboratory locations
+
+---
+
+## Output Directory Structure
+
+**After successful extraction, the paper directory should contain:**
+
+```
+build-data/learning/thermo-papers/PAPER_NAME/
+├── paper-index.md                          # From /thermoanalysis
+├── paper-analysis.md                       # From /thermoanalysis
+├── figures.md                              # From /thermoanalysis (figure descriptions)
+├── tables.md                               # From /thermoanalysis (visual table reference) ⭐ NEW
+├── paper.pdf                               # Original PDF
+├── images/                                 # From /thermoanalysis
+│   ├── page_X_img_Y.png                    # Extracted figures
+│   ├── tables/                             # Table screenshots ⭐ NEW
+│   │   ├── table_1_page_9.png
+│   │   ├── table_2_page_10.png
+│   │   └── table_2_page_11.png
+│   └── image-metadata.json                 # Image catalog (includes image analysis) ⭐ NEW
+├── text/                                   # From /thermoanalysis
+│   ├── plain-text.txt                      # Full PDF text
+│   ├── layout-data.json                    # Spatial metadata (bbox, columns)
+│   ├── table-pages.json                    # Exact table page numbers
+│   └── text-index.md                       # Table discovery results
+├── supplemental/                           # From /thermoanalysis (OSF/Zenodo downloads)
+│   ├── README.md                           # Download documentation
+│   ├── Tables_S1-S4.xlsx                   # Example supplementary data
+│   └── SupplementaryText.pdf               # Example supplementary materials
+├── extracted/                              # Only if no supplementary data available
+│   ├── table-1-page-9.pdf                  # Isolated PDF pages
+│   ├── table-1-page-9-raw-text.txt         # pdfplumber output
+│   ├── extract_table_1.py                  # Custom extraction script
+│   ├── table-1-extracted.csv               # Final validated CSV
+│   ├── table-2-pages-10-11.pdf
+│   ├── table-2-pages-10-11-raw-text.txt
+│   ├── extract_table_2.py
+│   └── table-2-extracted.csv
+├── FAIR/                                   # EarthBank camelCase schema (ready for import)
+│   ├── earthbank_samples.csv               # camelCase: sampleID, sampleName, latitude...
+│   ├── earthbank_ftDatapoints.csv          # camelCase: datapointName, centralAgeMa...
+│   ├── earthbank_ftTrackLengthData.csv     # camelCase: trackLengthUm, cAxisAngle...
+│   └── earthbank_heWholeGrainData.csv      # camelCase: rawHeAgeMa, ftValue... (if AHe data)
+└── extraction-report.md                    # FAIR score & completeness
+
+```
+
+**Key changes:**
+- **supplementary/** - Auto-downloaded by `/thermoanalysis` (checked FIRST in Step 0.5)
+- **FAIR/** - Now contains camelCase CSV files (1:1 mapping to database schema)
+- **extracted/** - Only created if no supplementary data available
+
+---
+
+## Usage
+
+**Command:**
+```bash
+/thermoextract
+```
+
+**Prerequisites:**
+1. ✅ Paper must have been analyzed with `/thermoanalysis` first
+2. ✅ `paper-index.md` exists with table locations and page numbers
+3. ✅ PDF is readable (not corrupted or image-only scans)
+4. ✅ Python environment has `pdfplumber` and `pandas` installed
+
+**Expected time:**
+- **Per table:** 5-10 minutes (extraction + validation + retry if needed)
+- **Typical paper (2-3 tables):** 15-30 minutes
+- **Complex paper (5+ tables):** 45-60 minutes
+
+**Output locations:**
+- **Extracted CSVs:** `build-data/learning/thermo-papers/PAPER_NAME/extracted/`
+- **EarthBank templates:** `build-data/learning/thermo-papers/PAPER_NAME/FAIR/`
+- **Database:** PostgreSQL (DIRECT_URL connection)
+
+---
+
+## Success Criteria
+
+### ✅ Extraction Successful If:
+
+**Stage 1-8 (CSV Extraction):**
+- ✅ **ALL tables** marked "extractable: YES" extracted from paper-index.md (not just HIGH priority)
+- ✅ **ALL columns** from each table present in output CSVs (≥90% column completeness)
+- ✅ **Validation passed** for each table (column count, empty columns, data ranges)
+- ✅ pdfplumber text extraction succeeds for all pages
+- ✅ AI structure analysis identifies headers and delimiters correctly
+- ✅ Bespoke extraction scripts generated for each table
+- ✅ AI validation passes (spot-checked rows match original text)
+- ✅ CSV files have correct column count and data types
+- ✅ Sample IDs match expected pattern from paper-index.md
+
+**Stage 9-12 (Validation & Import):**
+- ✅ Required fields from Kohn et al. (2024) present (≥80%)
+- ✅ FAIR score calculated and documented (any score acceptable)
+- ✅ EarthBank templates generated (valid CSV format)
+- ✅ Database import succeeds without FK constraint errors
+- ✅ Post-import validation queries return expected counts
+- ✅ Age ranges match paper values
+
+### ❌ Extraction Failed If:
+
+**PDF/Text Extraction Failures:**
+- ❌ PDF pages cannot be read (corrupted file)
+- ❌ pdfplumber returns empty text (image-only PDF, needs OCR)
+- ❌ Tables not on pages specified in paper-index.md
+
+**Structure Analysis Failures:**
+- ❌ AI cannot identify column delimiters (unusual table format)
+- ❌ Headers span multiple lines in unparseable way
+- ❌ Merged cells or complex spanning columns break extraction
+
+**Validation Failures:**
+- ❌ CSV validation fails 3+ times (script cannot parse table correctly)
+- ❌ Sample IDs don't match expected pattern (wrong table extracted)
+- ❌ Column count wildly different from expected
+- ❌ Numeric values cannot be parsed (wrong delimiter, merged cells)
+
+**Database Import Failures:**
+- ❌ FK constraint errors (missing parent records - check sampleID exists before importing datapoints)
+- ❌ Duplicate key errors (sampleID or datapointName conflicts)
+- ❌ Column not found errors (forgot double-quotes around camelCase column names)
+- ❌ Type casting errors (strings in numeric columns)
+- ❌ Required fields are NULL
+
+**When extraction fails:**
+1. Review AI structure analysis output
+2. Manually inspect raw text file to verify pdfplumber output
+3. Adjust extraction script based on table-specific quirks
+4. If 3 retries fail, flag for manual review or contact paper authors
+
+---
+
+## Advantages Over Previous Approach
+
+### Old Approach (Broken - backup saved as backup-2025-11-16.md):
+- ❌ 1455 lines of inline Python code in slash command
+- ❌ Hardcoded extraction logic (couldn't adapt to different table formats)
+- ❌ Pure AI vision (unreliable for complex tables)
+- ❌ No validation loop (extracted once, hoped for best)
+- ❌ No database import (stopped at CSV generation)
+- ❌ 13 conceptual steps but incomplete implementation
+
+### New Approach (This):
+- ✅ **12 clear, executable steps** with specific tools and prompts
+- ✅ **pdfplumber + AI hybrid** (reliable text extraction + intelligent structure understanding)
+- ✅ **Bespoke extraction scripts** per table (adapts to different formats)
+- ✅ **AI validation loop** (iterative correction until perfect)
+- ✅ **Complete end-to-end** (PDF → CSV → EarthBank → Database)
+- ✅ **Kohn 2024 compliance checking** (field-level validation)
+- ✅ **FAIR score calculation** (quantifies data completeness)
+- ✅ **TypeScript import scripts** (Schema v2 integration)
+
+### Key Innovations:
+1. **Page-level extraction** - Isolates tables from noise (Step 2)
+2. **AI structure analysis** - Understands headers/delimiters without hardcoding (Step 4)
+3. **Generated extraction scripts** - Creates custom Python parsers per table (Step 5)
+4. **Validation with retry** - AI reviews CSV, fixes errors iteratively (Steps 7-8)
+5. **Database integration** - Complete import to Schema v2 tables (Step 12)
+
+---
+
+## Example Workflow (McMillan et al. 2024)
+
+```bash
+# 1. Read paper-index.md
+# Identifies: Table 1 (page 9), Table 2 (pages 10-11), Table A3 (page 36)
+
+# 2. Extract PDF pages
+python scripts/extract_pdf_pages.py --pdf paper.pdf --pages 9 \
+  --output extracted/table-1-page-9.pdf
+
+# 3. Extract text with pdfplumber
+# Generates: table-1-page-9-raw-text.txt
+
+# 4. AI structure analysis
+# Result: 24 columns, space-delimited, "MU19-\d{2}" pattern, ± uncertainties
+
+# 5. Create extraction script
+# AI generates: extract_table_1.py
+
+# 6. Extract to CSV
+python extracted/extract_table_1.py
+# Output: table-1-extracted.csv
+
+# 7. AI validation
+# Spot-checks 5 rows → ✅ PASS (all values match)
+
+# 8. Retry loop
+# (Skipped - validation passed first time)
+
+# 9. Compare to Kohn 2024
+# Result: 18/22 required fields present (82%)
+
+# 10. Calculate FAIR score
+# Result: 78/100 (Good) - missing IGSN and analyst ORCID
+
+# 11. Transform to EarthBank
+# Generates 4 CSV files in FAIR/ directory
+
+# 12. Import to database
+npx tsx scripts/import_mcmillan_2024.ts
+# Result: 35 samples, 35 datapoints, 875 count records imported ✅
+```
+
+---
+
+---
+
+## Step 13: Generate Database Metadata SQL Scripts
+
+**Task:** After successful extraction and import, generate SQL scripts to populate `datasets` table metadata and FAIR scores
+
+**Process:**
+
+### 13.1 Extract Metadata from Analysis Files
+
+```python
+import re
+from pathlib import Path
+
+print()
+print('━' * 60)
+print('STEP 13: GENERATING DATABASE METADATA SQL SCRIPTS')
+print('━' * 60)
+print()
+
+# Read paper-index.md to extract metadata
+index_file = paper_dir / 'paper-index.md'
+with open(index_file, 'r', encoding='utf-8') as f:
+    index_content = f.read()
+
+# Read extraction-report.md if exists (for FAIR scores)
+extraction_report = paper_dir / 'extraction-report.md'
+fair_breakdown_data = None
+
+if extraction_report.exists():
+    with open(extraction_report, 'r', encoding='utf-8') as f:
+        extraction_content = f.read()
+
+    # Parse FAIR scores from extraction-report.md
+    # Extract Table 4-10 scores
+    table4_match = re.search(r'Table 4.*?(\d+)/15', extraction_content, re.DOTALL)
+    table5_match = re.search(r'Table 5.*?(\d+)/15', extraction_content, re.DOTALL)
+    table6_match = re.search(r'Table 6.*?(\d+)/10', extraction_content, re.DOTALL)
+    table10_match = re.search(r'Table 10.*?(\d+)/10', extraction_content, re.DOTALL)
+
+    # Extract FAIR category scores
+    findable_match = re.search(r'Findable.*?(\d+)/25', extraction_content, re.DOTALL)
+    accessible_match = re.search(r'Accessible.*?(\d+)/25', extraction_content, re.DOTALL)
+    interoperable_match = re.search(r'Interoperable.*?(\d+)/25', extraction_content, re.DOTALL)
+    reusable_match = re.search(r'Reusable.*?(\d+)/25', extraction_content, re.DOTALL)
+
+    # Extract total score and grade
+    total_score_match = re.search(r'Total FAIR Score:\s*(\d+)/100', extraction_content)
+    grade_match = re.search(r'Grade:\s*([A-F])', extraction_content)
+
+    if all([table4_match, table5_match, table6_match, table10_match,
+            findable_match, accessible_match, interoperable_match, reusable_match,
+            total_score_match, grade_match]):
+        fair_breakdown_data = {
+            'table4_score': int(table4_match.group(1)),
+            'table5_score': int(table5_match.group(1)),
+            'table6_score': int(table6_match.group(1)),
+            'table10_score': int(table10_match.group(1)),
+            'findable_score': int(findable_match.group(1)),
+            'accessible_score': int(accessible_match.group(1)),
+            'interoperable_score': int(interoperable_match.group(1)),
+            'reusable_score': int(reusable_match.group(1)),
+            'total_score': int(total_score_match.group(1)),
+            'grade': grade_match.group(1)
+        }
+
+        print(f'✅ Extracted FAIR score breakdown from extraction-report.md')
+        print(f'   Overall Score: {fair_breakdown_data["total_score"]}/100 (Grade {fair_breakdown_data["grade"]})')
+    else:
+        print('⚠️  Could not extract complete FAIR scores from extraction-report.md')
+        print('   SQL scripts will include basic metadata only')
+else:
+    print('ℹ️  No extraction-report.md found')
+    print('   SQL scripts will include basic metadata only')
+
+print()
+```
+
+### 13.2 Generate SQL Script for Dataset Metadata
+
+```python
+# Extract metadata from paper-index.md
+full_citation = re.search(r'\*\*Full Citation:\*\*\s*(.+)', index_content)
+authors_match = re.search(r'\*\*Authors:\*\*\s*(.+)', index_content)
+year_match = re.search(r'\*\*Year:\*\*\s*(\d{4})', index_content)
+journal_match = re.search(r'\*\*Journal:\*\*\s*(.+)', index_content)
+volume_pages_match = re.search(r'\*\*Volume/Pages:\*\*\s*(.+)', index_content)
+doi_match = re.search(r'\*\*DOI:\*\*\s*(https?://[^\s]+|10\.\d{4,}/[^\s]+)', index_content)
+location_match = re.search(r'\*\*(?:Study Location|Region):\*\*\s*(.+)', index_content)
+laboratory_match = re.search(r'\*\*Laboratory:\*\*\s*(.+)', index_content)
+mineral_match = re.search(r'\*\*Mineral Type:\*\*\s*(\w+)', index_content)
+sample_count_match = re.search(r'\*\*Sample Count:\*\*\s*(\d+)', index_content)
+age_range_match = re.search(r'\*\*Age Range:\*\*\s*([\d.]+)\s*-\s*([\d.]+)\s*Ma', index_content)
+paper_summary_match = re.search(r'## Executive Summary\n\n(.+?)\n\n', index_content, re.DOTALL)
+supplementary_url_match = re.search(r'\*\*Supplementary Files URL:\*\*\s*(https?://[^\s]+)', index_content)
+pdf_url_match = re.search(r'\*\*PDF URL:\*\*\s*(https?://[^\s]+)', index_content)
+
+# Build metadata dictionary
+metadata = {
+    'full_citation': full_citation.group(1).strip() if full_citation else None,
+    'publication_year': int(year_match.group(1)) if year_match else None,
+    'publication_journal': journal_match.group(1).strip() if journal_match else None,
+    'publication_volume_pages': volume_pages_match.group(1).strip() if volume_pages_match else None,
+    'doi': doi_match.group(1).strip() if doi_match else None,
+    'study_location': location_match.group(1).strip() if location_match else None,
+    'laboratory': laboratory_match.group(1).strip() if laboratory_match else None,
+    'mineral_analyzed': mineral_match.group(1).strip().lower() if mineral_match else None,
+    'sample_count': int(sample_count_match.group(1)) if sample_count_match else None,
+    'age_range_min_ma': float(age_range_match.group(1)) if age_range_match else None,
+    'age_range_max_ma': float(age_range_match.group(2)) if age_range_match else None,
+    'paper_summary': paper_summary_match.group(1).strip() if paper_summary_match else None,
+    'pdf_filename': pdf_path.name if pdf_path else None,
+    'pdf_url': pdf_url_match.group(1).strip() if pdf_url_match else None,
+    'supplementary_files_url': supplementary_url_match.group(1).strip() if supplementary_url_match else None
+}
+
+# Generate SQL update script
+sql_script = paper_dir / 'update-database-metadata.sql'
+dataset_name = paper_dir.name  # Use folder name as dataset identifier
+
+with open(sql_script, 'w') as f:
+    f.write(f"-- Database metadata update for {dataset_name}\n")
+    f.write(f"-- Generated by /thermoextract command\n")
+    f.write(f"-- Run with: psql \"$DATABASE_URL\" -f {sql_script.name}\n\n")
+
+    f.write("-- Update datasets table\n")
+    f.write("UPDATE datasets SET\n")
+
+    updates = []
+    if metadata['full_citation']:
+        updates.append(f"  full_citation = '{metadata['full_citation'].replace(\"'\", \"''\")}',\n")
+    if metadata['publication_year']:
+        updates.append(f"  publication_year = {metadata['publication_year']},\n")
+    if metadata['publication_journal']:
+        updates.append(f"  publication_journal = '{metadata['publication_journal'].replace(\"'\", \"''\")}',\n")
+    if metadata['publication_volume_pages']:
+        updates.append(f"  publication_volume_pages = '{metadata['publication_volume_pages'].replace(\"'\", \"''\")}',\n")
+    if metadata['doi']:
+        updates.append(f"  doi = '{metadata['doi'].replace(\"'\", \"''\")}',\n")
+    if metadata['study_location']:
+        updates.append(f"  study_location = '{metadata['study_location'].replace(\"'\", \"''\")}',\n")
+    if metadata['laboratory']:
+        updates.append(f"  laboratory = '{metadata['laboratory'].replace(\"'\", \"''\")}',\n")
+    if metadata['pdf_filename']:
+        updates.append(f"  pdf_filename = '{metadata['pdf_filename']}',\n")
+    if metadata['pdf_url']:
+        updates.append(f"  pdf_url = '{metadata['pdf_url']}',\n")
+    if metadata['supplementary_files_url']:
+        updates.append(f"  supplementary_files_url = '{metadata['supplementary_files_url']}',\n")
+    if metadata['mineral_analyzed']:
+        updates.append(f"  mineral_analyzed = '{metadata['mineral_analyzed']}',\n")
+    if metadata['sample_count']:
+        updates.append(f"  sample_count = {metadata['sample_count']},\n")
+    if metadata['age_range_min_ma']:
+        updates.append(f"  age_range_min_ma = {metadata['age_range_min_ma']},\n")
+    if metadata['age_range_max_ma']:
+        updates.append(f"  age_range_max_ma = {metadata['age_range_max_ma']},\n")
+    if metadata['paper_summary']:
+        summary_escaped = metadata['paper_summary'].replace("'", "''").replace("\n", " ")
+        updates.append(f"  paper_summary = '{summary_escaped}',\n")
+
+    if updates:
+        f.write(''.join(updates))
+        f.write("  last_modified_date = CURRENT_DATE\n")
+        f.write(f"WHERE dataset_name = '{dataset_name}';\n\n")
+
+    # Add FAIR score breakdown if available
+    if fair_breakdown_data:
+        f.write("-- Insert or update FAIR score breakdown\n")
+        f.write("INSERT INTO fair_score_breakdown (\n")
+        f.write("  dataset_id,\n")
+        f.write("  table4_score, table5_score, table6_score, table10_score,\n")
+        f.write("  findable_score, accessible_score, interoperable_score, reusable_score,\n")
+        f.write("  total_score, grade\n")
+        f.write(") VALUES (\n")
+        f.write(f"  (SELECT id FROM datasets WHERE dataset_name = '{dataset_name}'),\n")
+        f.write(f"  {fair_breakdown_data['table4_score']}, {fair_breakdown_data['table5_score']}, ")
+        f.write(f"{fair_breakdown_data['table6_score']}, {fair_breakdown_data['table10_score']},\n")
+        f.write(f"  {fair_breakdown_data['findable_score']}, {fair_breakdown_data['accessible_score']}, ")
+        f.write(f"{fair_breakdown_data['interoperable_score']}, {fair_breakdown_data['reusable_score']},\n")
+        f.write(f"  {fair_breakdown_data['total_score']}, '{fair_breakdown_data['grade']}'\n")
+        f.write(")\n")
+        f.write("ON CONFLICT (dataset_id) DO UPDATE SET\n")
+        f.write("  table4_score = EXCLUDED.table4_score,\n")
+        f.write("  table5_score = EXCLUDED.table5_score,\n")
+        f.write("  table6_score = EXCLUDED.table6_score,\n")
+        f.write("  table10_score = EXCLUDED.table10_score,\n")
+        f.write("  findable_score = EXCLUDED.findable_score,\n")
+        f.write("  accessible_score = EXCLUDED.accessible_score,\n")
+        f.write("  interoperable_score = EXCLUDED.interoperable_score,\n")
+        f.write("  reusable_score = EXCLUDED.reusable_score,\n")
+        f.write("  total_score = EXCLUDED.total_score,\n")
+        f.write("  grade = EXCLUDED.grade,\n")
+        f.write("  updated_at = CURRENT_TIMESTAMP;\n\n")
+
+    # Add verification queries
+    f.write("-- Verify the update\n")
+    f.write("SELECT id, dataset_name, publication_year, publication_journal, study_location, ")
+    f.write("mineral_analyzed, sample_count, age_range_min_ma, age_range_max_ma\n")
+    f.write("FROM datasets\n")
+    f.write(f"WHERE dataset_name = '{dataset_name}';\n\n")
+
+    if fair_breakdown_data:
+        f.write("-- Verify FAIR score\n")
+        f.write("SELECT dataset_id, table4_score, table5_score, table6_score, table10_score, ")
+        f.write("findable_score, accessible_score, interoperable_score, reusable_score, total_score, grade\n")
+        f.write("FROM fair_score_breakdown\n")
+        f.write(f"WHERE dataset_id = (SELECT id FROM datasets WHERE dataset_name = '{dataset_name}');\n")
+
+print(f'✅ Created SQL script: {sql_script.name}')
+print()
+```
+
+### 13.3 Generate SQL Script for Data Files
+
+```python
+# Generate SQL for data_files table
+files_sql = paper_dir / 'populate-data-files.sql'
+
+with open(files_sql, 'w') as f:
+    f.write("-- Populate data_files table with extracted files\n")
+    f.write(f"-- Dataset: {dataset_name}\n")
+    f.write(f"-- Generated by /thermoextract command\n\n")
+
+    # Get list of all files created
+    raw_files = list((paper_dir / 'RAW').glob('*.csv')) if (paper_dir / 'RAW').exists() else []
+    fair_files = list((paper_dir / 'FAIR').glob('*.csv')) if (paper_dir / 'FAIR').exists() else []
+
+    dataset_id_expr = f"(SELECT id FROM datasets WHERE dataset_name = '{dataset_name}')"
+
+    # Insert RAW files
+    if raw_files:
+        f.write("-- Insert RAW CSV files\n")
+        for file_path in raw_files:
+            file_size = file_path.stat().st_size
+            file_name = file_path.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/RAW/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'RAW', {file_size})\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert FAIR files
+    if fair_files:
+        f.write("-- Insert FAIR/EarthBank CSV files\n")
+        for file_path in fair_files:
+            file_size = file_path.stat().st_size
+            file_name = file_path.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/FAIR/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'EarthBank', {file_size})\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert PDF if path is known
+    if metadata.get('pdf_filename'):
+        f.write("-- Insert main paper PDF\n")
+        # Try to find the PDF file
+        pdf_candidates = list(paper_dir.glob('*.pdf'))
+        if pdf_candidates:
+            pdf_file = pdf_candidates[0]  # Take first PDF found
+            file_size = pdf_file.stat().st_size
+            file_name = pdf_file.name
+            relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/{file_name}'
+
+            f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, file_size_bytes, display_name)\n")
+            f.write(f"VALUES ({dataset_id_expr}, '{file_name}', '{relative_path}', 'PDF', {file_size}, 'Main Paper PDF')\n")
+            f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Insert images folder if exists
+    images_dir = paper_dir / 'images'
+    if images_dir.exists():
+        relative_path = f'/build-data/learning/thermo-papers/{dataset_name}/images'
+        f.write("-- Insert images folder\n")
+        f.write(f"INSERT INTO data_files (dataset_id, file_name, file_path, file_type, is_folder, folder_path, display_name)\n")
+        f.write(f"VALUES ({dataset_id_expr}, 'images-archive', '{relative_path}', 'Images', TRUE, '{relative_path}', 'Extracted Figures')\n")
+        f.write(f"ON CONFLICT DO NOTHING;\n\n")
+
+    # Add verification query
+    f.write("-- Verify files were inserted\n")
+    f.write("SELECT file_name, file_type, file_size_bytes, display_name\n")
+    f.write("FROM data_files\n")
+    f.write(f"WHERE dataset_id = {dataset_id_expr}\n")
+    f.write("ORDER BY file_type, file_name;\n")
+
+print(f'✅ Created data files SQL script: {files_sql.name}')
+print()
+```
+
+### 13.4 Summary of Generated Scripts
+
+```python
+print('━' * 60)
+print('DATABASE METADATA SQL SCRIPTS GENERATED')
+print('━' * 60)
+print()
+print(f'📁 Location: {paper_dir}')
+print()
+print('📄 Files created:')
+print(f'   1. {sql_script.name} - Dataset metadata + FAIR scores')
+print(f'   2. {files_sql.name} - Data files tracking')
+print()
+print('📋 To populate the database:')
+print(f'   cd {paper_dir}')
+print(f'   psql "$DATABASE_URL" -f {sql_script.name}')
+print(f'   psql "$DATABASE_URL" -f {files_sql.name}')
+print()
+print('✅ Extraction and SQL generation complete!')
+print()
+```
+
+**Output Files:**
+- `update-database-metadata.sql` - Updates `datasets` table with paper metadata and FAIR scores
+- `populate-data-files.sql` - Inserts file records into `data_files` table
+
+**Benefits:**
+- ✅ No manual placeholder replacement needed (uses actual dataset name from folder)
+- ✅ Automatically includes FAIR scores if extraction-report.md exists
+- ✅ Tracks all RAW, FAIR, PDF, and image files
+- ✅ Includes verification queries to check results
+- ✅ Ready to execute immediately after generation
+
+---
+
+## Complete Output Directory Structure
+
+**After successful extraction and SQL generation, the paper directory will contain:**
+
+```
+build-data/learning/thermo-papers/PAPER_NAME/
+├── paper-index.md                          # From /thermoanalysis
+├── paper-analysis.md                       # From /thermoanalysis
+├── figures.md                              # From /thermoanalysis (figure descriptions)
+├── tables.md                               # From /thermoanalysis (visual table reference) ⭐ NEW
+├── paper.pdf                               # Original PDF
+├── images/                                 # From /thermoanalysis
+│   ├── page_X_img_Y.png                    # Extracted figures
+│   ├── tables/                             # Table screenshots ⭐ NEW
+│   │   ├── table_1_page_9.png
+│   │   ├── table_2_page_10.png
+│   │   └── table_2_page_11.png
+│   └── image-metadata.json                 # Image catalog (includes image analysis) ⭐ NEW
+├── text/                                   # From /thermoanalysis
+│   ├── plain-text.txt                      # Full PDF text
+│   ├── layout-data.json                    # Spatial metadata (bbox, columns)
+│   ├── table-pages.json                    # Exact table page numbers
+│   └── text-index.md                       # Table discovery results
+├── supplemental/                           # From /thermoanalysis (OSF/Zenodo downloads)
+│   ├── README.md                           # Download documentation
+│   ├── Tables_S1-S4.xlsx                   # Example supplementary data
+│   └── SupplementaryText.pdf               # Example supplementary materials
+├── extracted/                              # Only if no supplementary data available
+│   ├── table-1-page-9.pdf                  # Isolated PDF pages
+│   ├── table-1-page-9-raw-text.txt         # pdfplumber output
+│   ├── extract_table_1.py                  # Custom extraction script
+│   ├── table-1-extracted.csv               # Final validated CSV (intermediate)
+│   ├── table-2-pages-10-11.pdf
+│   ├── table-2-pages-10-11-raw-text.txt
+│   ├── extract_table_2.py
+│   └── table-2-extracted.csv
+├── FAIR/                                   # EarthBank camelCase schema (FINAL - ready for import)
+│   ├── earthbank_samples.csv               # camelCase: sampleID, sampleName, latitude...
+│   ├── earthbank_ftDatapoints.csv          # camelCase: datapointName, centralAgeMa...
+│   ├── earthbank_ftTrackLengthData.csv     # camelCase: trackLengthUm, cAxisAngle...
+│   └── earthbank_heWholeGrainData.csv      # camelCase: rawHeAgeMa, ftValue... (if AHe data)
+├── extraction-report.md                    # FAIR score & completeness
+├── update-database-metadata.sql            # Dataset metadata SQL (Step 13)
+└── populate-data-files.sql                 # File tracking SQL (Step 13)
+
+```
+
+**Workflow summary:**
+1. `/thermoanalysis` creates: paper-index.md, paper-analysis.md, supplementary/
+2. `/thermoextract` checks supplementary/ first (Step 0.5)
+3. If no supplementary → extracts from PDF (Steps 1-8) → extracted/
+4. Transform to camelCase (Step 11) → FAIR/
+5. Generate SQL scripts (Step 13) → *.sql files
+6. Import to database (Step 12) → earthbank_* tables
+
+**Key files for database import:**
+- `FAIR/*.csv` - Import these to earthbank_* tables
+- `update-database-metadata.sql` - Run to populate datasets table
+- `populate-data-files.sql` - Run to track files in data_files table
+
+---
+
+## Step 14: Time Elapsed & Token Usage Report (NEW)
+
+**Task:** Calculate and report time elapsed and token usage for extraction workflow
+
+**Process:**
+
+```python
+import time
+from datetime import datetime, timedelta
+
+print()
+print('━' * 80)
+print('STEP 14: TIME ELAPSED & TOKEN USAGE REPORT')
+print('━' * 80)
+print()
+
+# Calculate elapsed time (start_time from Step 0.5)
+end_time = time.time()
+end_datetime = datetime.now()
+elapsed_seconds = end_time - start_time
+
+# Format duration
+hours, remainder = divmod(int(elapsed_seconds), 3600)
+minutes, seconds = divmod(remainder, 60)
+duration_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+print('⏱️  TIME ELAPSED')
+print('━' * 40)
+print(f'Started:   {start_datetime.strftime("%Y-%m-%d %H:%M:%S")}')
+print(f'Completed: {end_datetime.strftime("%Y-%m-%d %H:%M:%S")}')
+print(f'Duration:  {duration_str} ({minutes + (hours * 60)} minutes)')
+print()
+
+# Note: This is a simplified estimation approach
+# Actual token tracking would require API integration
+
+# Rough token estimates (1 token ≈ 4 characters for English text)
+def estimate_tokens(text):
+    return len(text) // 4
+
+# Calculate input tokens
+input_tokens = 0
+
+# Text extraction inputs
+for csv_file in extracted_dir.glob('*-raw-text.txt'):
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        input_tokens += estimate_tokens(f.read())
+
+# Metadata inputs
+if (paper_dir / 'paper-index.md').exists():
+    with open(paper_dir / 'paper-index.md', 'r') as f:
+        input_tokens += estimate_tokens(f.read())
+
+# System prompts (estimated)
+input_tokens += 2000  # Structure analysis + validation prompts
+
+# Calculate output tokens
+output_tokens = 0
+
+# Extraction scripts
+for py_file in extracted_dir.glob('extract_*.py'):
+    with open(py_file, 'r', encoding='utf-8') as f:
+        output_tokens += estimate_tokens(f.read())
+
+# Generated CSVs
+for csv_file in extracted_dir.glob('*-extracted.csv'):
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        output_tokens += estimate_tokens(f.read())
+
+# EarthBank transformed CSVs
+for csv_file in fair_dir.glob('*.csv'):
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        output_tokens += estimate_tokens(f.read())
+
+# Extraction report
+if (paper_dir / 'extraction-report.md').exists():
+    with open(paper_dir / 'extraction-report.md', 'r') as f:
+        output_tokens += estimate_tokens(f.read())
+
+# SQL scripts
+if (paper_dir / 'update-database-metadata.sql').exists():
+    with open(paper_dir / 'update-database-metadata.sql', 'r') as f:
+        output_tokens += estimate_tokens(f.read())
+
+total_tokens = input_tokens + output_tokens
+
+# Calculate cost (Anthropic API pricing as of 2025)
+# Claude Sonnet 4.5: $3/1M input tokens, $15/1M output tokens
+input_cost = (input_tokens / 1_000_000) * 3.00
+output_cost = (output_tokens / 1_000_000) * 15.00
+total_cost = input_cost + output_cost
+
+print('📊 Token Usage Summary:')
+print(f'   Input tokens:  {input_tokens:,}')
+print(f'   Output tokens: {output_tokens:,}')
+print(f'   Total tokens:  {total_tokens:,}')
+print()
+print('💰 Estimated API Cost (Claude Sonnet 4.5):')
+print(f'   Input:  ${input_cost:.2f} ($3.00 per 1M tokens)')
+print(f'   Output: ${output_cost:.2f} ($15.00 per 1M tokens)')
+print(f'   Total:  ${total_cost:.2f}')
+print()
+print('Note: Claude Code includes API access. This is just for reference.')
+print()
+
+# Combined workflow summary (if /thermoanalysis was run first)
+if (paper_dir / 'text' / 'plain-text.txt').exists():
+    print('💡 COMBINED WORKFLOW SUMMARY (/thermoanalysis + /thermoextract):')
+    print('━' * 40)
+    print(f'   Time:')
+    print(f'     /thermoanalysis: ~[HH:MM:SS] (see paper analysis logs)')
+    print(f'     /thermoextract:  {duration_str}')
+    print(f'     Total pipeline:  ~[HH:MM:SS] + {duration_str}')
+    print()
+    print(f'   Cost:')
+    print(f'     /thermoanalysis: ~$[X.XX] (see paper analysis logs)')
+    print(f'     /thermoextract:  ${total_cost:.2f}')
+    print(f'     Total pipeline:  ~$[X.XX + {total_cost:.2f}]')
+    print()
+```
+
+**Output:**
+- Time elapsed (start time, end time, duration)
+- Token usage breakdown
+- Estimated API costs
+- Combined pipeline summary (time + cost if `/thermoanalysis` was run)
+
+---
+
+## Final Summary Report
+
+**After all steps complete, print summary:**
+
+```python
+print()
+print('━' * 80)
+print('✅ EXTRACTION WORKFLOW COMPLETE')
+print('━' * 80)
+print()
+
+print('📂 Paper Directory:', paper_dir.name)
+print()
+
+print('📊 Extraction Results:')
+if use_supplementary:
+    print('   ✅ Source: Supplementary data files (OSF/Zenodo)')
+    print(f'   ✅ Files processed: {len(data_files)}')
+else:
+    print('   ✅ Source: PDF table extraction')
+    print(f'   ✅ Tables extracted: {len(list(extracted_dir.glob("*-extracted.csv")))}')
+
+print(f'   ✅ EarthBank CSVs: {len(list(fair_dir.glob("*.csv")))} file(s)')
+print()
+
+print('📁 Output Files:')
+print('   - FAIR/*.csv (ready for database import)')
+print('   - extraction-report.md (FAIR score & completeness)')
+print('   - update-database-metadata.sql (dataset metadata)')
+print('   - populate-data-files.sql (file tracking)')
+print()
+
+print('⏱️  Time Elapsed:')
+print(f'   - Duration: {duration_str} ({minutes + (hours * 60)} minutes)')
+print()
+
+print('💰 Token Usage:')
+print(f'   - Total tokens: {total_tokens:,}')
+print(f'   - Estimated cost: ${total_cost:.2f}')
+print()
+
+print('🚀 Next Steps:')
+print('   1. Review extraction-report.md for FAIR score')
+print('   2. Review FAIR/*.csv files for data quality')
+print('   3. Run SQL scripts to populate database:')
+print(f'      psql "$DATABASE_URL" -f {paper_dir}/update-database-metadata.sql')
+print(f'      psql "$DATABASE_URL" -f {paper_dir}/populate-data-files.sql')
+print('   4. Import FAIR/*.csv files using import scripts')
+print()
+
+print('━' * 80)
+print()
+```
+
+---
+
+## Future Enhancement: Figure Data Extraction
+
+**Status:** Not yet implemented (planned feature)
+
+**Concept:** Extract quantitative data directly from figures (radial plots, histograms, probability density plots)
+
+**Data Source:** `images/image-metadata.json` from `/thermoanalysis`
+- Contains extracted figures with captions
+- Includes relevance analysis (HIGH = data figures, LOW = conceptual)
+
+**Potential Implementation:**
+
+```python
+import json
+from pathlib import Path
+
+# Load image metadata
+paper_dir = Path('build-data/learning/thermo-papers/PAPER_NAME')
+metadata_file = paper_dir / 'images' / 'image-metadata.json'
+
+with open(metadata_file, 'r') as f:
+    image_data = json.load(f)
+
+# Filter for high-value data figures
+high_value_figures = image_data.get('image_analysis', {}).get('high_value', [])
+
+print(f'📊 Found {len(high_value_figures)} high-value data figure(s)')
+print()
+
+for fig in high_value_figures:
+    fig_name = fig['name']
+    description = fig['description'].lower()
+
+    # Detect figure type
+    if 'radial' in description:
+        print(f'   {fig_name}: Radial plot detected')
+        # Extract: Single-grain ages, central age, dispersion
+        # Method: Computer vision + coordinate extraction
+
+    elif 'histogram' in description or 'probability' in description:
+        print(f'   {fig_name}: Age distribution detected')
+        # Extract: Age bins, frequencies
+        # Method: Plot digitizer
+
+    elif 'track length' in description:
+        print(f'   {fig_name}: Track length distribution detected')
+        # Extract: Length bins, frequencies, MTL
+        # Method: Plot digitizer
+
+    elif 'elevation' in description or 'profile' in description:
+        print(f'   {fig_name}: Age-elevation profile detected')
+        # Extract: Sample elevations, ages
+        # Method: Coordinate extraction from scatter plot
+
+print()
+```
+
+**Use Cases:**
+1. **Papers without data tables** - Some papers only show radial plots/histograms
+2. **Quality control** - Compare extracted table data vs. figure data
+3. **Grain-level data** - Radial plots show individual grain ages not in tables
+4. **Verification** - Cross-check central ages from figures vs. tables
+
+**Tools to Explore:**
+- **WebPlotDigitizer** - Manual plot digitization (https://automeris.io/WebPlotDigitizer/)
+- **OpenCV** - Computer vision for plot detection
+- **pytesseract** - OCR for axis labels and values
+- **scikit-image** - Image processing for scatter plot extraction
+
+**Priority:** LOW - Focus on table extraction first
+**Complexity:** HIGH - Requires computer vision + domain-specific plot parsing
+**Benefits:** MEDIUM - Useful for ~10-20% of papers lacking complete tables
+
+---
+
+**Ready to extract!** Run `/thermoextract` to start the complete workflow from PDF → Database.

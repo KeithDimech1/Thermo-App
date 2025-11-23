@@ -70,16 +70,16 @@ npm run db:psql
 
 ## 🔍 Verification
 
-Run this to confirm you're always connecting to `neondb`:
+Run this to confirm you're connecting to the correct database:
 ```bash
 npm run db:verify-connection
 ```
 
-Should output:
+Should output your Supabase database name and user:
 ```
 current_database | current_user
 ------------------+--------------
-neondb           | neondb_owner
+postgres         | postgres.<project>
 ```
 
 ## 📚 More Info

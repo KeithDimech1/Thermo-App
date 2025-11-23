@@ -145,7 +145,7 @@ The following tables remain for rollback compatibility but are NOT used in produ
 ### Database Layer (2 files)
 
 **[lib/db/connection.md](lib/db/connection.md)** - PostgreSQL connection pool
-- Singleton pattern for Neon serverless
+- Singleton pattern for Supabase connection pooler
 - Auto-loads `.env.local` for scripts
 - Query execution, transactions, health checks
 

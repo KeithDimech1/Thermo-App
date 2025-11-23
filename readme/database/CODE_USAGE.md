@@ -1,10 +1,31 @@
 # Database Code Usage Map
 
-**Last Updated:** 2025-11-19 07:24:26
+**Last Updated:** 2025-11-21 (Post-Supabase Migration)
 
-Cross-reference showing which code files interact with which database tables.
+---
 
-**Note:** This map includes both original schema tables (samples, ft_datapoints, etc.) and new EarthBank tables (earthbank_samples, earthbank_ftDatapoints, etc.) added in IDEA-014 migration.
+## ⚠️ MIGRATION NOTICE
+
+**This file is OUTDATED and refers to the OLD Neon database schema (26 tables).**
+
+**Current Status:**
+- **Database:** Supabase PostgreSQL (59 tables)
+- **Migration Date:** 2025-11-21 (Neon → Supabase, ERROR-021)
+- **Schema:** Now contains 2 data models (Thermochronology + Business/Materials)
+
+**For current schema information, see:**
+- `SCHEMA_SUMMARY.md` - Overview of all 59 tables
+- `SCHEMA_CHANGES.md` - Migration details
+
+**This cross-reference map needs to be regenerated for the new Supabase schema.**
+
+---
+
+## Old Code Usage Map (Neon Era)
+
+Cross-reference showing which code files interact with which database tables (OLD schema).
+
+**Note:** This map includes both original schema tables (samples, ft_datapoints, etc.) and EarthBank tables (earthbank_*, now removed in Supabase migration).
 
 ---
 
@@ -399,7 +420,7 @@ Cross-reference showing which code files interact with which database tables.
 
 **Connection Configuration:**
 - `.env.local` - Contains DATABASE_URL (pooled) and DIRECT_URL (direct connection)
-- Neon PostgreSQL serverless database
+- Supabase PostgreSQL serverless database
 - SSL required for connections
 
 ---

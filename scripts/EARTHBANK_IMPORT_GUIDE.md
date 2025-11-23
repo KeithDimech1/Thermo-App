@@ -329,7 +329,8 @@ python scripts/import_earthbank_templates.py \
 ```bash
 python3 -c "
 import psycopg2
-conn = psycopg2.connect('postgresql://neondb_owner:...')
+import os
+conn = psycopg2.connect(os.getenv('DATABASE_URL'))
 print('✓ Connection successful')
 conn.close()
 "

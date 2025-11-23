@@ -1,9 +1,12 @@
 /**
  * POST /api/extraction/[sessionId]/analyze
  * Analyze PDF using Anthropic API (Step 1 of extraction workflow)
+ *
+ * ERROR-021: Migrated to Supabase Storage
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 import {
@@ -14,10 +17,12 @@ import {
 } from '@/lib/db/extraction-queries';
 import { extractPDFText, checkPyMuPDFInstalled } from '@/lib/utils/python-bridge';
 import { createMessage, isAnthropicConfigured } from '@/lib/anthropic/client';
+import { captureTableScreenshots, captureFigureScreenshots } from '@/lib/extraction/pdf-screenshot';
 import {
   ANALYSIS_SYSTEM_PROMPT,
   createAnalysisUserMessage,
 } from '@/lib/anthropic/prompts';
+import { downloadFile, uploadFile } from '@/lib/storage/supabase';
 import type { PaperMetadata, TableInfo } from '@/lib/types/extraction-types';
 
 export const dynamic = 'force-dynamic';
@@ -79,16 +84,26 @@ export async function POST(
     await updateExtractionState(sessionId, 'analyzing');
     console.log(`[Analyze API] State updated to analyzing`);
 
-    // Get PDF path
-    const pdfPath = path.join(process.cwd(), 'public', session.pdf_path);
-    console.log(`[Analyze API] PDF path: ${pdfPath}`);
+    // Step 1: Download PDF from Supabase Storage to temp file
+    // (PyMuPDF requires filesystem path)
+    console.log(`[Analyze API] Downloading PDF from Supabase Storage...`);
+    const pdfBuffer = await downloadFile('extractions', `${sessionId}/original.pdf`);
 
-    // Step 1: Extract text from PDF
+    // Create temp file for PyMuPDF
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'thermo-'));
+    const tempPdfPath = path.join(tempDir, 'temp.pdf');
+    await fs.writeFile(tempPdfPath, pdfBuffer);
+    console.log(`[Analyze API] Temp PDF path: ${tempPdfPath}`);
+
+    // Step 2: Extract text from PDF
     console.log(`[Analyze API] Extracting text from PDF...`);
-    const pdfText = await extractPDFText(pdfPath);
+    const pdfText = await extractPDFText(tempPdfPath);
     console.log(`[Analyze API] Extracted ${pdfText.length} characters`);
 
-    // Step 2: Send to Claude API for analysis
+    // Clean up temp file
+    await fs.rm(tempDir, { recursive: true, force: true });
+
+    // Step 3: Send to Claude API for analysis
     console.log(`[Analyze API] Sending to Claude API...`);
     const userMessage = createAnalysisUserMessage(pdfText, session.pdf_filename);
 
@@ -110,7 +125,7 @@ export async function POST(
     const analysisText = contentBlock.text;
     console.log(`[Analyze API] Received response: ${analysisText.substring(0, 200)}...`);
 
-    // Step 3: Parse JSON response
+    // Step 4: Parse JSON response
     let analysisResult: AnalysisResult;
     try {
       // Remove markdown code blocks if present
@@ -131,22 +146,49 @@ export async function POST(
       figuresFound: analysisResult.figures?.length || 0,
     });
 
-    // Step 4: Create paper directory structure (match CLI workflow)
-    const sessionDir = path.join(process.cwd(), 'public', 'uploads', sessionId);
-    const textDir = path.join(sessionDir, 'text');
-    const imagesDir = path.join(sessionDir, 'images');
-    const tablesImgDir = path.join(imagesDir, 'tables');
+    // Step 5: Capture table and figure screenshots as backup
+    console.log(`[Analyze API] Capturing table/figure screenshots...`);
+    let tableScreenshots: any[] = [];
+    let figureScreenshots: any[] = [];
 
-    console.log(`[Analyze API] Creating directory structure...`);
-    await fs.mkdir(textDir, { recursive: true });
-    await fs.mkdir(tablesImgDir, { recursive: true });
+    try {
+      // Capture table screenshots
+      if (analysisResult.tables.length > 0) {
+        tableScreenshots = await captureTableScreenshots(
+          tempPdfPath,
+          analysisResult.tables,
+          sessionId
+        );
+        console.log(`[Analyze API] Captured ${tableScreenshots.length}/${analysisResult.tables.length} table screenshots`);
+      }
 
-    // Save extracted text to text/plain-text.txt (for reuse in extraction)
-    const plainTextPath = path.join(textDir, 'plain-text.txt');
-    await fs.writeFile(plainTextPath, pdfText, 'utf-8');
-    console.log(`[Analyze API] Saved plain text to ${plainTextPath}`);
+      // Capture figure screenshots
+      if (analysisResult.figures && analysisResult.figures.length > 0) {
+        figureScreenshots = await captureFigureScreenshots(
+          tempPdfPath,
+          analysisResult.figures,
+          sessionId
+        );
+        console.log(`[Analyze API] Captured ${figureScreenshots.length}/${analysisResult.figures.length} figure screenshots`);
+      }
+    } catch (screenshotError) {
+      console.error(`[Analyze API] Screenshot capture failed (non-fatal):`, screenshotError);
+      // Continue with workflow even if screenshots fail
+    }
 
-    // Create table-index.json (links text locations to PDF pages)
+    // Step 6: Upload extracted text to Supabase Storage
+    console.log(`[Analyze API] Uploading analysis files to Supabase Storage...`);
+
+    // Upload plain text
+    await uploadFile(
+      'extractions',
+      `${sessionId}/text/plain-text.txt`,
+      Buffer.from(pdfText, 'utf-8'),
+      'text/plain'
+    );
+    console.log(`[Analyze API] Uploaded plain text`);
+
+    // Upload table-index.json
     const tableIndex = {
       paper_metadata: analysisResult.paper_metadata,
       tables: analysisResult.tables.map((table) => ({
@@ -173,26 +215,38 @@ export async function POST(
       generated_at: new Date().toISOString(),
     };
 
-    const tableIndexPath = path.join(sessionDir, 'table-index.json');
-    await fs.writeFile(tableIndexPath, JSON.stringify(tableIndex, null, 2), 'utf-8');
-    console.log(`[Analyze API] Saved table index to ${tableIndexPath}`);
+    await uploadFile(
+      'extractions',
+      `${sessionId}/table-index.json`,
+      Buffer.from(JSON.stringify(tableIndex, null, 2), 'utf-8'),
+      'application/json'
+    );
+    console.log(`[Analyze API] Uploaded table-index.json`);
 
-    // Generate markdown documentation (match CLI workflow)
-    console.log(`[Analyze API] Generating markdown documentation...`);
+    // Upload markdown documentation
+    console.log(`[Analyze API] Generating and uploading markdown documentation...`);
 
-    // Generate paper-index.md (quick reference)
+    // Upload paper-index.md (quick reference)
     const paperIndexMd = generatePaperIndexMarkdown(analysisResult, session.pdf_filename);
-    const paperIndexPath = path.join(sessionDir, 'paper-index.md');
-    await fs.writeFile(paperIndexPath, paperIndexMd, 'utf-8');
-    console.log(`[Analyze API] Saved paper-index.md`);
+    await uploadFile(
+      'extractions',
+      `${sessionId}/paper-index.md`,
+      Buffer.from(paperIndexMd, 'utf-8'),
+      'text/markdown'
+    );
+    console.log(`[Analyze API] Uploaded paper-index.md`);
 
-    // Generate tables.md (visual table reference)
+    // Upload tables.md (visual table reference)
     const tablesMd = generateTablesMarkdown(analysisResult.tables);
-    const tablesPath = path.join(sessionDir, 'tables.md');
-    await fs.writeFile(tablesPath, tablesMd, 'utf-8');
-    console.log(`[Analyze API] Saved tables.md`);
+    await uploadFile(
+      'extractions',
+      `${sessionId}/tables.md`,
+      Buffer.from(tablesMd, 'utf-8'),
+      'text/markdown'
+    );
+    console.log(`[Analyze API] Uploaded tables.md`);
 
-    // Step 5: Update database with results
+    // Step 7: Update database with results
     await updatePaperMetadata(
       sessionId,
       analysisResult.paper_metadata,
@@ -211,6 +265,12 @@ export async function POST(
       figures_found: analysisResult.figures?.length || 0,
       tables: analysisResult.tables,
       figures: analysisResult.figures || [],
+      screenshots: {
+        tables: tableScreenshots.length,
+        figures: figureScreenshots.length,
+        table_details: tableScreenshots,
+        figure_details: figureScreenshots,
+      },
     });
 
   } catch (error) {

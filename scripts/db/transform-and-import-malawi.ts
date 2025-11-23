@@ -7,7 +7,7 @@
  * - table2-uthe-results-part1.csv (64 He grains)
  * - tableA3-durango-qc.csv (10 QC standards)
  *
- * Creates FAIR exports and imports to Neon database
+ * Creates FAIR exports and imports to Supabase database
  */
 
 import { readFileSync, writeFileSync } from 'fs';

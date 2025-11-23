@@ -567,14 +567,11 @@ export async function getAllDatasets(): Promise<Dataset[]> {
   const sql = `
     SELECT
       d.*,
-      COALESCE(
-        (
-          SELECT array_agg(p.name ORDER BY dpr.author_order)
-          FROM dataset_people_roles dpr
-          JOIN people p ON dpr.person_id = p.id
-          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
-        ),
-        d.authors
+      (
+        SELECT array_agg(p.name)
+        FROM dataset_people_roles dpr
+        JOIN people p ON dpr.person_id = p.id
+        WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
       ) as authors
     FROM datasets d
     ORDER BY d.id ASC
@@ -591,14 +588,11 @@ export async function getDatasetById(id: number): Promise<Dataset | null> {
   const sql = `
     SELECT
       d.*,
-      COALESCE(
-        (
-          SELECT array_agg(p.name ORDER BY dpr.author_order)
-          FROM dataset_people_roles dpr
-          JOIN people p ON dpr.person_id = p.id
-          WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
-        ),
-        d.authors
+      (
+        SELECT array_agg(p.name)
+        FROM dataset_people_roles dpr
+        JOIN people p ON dpr.person_id = p.id
+        WHERE dpr.dataset_id = d.id AND dpr.role = 'author'
       ) as authors
     FROM datasets d
     WHERE d.id = $1

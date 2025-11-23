@@ -124,7 +124,7 @@ Avg Grains/Sample: 18
 ## Configuration
 
 **Environment Variables (from .env.local):**
-- `DATABASE_URL` - PostgreSQL connection string for Neon database
+- `DATABASE_URL` - PostgreSQL connection string for Supabase database
 
 **Hardcoded Values:**
 - Dataset ID: `2` (McMillan 2024 - Malawi Rift)
@@ -140,7 +140,7 @@ Avg Grains/Sample: 18
 - **Error handling:** Catches and displays database errors gracefully
 - **Connection management:** Properly releases client and closes pool
 - **Output formatting:** Uses emoji and box drawing characters for readability
-- **SSL:** Configured for Neon serverless PostgreSQL (SSL required)
+- **SSL:** Configured for Supabase PostgreSQL (SSL required)
 
 ## Related Files
 - `scripts/db/import-thermo-data.ts` - Script that imports the data this script queries

@@ -2,13 +2,13 @@
 
 **Path:** `lib/db/connection.ts`
 **Type:** Core Database Utility
-**Last Analyzed:** 2025-11-17
+**Last Analyzed:** 2025-11-21
 
 ---
 
 ## What It Does
 
-Provides singleton PostgreSQL connection pool for Neon serverless database. Manages connection lifecycle, query execution, transactions, and type parsing. Auto-loads `.env.local` when environment variables missing (fixes TypeScript script execution).
+Provides singleton PostgreSQL connection pool for Supabase database. Manages connection lifecycle, query execution, transactions, and type parsing. Auto-loads `.env.local` when environment variables missing (fixes TypeScript script execution).
 
 **Key Feature:** Singleton pattern reuses connections across serverless function invocations.
 
@@ -18,14 +18,15 @@ Provides singleton PostgreSQL connection pool for Neon serverless database. Mana
 
 ### Connection Configuration
 
-**Database:** Neon PostgreSQL (serverless)
+**Database:** Supabase PostgreSQL (serverless with connection pooler)
 **Connection String:** `process.env.DATABASE_URL`
-**SSL:** Auto-enabled for `*.neon.tech` domains
+**SSL:** Enabled for Supabase connections
+**Pooler:** IPv4 compatible, port 5432 (standard PostgreSQL)
 
 **Pool Settings:**
 - Max connections: 20
 - Idle timeout: 30 seconds
-- Connection timeout: 10 seconds
+- Connection timeout: 30 seconds (increased for Supabase)
 - Allow exit on idle: true (serverless optimization)
 
 ### Type Parsing
@@ -282,6 +283,7 @@ This module works with **both v1 and v2 schemas**:
 ## Notes
 
 - Connection pool created once, reused across requests
-- SSL automatically enabled for Neon connections
+- SSL automatically enabled for Supabase connections
+- Supabase connection pooler provides IPv4 compatibility (works on Vercel)
 - Development logging helps identify slow queries
 - Environment auto-loading fixes script execution issues

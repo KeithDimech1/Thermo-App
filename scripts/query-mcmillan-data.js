@@ -14,7 +14,7 @@
  *
  * ---
  *
- * Query McMillan 2024 Malawi Rift data from Neon database (LEGACY)
+ * Query McMillan 2024 Malawi Rift data from Supabase database (LEGACY)
  * Run: node scripts/query-mcmillan-data.js
  */
 
@@ -110,7 +110,7 @@ async function queryMcMillanData() {
     console.log(`Avg Grains/Sample: ${st.avg_grains.toFixed(0)}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-    console.log('✅ Data successfully retrieved from Neon database\n');
+    console.log('✅ Data successfully retrieved from Supabase database\n');
 
   } finally {
     client.release();

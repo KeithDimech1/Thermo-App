@@ -1,7 +1,7 @@
 import { query } from '../../lib/db/connection';
 
 async function main() {
-  console.log('📊 Checking Neon database contents:\n');
+  console.log('📊 Checking Supabase database contents:\n');
 
   // Simple count queries
   const tables = [

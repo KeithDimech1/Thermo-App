@@ -16,7 +16,7 @@ export const MAX_TOKENS = 8000;
 export const TEMPERATURE = 0.1; // Low temperature for consistent extraction
 
 /**
- * Create a message with Anthropic API
+ * Create a message with Anthropic API (text only)
  */
 export async function createMessage(
   systemPrompt: string,
@@ -35,6 +35,36 @@ export async function createMessage(
       {
         role: 'user',
         content: userMessage,
+      },
+    ],
+  });
+
+  return response;
+}
+
+/**
+ * Create a message with multimodal content (text + images)
+ */
+export async function createMessageWithContent(
+  systemPrompt: string,
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  >,
+  options?: {
+    maxTokens?: number;
+    temperature?: number;
+  }
+) {
+  const response = await anthropic.messages.create({
+    model: EXTRACTION_MODEL,
+    max_tokens: options?.maxTokens || MAX_TOKENS,
+    temperature: options?.temperature || TEMPERATURE,
+    system: systemPrompt,
+    messages: [
+      {
+        role: 'user',
+        content,
       },
     ],
   });

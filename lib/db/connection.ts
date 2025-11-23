@@ -1,7 +1,7 @@
 /**
  * Database Connection Pool
  *
- * Singleton connection pool for PostgreSQL (Neon)
+ * Singleton connection pool for PostgreSQL (Supabase)
  * Optimized for serverless environment
  *
  * @module lib/db/connection
@@ -54,22 +54,22 @@ export function getPool(): Pool {
     if (!connectionString) {
       throw new Error(
         'DATABASE_URL environment variable is not set. ' +
-        'Please create a .env.local file with DATABASE_URL=<your-neon-connection-string>'
+        'Please create a .env.local file with DATABASE_URL=<your-supabase-connection-string>'
       );
     }
 
     pool = new Pool({
       connectionString,
 
-      // SSL configuration for Neon
-      ssl: connectionString.includes('neon.tech')
+      // SSL configuration (Supabase)
+      ssl: connectionString.includes('supabase')
         ? { rejectUnauthorized: false }
         : undefined,
 
       // Connection pool settings
       max: 20,                      // Maximum number of clients in pool
       idleTimeoutMillis: 30000,     // Close idle clients after 30s
-      connectionTimeoutMillis: 30000, // Timeout connecting to database (30s for Neon - increased for stability)
+      connectionTimeoutMillis: 30000, // Timeout connecting to database (30s for Supabase - increased for stability)
 
       // Serverless optimization
       allowExitOnIdle: true,        // Allow pool to close when idle (good for serverless)

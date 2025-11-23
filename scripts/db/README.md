@@ -48,7 +48,7 @@ npm run db:verify-connection
 ## Usage Examples
 
 ```bash
-# ✅ CORRECT - Always connects to neondb
+# ✅ CORRECT - Always connects to correct database
 ./scripts/db/psql-direct.sh -c "SELECT current_database();"
 
 # ❌ WRONG - May connect to wrong database

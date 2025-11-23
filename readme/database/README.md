@@ -1,6 +1,6 @@
 # Database Documentation
 
-**AusGeochem Thermochronology Database - PostgreSQL/Neon**
+**AusGeochem Thermochronology Database - PostgreSQL (Supabase)**
 
 This directory contains complete documentation for the thermochronology database schema.
 
@@ -244,4 +244,4 @@ npx tsx scripts/db/import-earthbank-templates.ts --file path/to/template.xlsx
 
 **Schema Version:** 2.0.0 (EarthBank-compatible)
 **Last Updated:** 2025-11-18
-**Database:** PostgreSQL 14+ / Neon Serverless Postgres
+**Database:** PostgreSQL 14+ / Supabase PostgreSQL

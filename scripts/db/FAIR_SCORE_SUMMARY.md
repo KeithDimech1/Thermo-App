@@ -1,7 +1,7 @@
 # FAIR Score Summary: All Datasets in Database
 
 **Generated:** 2025-11-18
-**Database:** AusGeochem Thermochronology Platform (Neon PostgreSQL)
+**Database:** AusGeochem Thermochronology Platform (Supabase PostgreSQL)
 **Total Datasets:** 3
 
 ---

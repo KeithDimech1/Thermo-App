@@ -62,7 +62,7 @@ This application manages and visualizes two key dating methods:
 
 ### Prerequisites
 - Node.js 18+ (LTS recommended)
-- PostgreSQL database (we use [Neon](https://neon.tech) serverless)
+- PostgreSQL database (we use [Supabase](https://supabase.com) serverless)
 - Python 3.9+ (for PDF extraction features)
 
 ### Installation
@@ -177,7 +177,7 @@ Thermo-App/
 
 **Backend:**
 - [PostgreSQL](https://www.postgresql.org/) - Relational database
-- [Neon](https://neon.tech) - Serverless PostgreSQL hosting
+- [Supabase](https://supabase.com) - Serverless PostgreSQL hosting
 - [Node.js](https://nodejs.org/) - JavaScript runtime
 
 **Data Processing:**

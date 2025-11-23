@@ -4,6 +4,230 @@
 
 ---
 
+## 2025-11-21 (CRITICAL: Database Migration - Neon → Supabase)
+
+### ⚠️ MAJOR INFRASTRUCTURE CHANGE: DATABASE PLATFORM MIGRATION
+
+**Type:** Complete database migration + Schema expansion
+**Previous:** Neon PostgreSQL (26 tables)
+**Current:** Supabase PostgreSQL (59 tables)
+**Reason:** ERROR-021 - Platform migration
+**Branch:** `idea-014-earthbank-schema-migration` (migrated to Supabase)
+
+---
+
+### Migration Summary
+
+**Database Changed:**
+- **OLD:** Neon PostgreSQL (`ep-fragrant-bush-ahfxu1xq.c-3.us-east-1.aws.neon.tech`)
+- **NEW:** Supabase PostgreSQL (`ggkrikijxollyolifdqs.supabase.co`, AWS Singapore)
+
+**Connection Method:**
+- Using Supabase Connection Pooler (IPv4, port 5432)
+- Works on Vercel + local development
+- Both `DATABASE_URL` and `DIRECT_URL` point to pooler
+
+**Table Count Change:**
+- **Previous:** 26 tables (Neon)
+- **Current:** 59 tables (Supabase)
+- **Net Change:** +33 new tables
+
+---
+
+### Schema Changes
+
+#### New Tables Added (+38 tables)
+
+**Business/Materials Model (41 total new tables):**
+
+**Materials & Products:**
+- `alias_mappings` - General alias system
+- `alias_material` - Material name aliases
+- `assay_lots` - Assay lot tracking
+- `assays` - Laboratory assays
+- `categories` - Material categories
+- `companies` - Suppliers, manufacturers, contractors
+- `manufacturers` - Product manufacturers
+- `material_attribute_values` - Attribute values
+- `material_attributes` - Custom material attributes
+- `material_forms` - Physical forms (bags, bulk, etc.)
+- `material_subtypes` - Subtype classifications
+- `material_types` - Material type taxonomy
+- `material_variant_attributes` - Variant-specific attributes
+- `material_variant_configs` - Material variants
+- `materials` - Construction materials master table
+- `units` - Units of measure
+
+**Supply Chain:**
+- `deliveries` - Actual deliveries
+- `depot_distances` - Depot distance matrix
+- `depots` - Supply depots/locations
+- `raw_deliveries` - Raw delivery data
+- `transport_modes` - Transport methods
+- `upload_templates` - Data upload templates
+
+**Projects:**
+- `postcodes` - Postcode geodata
+- `project_access` - User access control
+- `project_address` - Project addresses
+- `project_cost_codes` - Cost code tracking
+- `project_statuses` - Project status tracking
+- `projects` - Construction projects
+- `sites` - Project sites
+
+**Environmental/Carbon:**
+- `cv_measurements` - Carbon value measurements
+- `emission_source` - Emissions sources
+- `epd_documents` - Environmental Product Declarations
+- `markers` - Data quality markers
+
+**Testing/QC:**
+- `pathogens` - Pathogen data
+- `qc_samples` - Quality control samples
+- `test_configurations` - Test configurations
+
+**Metadata:**
+- `design_packages` - Design package metadata
+- `fair_score_breakdown` - FAIR data scoring
+
+**Backup:**
+- `location_types_backup` - Backup table
+- `locations_backup` - Backup table
+
+#### Tables Dropped (-7 tables)
+
+**Removed from Supabase schema:**
+- `dataset_people_roles` - Dataset → People relationships (replaced?)
+- `earthbank_ftDatapoints` - EarthBank FT datapoints (camelCase version)
+- `earthbank_ftTrackLengthData` - EarthBank track length data
+- `earthbank_heDatapoints` - EarthBank He datapoints
+- `earthbank_heWholeGrainData` - EarthBank whole grain data
+- `earthbank_samples` - EarthBank samples (camelCase version)
+- `extraction_sessions` - PDF extraction session tracking
+
+**Note:** The `earthbank_*` tables were part of IDEA-014 (camelCase migration). Their removal suggests either:
+1. Migration was rolled back
+2. They were merged into other tables
+3. Different database instance
+
+#### Retained Thermochronology Tables (18 tables)
+
+**Core tables still present:**
+- `ahe_grain_data` - Legacy He grain data
+- `batches` - Analytical batches
+- `data_files` - Associated data files
+- `dataset_files` - Dataset supplementary files
+- `datapoint_people_roles` - Datapoint → People relationships
+- `datasets` - Published papers and data sources
+- `ft_binned_length_data` - Binned track length distributions
+- `ft_count_data` - Spontaneous/induced track counts
+- `ft_datapoints` - FT analytical sessions
+- `ft_single_grain_ages` - Individual grain ages
+- `ft_track_length_data` - Track length measurements
+- `grains` - Individual mineral grains
+- `he_datapoints` - He analytical sessions
+- `he_whole_grain_data` - He grain chemistry and ages
+- `mounts` - Physical sample mounts
+- `people` - Researchers, analysts, operators
+- `reference_materials` - Age/composition standards
+- `sample_people_roles` - Sample → People relationships
+- `samples` - Geological samples
+
+---
+
+### Impact Analysis
+
+**Documentation Affected:**
+- ✅ `.claude/CLAUDE.md` - Updated (Neon → Supabase references)
+- ✅ `readme/database/.schema-snapshot.sql` - Replaced with Supabase schema
+- ✅ `readme/database/SCHEMA_SUMMARY.md` - Regenerated (59 tables documented)
+- ✅ `readme/lib/db/connection.md` - Updated connection documentation
+- ✅ All `readme/` Neon references - Changed to Supabase
+- ⚠️ `readme/database/tables/*.md` - **OUTDATED** (refers to old 26-table Neon schema)
+- ⚠️ `readme/database/erd/*` - **OUTDATED** (ERD diagrams need regeneration)
+
+**Code Files Requiring Review:**
+- `lib/db/connection.ts` - Verify connection pool settings
+- `lib/db/queries.ts` - Check if new tables are used by any queries
+- All `app/api/*/route.ts` files - Verify table references
+- Import scripts in `scripts/db/` - May need updates for new schema
+
+**Environment Variables:**
+- ✅ `.env.local` - Updated to Supabase connection strings
+- ✅ Uses connection pooler (IPv4 compatible)
+
+---
+
+### Project Purpose Clarification Needed
+
+**Critical Question:** This database now contains TWO distinct data models:
+
+1. **Thermochronology Model** (18 tables) - Original project purpose
+2. **Business/Materials Model** (41 tables) - Construction/materials management
+
+**Possible Explanations:**
+- Shared database for multiple projects?
+- Project pivot from geology to construction?
+- Wrong database connected?
+- Multi-tenant architecture?
+
+**Recommended Action:** Clarify project scope and database architecture.
+
+---
+
+### Connection Configuration
+
+**Supabase Details:**
+- **Project ID:** `ggkrikijxollyolifdqs`
+- **Region:** AWS Singapore (ap-southeast-1)
+- **Pooler:** `aws-1-ap-southeast-1.pooler.supabase.com:5432`
+- **Database:** `postgres` (default Supabase database name)
+- **SSL:** Required
+- **Protocol:** PostgreSQL 15+
+
+**Connection Pooler Benefits:**
+- IPv4 compatible (works on Vercel)
+- Handles connection limits automatically
+- Better for serverless environments
+- Standard PostgreSQL port (5432)
+
+**Neon Backup Connection:**
+- Old Neon credentials retained in `.env.local` as `NEON_DATABASE_URL`
+- Available for rollback if needed
+
+---
+
+### Migration Files
+
+**Documentation:**
+- `build-data/documentation/database-migration/POOLER_VERIFICATION.md`
+- `build-data/documentation/database-migration/SUPABASE_MIGRATION_STATUS.md`
+- `build-data/archive/PROJECT_INDEX.backup.json`
+
+**Schema Snapshots:**
+- `readme/database/.schema-snapshot.sql` - Current Supabase schema (59 tables)
+- `readme/database/.schema-previous.sql` - Previous Neon schema (26 tables)
+
+---
+
+### Next Steps
+
+**Required:**
+1. Clarify project purpose (thermochronology vs materials management)
+2. Archive old table documentation (24 files in `readme/database/tables/`)
+3. Generate new table documentation for 59 Supabase tables
+4. Regenerate ERD diagrams
+5. Update `CODE_USAGE.md` with new schema cross-references
+6. Review all API routes for table reference correctness
+7. Test import/export workflows with new schema
+
+**Optional:**
+- Remove old Neon credentials from `.env.local`
+- Update `README.md` with new database information
+- Create migration guide for developers
+
+---
+
 ## 2025-11-21 05:24:45 (/bigtidy Schema Update)
 
 ### New Table Detected

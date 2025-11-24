@@ -84,7 +84,7 @@ export default function UploadPage() {
 
       const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(uploadPath, file, {
           cacheControl: '3600',
@@ -92,8 +92,11 @@ export default function UploadPage() {
         });
 
       if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        console.error('[Upload] Supabase Storage error:', uploadError);
+        throw new Error(`Supabase upload failed: ${uploadError.message}`);
       }
+
+      console.log('[Upload] File uploaded successfully to:', uploadData?.path);
 
       // Step 3: Confirm upload and create database session
       const confirmResponse = await fetch('/api/extraction/confirm-upload', {

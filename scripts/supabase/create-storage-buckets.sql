@@ -18,14 +18,15 @@ ON CONFLICT (id) DO NOTHING;
 CREATE POLICY "Public Access" ON storage.objects FOR SELECT
 USING (bucket_id = 'extractions');
 
-CREATE POLICY "Authenticated users can upload" ON storage.objects FOR INSERT
-WITH CHECK (bucket_id = 'extractions' AND auth.role() = 'authenticated');
+-- Allow anonymous uploads (uses NEXT_PUBLIC_SUPABASE_ANON_KEY)
+CREATE POLICY "Allow anonymous uploads" ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'extractions');
 
-CREATE POLICY "Authenticated users can update" ON storage.objects FOR UPDATE
-USING (bucket_id = 'extractions' AND auth.role() = 'authenticated');
+CREATE POLICY "Allow anonymous updates" ON storage.objects FOR UPDATE
+USING (bucket_id = 'extractions');
 
-CREATE POLICY "Authenticated users can delete" ON storage.objects FOR DELETE
-USING (bucket_id = 'extractions' AND auth.role() = 'authenticated');
+CREATE POLICY "Allow anonymous deletes" ON storage.objects FOR DELETE
+USING (bucket_id = 'extractions');
 
 -- =====================================================
 -- BUCKET 2: datasets (permanent storage)

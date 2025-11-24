@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { DataFile } from '@/lib/types/thermo-data';
 import CSVActions from '@/components/datasets/CSVActions';
 import { useLanguage } from '@/lib/context/LanguageContext';
+import ImageCropperModal from '@/components/datasets/ImageCropperModal';
 
 interface TablePair {
   tableName: string;
@@ -25,6 +27,20 @@ function formatFileSize(bytes: number | null): string {
 
 export default function DataTablesContent({ tablePairs }: DataTablesContentProps) {
   const { t } = useLanguage();
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<DataFile | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleCropClick = (image: DataFile) => {
+    setSelectedImage(image);
+    setShowCropModal(true);
+  };
+
+  const handleCropSave = () => {
+    // Refresh the page to show updated image
+    setRefreshKey(prev => prev + 1);
+    window.location.reload();
+  };
 
   return (
     <div className="space-y-6">
@@ -77,18 +93,28 @@ export default function DataTablesContent({ tablePairs }: DataTablesContentProps
                         height={400}
                         className="w-full h-auto"
                         unoptimized
+                        key={refreshKey}
                       />
                     </div>
 
-                    <a
-                      href={pair.image.file_path}
-                      download={pair.image.file_name}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full text-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
-                    >
-                      {t('downloadImage')}
-                    </a>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => handleCropClick(pair.image!)}
+                        className="w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-semibold"
+                      >
+                        {t('cropImage')}
+                      </button>
+
+                      <a
+                        href={pair.image.file_path}
+                        download={pair.image.file_name}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full text-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+                      >
+                        {t('downloadImage')}
+                      </a>
+                    </div>
                   </div>
                 )}
 
@@ -128,6 +154,18 @@ export default function DataTablesContent({ tablePairs }: DataTablesContentProps
             </div>
           ))}
         </div>
+      )}
+
+      {/* Crop Modal */}
+      {showCropModal && selectedImage && (
+        <ImageCropperModal
+          imageUrl={selectedImage.file_path}
+          imageName={selectedImage.file_name}
+          datasetId={selectedImage.dataset_id}
+          fileId={selectedImage.id}
+          onClose={() => setShowCropModal(false)}
+          onSave={handleCropSave}
+        />
       )}
     </div>
   );

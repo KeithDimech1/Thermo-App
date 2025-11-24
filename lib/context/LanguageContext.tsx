@@ -34,6 +34,11 @@ const translations = {
     previewData: 'Preview Data',
     download: 'Download',
     downloadImage: 'Download Image',
+    cropImage: 'Crop Image',
+    saveCrop: 'Save Crop',
+    cancelCrop: 'Cancel',
+    cropInstructions: 'Click and drag to select the area to crop',
+    croppingImage: 'Cropping image...',
 
     // Data Tables page
     tableScreenshotPairedData: 'Table screenshots paired with extracted CSV data files',
@@ -76,6 +81,11 @@ const translations = {
     previewData: 'Vista previa de datos',
     download: 'Descargar',
     downloadImage: 'Descargar imagen',
+    cropImage: 'Recortar imagen',
+    saveCrop: 'Guardar recorte',
+    cancelCrop: 'Cancelar',
+    cropInstructions: 'Haga clic y arrastre para seleccionar el área a recortar',
+    croppingImage: 'Recortando imagen...',
 
     // Data Tables page
     tableScreenshotPairedData: 'Capturas de pantalla de tablas emparejadas con archivos de datos CSV extraídos',

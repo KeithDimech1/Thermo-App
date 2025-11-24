@@ -17,6 +17,8 @@ interface LoadResponse {
   dataset_name: string;
   files_uploaded: number;
   total_size_bytes: number;
+  already_exists?: boolean;
+  message?: string;
 }
 
 export default function LoadPage({ params }: PageProps) {
@@ -83,6 +85,13 @@ export default function LoadPage({ params }: PageProps) {
           state: 'loaded',
           dataset_id: result.dataset_id
         });
+      }
+
+      // If dataset already exists, auto-redirect after showing message briefly
+      if (result.already_exists) {
+        setTimeout(() => {
+          window.location.href = `/datasets/${result.dataset_id}`;
+        }, 2000);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Load failed');
@@ -266,13 +275,17 @@ export default function LoadPage({ params }: PageProps) {
           // Success State
           <div className="space-y-6">
             {/* Success Banner with Primary CTA */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+            <div className={`${loadResult.already_exists ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'} border rounded-lg p-6`}>
               <div className="flex items-center gap-3 mb-2">
-                <div className="text-3xl">✅</div>
-                <h2 className="text-2xl font-bold text-green-900">Load Complete!</h2>
+                <div className="text-3xl">{loadResult.already_exists ? '🔍' : '✅'}</div>
+                <h2 className={`text-2xl font-bold ${loadResult.already_exists ? 'text-blue-900' : 'text-green-900'}`}>
+                  {loadResult.already_exists ? 'Paper Already in Database!' : 'Load Complete!'}
+                </h2>
               </div>
-              <p className="text-green-800 mb-4">
-                Dataset created successfully. View your dataset or perform FAIR assessment.
+              <p className={`${loadResult.already_exists ? 'text-blue-800' : 'text-green-800'} mb-4`}>
+                {loadResult.already_exists
+                  ? `${loadResult.message || 'This paper is already in the database.'} Redirecting to existing dataset...`
+                  : 'Dataset created successfully. View your dataset or perform FAIR assessment.'}
               </p>
 
               {/* Primary CTA Button */}
@@ -286,29 +299,31 @@ export default function LoadPage({ params }: PageProps) {
             </div>
 
             {/* Dataset Info */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold mb-4">Dataset Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-gray-600 text-sm">Dataset ID:</span>
-                  <p className="font-semibold text-lg">#{loadResult.dataset_id}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Dataset Name:</span>
-                  <p className="font-semibold text-lg">{loadResult.dataset_name}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Files Uploaded:</span>
-                  <p className="font-semibold text-lg">{loadResult.files_uploaded}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600 text-sm">Total Size:</span>
-                  <p className="font-semibold text-lg">
-                    {(loadResult.total_size_bytes / 1024 / 1024).toFixed(2)} MB
-                  </p>
+            {!loadResult.already_exists && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold mb-4">Dataset Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-gray-600 text-sm">Dataset ID:</span>
+                    <p className="font-semibold text-lg">#{loadResult.dataset_id}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">Dataset Name:</span>
+                    <p className="font-semibold text-lg">{loadResult.dataset_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">Files Uploaded:</span>
+                    <p className="font-semibold text-lg">{loadResult.files_uploaded}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 text-sm">Total Size:</span>
+                    <p className="font-semibold text-lg">
+                      {(loadResult.total_size_bytes / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Next Steps Info */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">

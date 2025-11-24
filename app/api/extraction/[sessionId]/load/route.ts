@@ -28,6 +28,8 @@ interface LoadResponse {
   dataset_name: string;
   files_uploaded: number;
   total_size_bytes: number;
+  already_exists?: boolean;
+  message?: string;
 }
 
 interface RouteParams {
@@ -414,6 +416,53 @@ export async function POST(
 
   } catch (error: any) {
     console.error('[Load] Error:', error);
+
+    // Handle duplicate DOI constraint violation (PostgreSQL error code 23505)
+    if (error.code === '23505' && error.constraint === 'datasets_doi_unique') {
+      console.log('[Load] Duplicate DOI detected - finding existing dataset...');
+
+      // Re-fetch session to get pdf_filename
+      const sessionData = await queryOne<any>(
+        'SELECT pdf_filename FROM extraction_sessions WHERE session_id = $1',
+        [sessionId]
+      );
+
+      // Extract DOI from error message or re-parse metadata
+      const paperIndexBuffer = await downloadFile('extractions', `${sessionId}/paper-index.md`);
+      const paperIndexContent = paperIndexBuffer.toString('utf-8');
+      const metadata = parsePaperMetadata(paperIndexContent, sessionData?.pdf_filename || 'paper.pdf');
+
+      // Find existing dataset with this DOI
+      const existingDataset = await queryOne<{ id: number; dataset_name: string }>(
+        'SELECT id, dataset_name FROM datasets WHERE doi = $1',
+        [metadata.doi]
+      );
+
+      if (existingDataset) {
+        console.log(`[Load] Found existing dataset: ${existingDataset.dataset_name} (ID: ${existingDataset.id})`);
+
+        // Update session to point to existing dataset
+        await query(
+          `UPDATE extraction_sessions
+           SET dataset_id = $1,
+               updated_at = NOW()
+           WHERE session_id = $2`,
+          [existingDataset.id, sessionId]
+        );
+
+        // Return special response indicating dataset already exists
+        return NextResponse.json(
+          {
+            success: true,
+            already_exists: true,
+            dataset_id: existingDataset.id,
+            dataset_name: existingDataset.dataset_name,
+            message: `This paper is already in the database (DOI: ${metadata.doi})`
+          },
+          { status: 200 }
+        );
+      }
+    }
 
     // Try to update session with error (don't fail if database is down)
     try {

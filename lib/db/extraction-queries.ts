@@ -285,7 +285,7 @@ export async function countSessionsByState(): Promise<Record<ExtractionState, nu
  */
 export async function updateExtractionTokens(
   sessionId: string,
-  stage: 'analysis' | 'extraction' | 'fair_analysis',
+  stage: 'analysis' | 'extraction' | 'fair_analysis' | 'paper_analysis',
   inputTokens: number,
   outputTokens: number
 ): Promise<void> {

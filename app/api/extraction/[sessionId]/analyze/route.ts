@@ -23,6 +23,8 @@ import { createMessage, isAnthropicConfigured, extractTokenUsage, formatCost } f
 import {
   ANALYSIS_SYSTEM_PROMPT,
   createAnalysisUserMessage,
+  PAPER_ANALYSIS_SYSTEM_PROMPT,
+  createPaperAnalysisUserMessage,
 } from '@/lib/anthropic/prompts';
 import { downloadFile, uploadFile } from '@/lib/storage/supabase';
 import type { PaperMetadata, TableInfo } from '@/lib/types/extraction-types';
@@ -270,6 +272,52 @@ export async function POST(
       'text/markdown'
     );
     console.log(`[Analyze API] Uploaded tables.md`);
+
+    // Generate paper-analysis.md (4-section structured analysis for dataset overview)
+    console.log(`[Analyze API] Generating paper-analysis.md...`);
+    try {
+      const paperAnalysisUserMessage = createPaperAnalysisUserMessage(pdfText, session.pdf_filename);
+      const paperAnalysisResponse = await createMessage(
+        PAPER_ANALYSIS_SYSTEM_PROMPT,
+        paperAnalysisUserMessage,
+        {
+          maxTokens: 4000,
+          temperature: 0.3,  // Slightly higher temp for more natural writing
+        }
+      );
+
+      // Track token usage
+      const paperAnalysisTokens = extractTokenUsage(paperAnalysisResponse);
+      await updateExtractionTokens(
+        sessionId,
+        'paper_analysis',
+        paperAnalysisTokens.input_tokens,
+        paperAnalysisTokens.output_tokens
+      );
+      console.log(
+        `[Analyze API] Paper analysis tokens - Input: ${paperAnalysisTokens.input_tokens}, Output: ${paperAnalysisTokens.output_tokens}, Cost: ${formatCost(paperAnalysisTokens.cost_usd)}`
+      );
+
+      // Extract text content
+      const analysisContentBlock = paperAnalysisResponse.content.find(block => block.type === 'text');
+      if (analysisContentBlock && analysisContentBlock.type === 'text') {
+        const paperAnalysisMd = analysisContentBlock.text;
+
+        // Upload paper-analysis.md
+        await uploadFile(
+          'extractions',
+          `${sessionId}/paper-analysis.md`,
+          Buffer.from(paperAnalysisMd, 'utf-8'),
+          'text/markdown'
+        );
+        console.log(`[Analyze API] Uploaded paper-analysis.md (${paperAnalysisMd.length} bytes)`);
+      } else {
+        console.warn(`[Analyze API] No text content in paper analysis response - skipping paper-analysis.md`);
+      }
+    } catch (paperAnalysisError) {
+      // Non-fatal - paper analysis is optional
+      console.error(`[Analyze API] Failed to generate paper-analysis.md (non-fatal):`, paperAnalysisError);
+    }
 
     // Step 7: Update database with results
     await updatePaperMetadata(

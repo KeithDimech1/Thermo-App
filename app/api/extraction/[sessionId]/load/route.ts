@@ -99,6 +99,19 @@ export async function POST(
     // ========================================
     console.log('[Load] Step 2: Creating dataset record...');
 
+    // Try to download and parse paper-analysis.md for structured sections
+    let paperAnalysisSections = null;
+    try {
+      const paperAnalysisBuffer = await downloadFile('extractions', `${sessionId}/paper-analysis.md`);
+      const paperAnalysisMd = paperAnalysisBuffer.toString('utf-8');
+      paperAnalysisSections = parsePaperAnalysisSections(paperAnalysisMd);
+      if (paperAnalysisSections) {
+        console.log('[Load] Parsed paper analysis sections:', Object.keys(paperAnalysisSections).join(', '));
+      }
+    } catch (err) {
+      console.log('[Load] paper-analysis.md not found (this is OK - will be null in database)');
+    }
+
     const dataset = await queryOne<{ id: number }>(
       `INSERT INTO datasets (
         dataset_name,
@@ -121,9 +134,10 @@ export async function POST(
         publication_reference,
         publication_doi,
         study_area,
+        paper_analysis_sections,
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, NOW()
       )
       RETURNING id`,
       [
@@ -146,7 +160,8 @@ export async function POST(
         metadata.age_range_max_ma,
         metadata.full_citation, // Also map to publication_reference for backwards compatibility
         metadata.doi, // Also map to publication_doi for backwards compatibility
-        metadata.study_location // Also map to study_area for backwards compatibility
+        metadata.study_location, // Also map to study_area for backwards compatibility
+        paperAnalysisSections ? JSON.stringify(paperAnalysisSections) : null
       ]
     );
 
@@ -316,13 +331,14 @@ export async function POST(
       console.log('[Load] No figure images found (this is OK)');
     }
 
-    // Copy metadata files (paper-index.md, tables.md, table-index.json, plain-text.txt)
+    // Copy metadata files (paper-index.md, tables.md, table-index.json, plain-text.txt, paper-analysis.md)
     console.log('[Load] Copying extraction metadata files...');
     const metadataFiles = [
       { source: `${sessionId}/paper-index.md`, name: 'paper-index.md', type: 'text/markdown', description: 'Quick reference guide with paper metadata and table list' },
       { source: `${sessionId}/tables.md`, name: 'tables.md', type: 'text/markdown', description: 'Visual table reference with metadata' },
       { source: `${sessionId}/table-index.json`, name: 'table-index.json', type: 'application/json', description: 'Structured table metadata (JSON)' },
-      { source: `${sessionId}/text/plain-text.txt`, name: 'plain-text.txt', type: 'text/plain', description: 'Extracted PDF text content' }
+      { source: `${sessionId}/text/plain-text.txt`, name: 'plain-text.txt', type: 'text/plain', description: 'Extracted PDF text content' },
+      { source: `${sessionId}/paper-analysis.md`, name: 'paper-analysis.md', type: 'text/markdown', description: 'Structured 4-section paper analysis for dataset overview' }
     ];
 
     for (const metaFile of metadataFiles) {
@@ -665,3 +681,61 @@ function parsePaperMetadata(content: string, pdfFilename: string) {
 // NOTE: FAIR analysis functions (performFAIRAnalysis, generateExtractionReport) have been
 // removed and moved to /api/datasets/[id]/fair/analyze/route.ts
 // FAIR assessment is now performed via the ThermoFAIR page, not during load.
+
+/**
+ * Parse paper-analysis.md markdown into structured sections
+ *
+ * Expected format:
+ * ## 1. Executive Summary
+ * [content]
+ * ## 2. Key Problem Addressed
+ * [content]
+ * ## 3. Methods/Study Design
+ * [content]
+ * ## 4. Results
+ * [content]
+ */
+function parsePaperAnalysisSections(markdown: string): {
+  executive_summary?: string;
+  problem_addressed?: string;
+  methods?: string;
+  results?: string;
+} | null {
+  try {
+    const sections: Record<string, string> = {};
+
+    // Split by markdown headings
+    const parts = markdown.split(/##\s+\d+\.\s+/);
+
+    // Remove the first part (before any heading)
+    parts.shift();
+
+    for (const part of parts) {
+      const lines = part.trim().split('\n');
+      if (lines.length === 0) continue;
+
+      const heading = lines[0]?.toLowerCase() || '';
+      const content = lines.slice(1).join('\n').trim();
+
+      if (heading.includes('executive summary')) {
+        sections.executive_summary = content;
+      } else if (heading.includes('problem')) {
+        sections.problem_addressed = content;
+      } else if (heading.includes('method')) {
+        sections.methods = content;
+      } else if (heading.includes('result')) {
+        sections.results = content;
+      }
+    }
+
+    // Return null if no sections were parsed
+    if (Object.keys(sections).length === 0) {
+      return null;
+    }
+
+    return sections;
+  } catch (error) {
+    console.error('[Parse Paper Analysis] Error parsing markdown:', error);
+    return null;
+  }
+}

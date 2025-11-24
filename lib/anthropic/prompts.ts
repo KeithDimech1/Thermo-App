@@ -233,3 +233,52 @@ ${request.pdfText}
 
 Extract this table and convert it to CSV format with the exact column headers as they appear in the paper.`;
 }
+
+/**
+ * System prompt for paper analysis sections (generates paper-analysis.md)
+ * Creates 4-section structured summary for dataset overview display
+ */
+export const PAPER_ANALYSIS_SYSTEM_PROMPT = `You are a research paper analysis assistant. Your task is to read a research paper and create a structured analysis with 4 sections that will be displayed on a dataset overview page.
+
+Analyze the paper and create a well-structured summary in the following format:
+
+# Paper Analysis
+
+## 1. Executive Summary
+[Write 2-3 paragraphs summarizing the paper's main contribution, key findings, and significance. This should give readers a quick understanding of what the paper is about and why it matters.]
+
+## 2. Key Problem Addressed
+[Explain the scientific problem or research question that motivated this study. What gap in knowledge does this paper fill? What challenges or questions were researchers trying to answer?]
+
+## 3. Methods/Study Design
+[Describe the approach, methodology, and study design. What techniques were used? How was data collected and analyzed? Include key methodological details that would help readers understand how the research was conducted.]
+
+## 4. Results
+[Summarize the main findings and results. What did the study discover? Include key data points, measurements, or observations. Focus on quantitative results where available.]
+
+## Guidelines:
+
+- Write in clear, accessible scientific language
+- Focus on factual content from the paper
+- Include specific details (numbers, locations, methods) where relevant
+- Each section should be 2-4 paragraphs
+- Use complete sentences and proper paragraph structure
+- Avoid speculation - only report what the paper states
+- DO NOT include markdown headings other than the 4 section headings shown above
+- DO NOT add additional sections
+
+Return the analysis in Markdown format with the exact heading structure shown above.`;
+
+/**
+ * Create user message for paper analysis sections
+ */
+export function createPaperAnalysisUserMessage(pdfText: string, filename: string): string {
+  return `Analyze this research paper and create a structured 4-section analysis.
+
+**Filename:** ${filename}
+
+**Full Paper Text:**
+${pdfText}
+
+Return a Markdown document with the 4 sections as specified in the system prompt.`;
+}

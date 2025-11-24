@@ -1,5 +1,5 @@
 /**
- * POST /api/datasets/[datasetId]/crop-image
+ * POST /api/datasets/[id]/crop-image
  *
  * Crops an image and updates the data_files record
  *
@@ -34,7 +34,7 @@ interface CropImageResponse {
 
 interface RouteParams {
   params: Promise<{
-    datasetId: string;
+    id: string;
   }>;
 }
 
@@ -42,7 +42,7 @@ export async function POST(
   request: NextRequest,
   { params }: RouteParams
 ) {
-  const { datasetId } = await params;
+  const { id } = await params;
 
   try {
     const body: CropImageRequest = await request.json();
@@ -75,7 +75,7 @@ export async function POST(
     }
 
     // Verify dataset ID matches
-    if (originalFile.dataset_id !== parseInt(datasetId)) {
+    if (originalFile.dataset_id !== parseInt(id)) {
       return NextResponse.json(
         { error: 'Dataset ID mismatch' },
         { status: 403 }
@@ -83,7 +83,7 @@ export async function POST(
     }
 
     console.log('[Crop API] Received request:', {
-      datasetId,
+      datasetId: id,
       fileId,
       originalFileName,
       dataSize: croppedImageData?.length || 0
@@ -116,7 +116,7 @@ export async function POST(
     console.log('[Crop API] Uploading to Supabase:', croppedFileName);
     const croppedImageUrl = await uploadFile(
       'datasets',
-      `${datasetId}/tables/${croppedFileName}`,
+      `${id}/tables/${croppedFileName}`,
       imageBuffer,
       `image/${detectedType}`
     );

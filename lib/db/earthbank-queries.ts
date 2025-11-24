@@ -464,6 +464,8 @@ export async function getAllDatasets(): Promise<EarthBankDataset[]> {
     analyst: row.analyst,
     laboratory: row.laboratory,
     analysisMethods: row.analysis_methods,
+    paperSummary: row.paper_summary,
+    paperAnalysisSections: row.paper_analysis_sections,
     createdAt: row.created_at,
   }));
 }
@@ -518,6 +520,8 @@ export async function getDatasetById(id: string): Promise<EarthBankDataset | nul
     analyst: row.analyst,
     laboratory: row.laboratory,
     analysisMethods: row.analysis_methods,
+    paperSummary: row.paper_summary,
+    paperAnalysisSections: row.paper_analysis_sections,
     createdAt: row.created_at,
   };
 }

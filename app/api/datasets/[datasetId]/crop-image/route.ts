@@ -17,6 +17,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/connection';
 import { uploadFile } from '@/lib/storage/supabase';
 
+// Increase body size limit for large base64 images
+export const maxDuration = 30; // 30 seconds max execution time
+export const dynamic = 'force-dynamic';
+
 interface CropImageRequest {
   fileId: number;
   croppedImageData: string; // Base64 data URL
@@ -78,29 +82,44 @@ export async function POST(
       );
     }
 
+    console.log('[Crop API] Received request:', {
+      datasetId,
+      fileId,
+      originalFileName,
+      dataSize: croppedImageData?.length || 0
+    });
+
     // Convert base64 to buffer
-    // Format: "data:image/png;base64,iVBORw0KGgo..."
+    // Format: "data:image/png;base64,..." or "data:image/jpeg;base64,..."
     const base64Data = croppedImageData.split(',')[1];
     if (!base64Data) {
+      console.error('[Crop API] Invalid image data format');
       return NextResponse.json(
         { error: 'Invalid image data format' },
         { status: 400 }
       );
     }
-    const imageBuffer = Buffer.from(base64Data, 'base64');
 
-    // Generate new filename
-    const fileExtension = originalFileName.split('.').pop() || 'png';
+    // Detect mime type from base64 header
+    const mimeMatch = croppedImageData.match(/data:image\/([a-z]+);base64,/);
+    const detectedType = mimeMatch?.[1] || 'jpeg';
+
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    console.log('[Crop API] Image buffer created:', imageBuffer.length, 'bytes');
+
+    // Generate new filename with detected type
     const baseName = originalFileName.replace(/\.(png|jpg|jpeg|tiff)$/i, '');
-    const croppedFileName = `${baseName}_cropped.${fileExtension}`;
+    const croppedFileName = `${baseName}_cropped.${detectedType}`;
 
     // Upload to Supabase Storage
+    console.log('[Crop API] Uploading to Supabase:', croppedFileName);
     const croppedImageUrl = await uploadFile(
       'datasets',
       `${datasetId}/tables/${croppedFileName}`,
       imageBuffer,
-      `image/${fileExtension}`
+      `image/${detectedType}`
     );
+    console.log('[Crop API] Upload complete:', croppedImageUrl);
 
     // Update data_files record with new path
     await query(

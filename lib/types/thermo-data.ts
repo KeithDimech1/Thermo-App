@@ -54,6 +54,7 @@ export interface Dataset {
 
   // Extraction metadata (from /thermoextract)
   paper_summary: string | null;
+  paper_analysis_sections: PaperAnalysisSections | null;
   fair_score: number | null;
   fair_reasoning: string | null;
   key_findings: string[] | null;
@@ -61,6 +62,13 @@ export interface Dataset {
 
   // Audit
   created_at: Date;
+}
+
+export interface PaperAnalysisSections {
+  executive_summary?: string;
+  problem_addressed?: string;
+  methods?: string;
+  results?: string;
 }
 
 export interface FairScoreBreakdown {

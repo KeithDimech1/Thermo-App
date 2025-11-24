@@ -49,6 +49,13 @@ export interface EarthBankDataset {
   analyst?: string | null;
   laboratory?: string | null;
   analysisMethods?: string[] | string | null; // Can be array or PostgreSQL array string
+  paperSummary?: string | null;
+  paperAnalysisSections?: {
+    executive_summary?: string;
+    problem_addressed?: string;
+    methods?: string;
+    results?: string;
+  } | null;
   createdAt?: Date | string | null;
 }
 

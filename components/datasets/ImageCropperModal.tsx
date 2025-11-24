@@ -165,10 +165,20 @@ export default function ImageCropperModal({
         cropArea.height
       );
 
-      // Convert to base64
-      const croppedImageData = cropCanvas.toDataURL('image/png');
+      // Convert to base64 with JPEG compression for smaller file size
+      const croppedImageData = cropCanvas.toDataURL('image/jpeg', 0.9);
 
-      // Upload via API
+      console.log('[Crop] Starting upload...', {
+        datasetId,
+        fileId,
+        imageName,
+        dataSize: croppedImageData.length
+      });
+
+      // Upload via API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch(`/api/datasets/${datasetId}/crop-image`, {
         method: 'POST',
         headers: {
@@ -178,8 +188,12 @@ export default function ImageCropperModal({
           fileId,
           croppedImageData,
           originalFileName: imageName
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
+      console.log('[Crop] Response received:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -193,8 +207,16 @@ export default function ImageCropperModal({
       onClose();
 
     } catch (error: any) {
-      console.error('Crop error:', error);
-      alert(`Failed to crop image: ${error.message}`);
+      console.error('[Crop] Error:', error);
+
+      let errorMessage = 'Failed to crop image';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. The image might be too large. Try selecting a smaller area.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      alert(errorMessage);
     } finally {
       setIsLoading(false);
     }

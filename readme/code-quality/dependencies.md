@@ -1,155 +1,114 @@
-# Dependencies - Code Quality Issues
+# Code Quality: Dependencies & Security
 
-**Last Check:** 2025-11-17
+**Last Check:** 2025-11-24 09:30:00
 **Found by:** `/bigtidycheck`
 
 ---
 
-## 🔴 Critical Issues
+## 🔍 Code Quality Issues
 
-### 1. **Security: xlsx library vulnerabilities** → **ERROR-009**
-- **Package:** `xlsx`
-- **Status:** 🔴 Open → Logged
-- **Severity:** HIGH (CVSS 7.8, 7.5)
+### 🔴 Critical Issues
 
-**Vulnerabilities:**
-1. **Prototype Pollution** (GHSA-4r6h-8v6p-xvw6)
-   - CVSS Score: 7.8
-   - Affects: xlsx <0.19.3
-   - CWE-1321: Improperly Controlled Modification of Object Prototype Attributes
+1. **Security: xlsx dependency has 2 HIGH severity vulnerabilities** → **ERROR-016**
+   - **Package:** `xlsx@*` (all versions currently used)
+   - **Status:** ⚠️ No fix available
+   - **CVEs:**
+     - **GHSA-4r6h-8v6p-xvw6** - Prototype Pollution in sheetJS
+       - Severity: HIGH (CVSS 7.8)
+       - Vector: CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H
+       - Requires: <0.19.3
+     - **GHSA-5pgg-2g8v-p4x9** - Regular Expression Denial of Service (ReDoS)
+       - Severity: HIGH (CVSS 7.5)
+       - Vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H
+       - Requires: <0.20.2
+   - **Impact:** Security risks when processing uploaded Excel files
+   - **Affected Files:**
+     - `scripts/convert-mcmillan-to-earthbank-v2.js` - Data conversion scripts
+     - `scripts/convert-mcmillan-to-earthbank.js`
+     - `scripts/import-mcmillan-2024-complete.ts` - Import workflows
+     - `scripts/inspect-earthbank-mappings.js`
+     - `scripts/inspect-mcmillan-supplementary.js`
+   - **Suggested Fix:**
+     - **Option 1:** Switch to `exceljs` (already installed, secure alternative)
+     - **Option 2:** Wait for xlsx maintainers to release patched version
+     - **Option 3:** Implement strict input validation before processing xlsx files
+   - **Mitigation (current):**
+     - Only process trusted files (uploaded by authenticated users)
+     - Validate file structure before parsing
+     - Run import scripts in controlled environment (not user-facing)
+   - **Status:** 🔴 Open → Logged
+   - **Debug Log:** `build-data/errors/debug/ER-016-xlsx-security-vulnerabilities.md`
+   - **Track:** Use `/debug-mode` to fix, `/resolve ERROR-016` when done
 
-2. **Regular Expression Denial of Service** (GHSA-5pgg-2g8v-p4x9)
-   - CVSS Score: 7.5
-   - Affects: xlsx <0.20.2
-   - CWE-1333: Inefficient Regular Expression Complexity
+### 🟡 Medium Issues
 
-**Files Affected:**
-- `scripts/db/import-earthbank-templates.ts` - Excel template import
-- `scripts/db/examine-earthbank-templates.ts` - Template analysis
+1. **Unused Dependencies: 5 packages not actively imported**
+   - **Packages:**
+     - `@types/formidable` - Type definitions (may be phantom import)
+     - `formidable` - File upload library (potentially replaced)
+     - `glob` - File pattern matching (replaced by built-in features?)
+     - `pdf-parse` - PDF text extraction (may be used in scripts)
+     - `pino-pretty` - Log formatter (dev-only usage)
+   - **Impact:**
+     - Bloated node_modules (~50MB+ extra)
+     - Slower npm install
+     - Increased security surface area
+     - Confusing dependency tree
+   - **Suggested Fix:**
+     1. Verify none are used: `grep -r "require.*formidable\|import.*formidable" app/ lib/ scripts/`
+     2. If truly unused: `npm uninstall @types/formidable formidable glob pdf-parse pino-pretty`
+     3. Re-test build and imports
+   - **Note:** May have been used during development/prototyping
+   - **Status:** 🟡 Open
 
-**Impact:**
-- Security vulnerability when processing Excel files
-- Could allow malicious Excel files to execute code or cause DoS
+2. **Unused Dev Dependencies: 5 packages flagged**
+   - **Packages:**
+     - `@types/react-dom` - May be phantom (Next.js provides)
+     - `autoprefixer` - Likely used by Tailwind (indirect)
+     - `eslint` - Not configured (see below)
+     - `eslint-config-next` - Not configured
+     - `postcss` - Used by Tailwind (indirect)
+   - **Impact:** Similar to above but dev-only
+   - **Suggested Fix:**
+     - Check if Tailwind requires `autoprefixer` and `postcss` (likely YES, keep them)
+     - Configure ESLint or remove if not using
+     - Verify `@types/react-dom` usage
+   - **Status:** 🟡 Open
 
-**Suggested Fixes:**
-1. **Upgrade to xlsx@0.20.2 or later:**
-   ```bash
-   npm install xlsx@latest
-   ```
+### 🔵 Small Issues
 
-2. **Alternative: Switch to safer library:**
-   - Consider `exceljs` (more actively maintained)
-   - Or `xlsx-populate` (simpler API)
+1. **ESLint Not Configured**
+   - **Error:** `ESLint couldn't find an eslint.config.(js|mjs|cjs) file`
+   - **Current:** ESLint v9.39.1 installed but no config
+   - **Impact:** No automated code quality checks
+   - **Suggested Fix:**
+     - **Option 1:** Configure ESLint 9 with new flat config format
+     - **Option 2:** Use `.eslintrc.*` with migration guide
+     - **Option 3:** Remove ESLint if not using
+   - **Status:** 🔵 Tracked
 
-3. **Mitigation (if upgrade not possible):**
-   - Validate Excel files before processing
-   - Limit file size and complexity
-   - Run import scripts in sandboxed environment
-
-**Debug Log:** `build-data/errors/debug/ER-009-security-xlsx-library-vulnerabilities.md`
-**Track:** Use `/debug-mode` to fix, `/resolve ERROR-009` when done
+2. **TypeScript Config: Invalid JSON**
+   - **File:** `tsconfig.json:29`
+   - **Error:** `Expected property name or '}' in JSON at position 29`
+   - **Impact:** depcheck cannot parse tsconfig.json
+   - **Likely Cause:** JSON comments (not allowed by strict parsers)
+   - **Suggested Fix:** Remove comments or use jsonc parser
+   - **Status:** 🔵 Tracked
 
 ---
 
-## 🔵 Small Issues
+## Dependency Summary
 
-### 1. **Unused Dev Dependencies (5)**
-- **Status:** 🔵 Tracked
+**Total Production Dependencies:** 232
+**Total Dev Dependencies:** 401
+**Total Optional:** 109
 
-**Packages flagged by depcheck:**
-- `@types/react-dom` - Likely false positive (Next.js uses this)
-- `autoprefixer` - Likely false positive (PostCSS uses this)
-- `eslint` - Likely false positive (Next.js uses this)
-- `eslint-config-next` - Likely false positive (Next.js config)
-- `postcss` - Likely false positive (Tailwind CSS uses this)
-
-**Issue:** depcheck reports these as unused, but they are dependencies of Next.js/Tailwind
-
-**Impact:** Minimal - these are dev dependencies
-
-**Suggested Fix:**
-- No action needed - these are indirect dependencies
-- depcheck has known false positives for Next.js projects
+**Security Alerts:** 1 package, 2 vulnerabilities (both HIGH)
 
 ---
 
 **To resolve an issue:**
-1. Fix the code or upgrade the package
+1. Fix the dependency/config
 2. Run `/bigtidycheck` again to verify
 3. Update status to ✅ Fixed
 4. If logged as ERROR-XXX, run `/resolve ERROR-XXX`
-# Dependencies Code Quality
-
-**Last Check:** 2025-11-18 17:31:44
-**Found by:** `/bigtidycheck`
-
----
-
-## 🔴 Critical Issues
-
-### 1. **Security: HIGH Severity glob Vulnerability**
-
-- **Package:** `glob` (via dependency chain)
-- **CVE:** GHSA-5j98-mcp5-4vw2
-- **Severity:** HIGH (CVSS 7.5)
-- **Vulnerability:** Command injection via -c/--cmd
-- **Affected:** glob versions >=10.3.7 <=11.0.3
-- **Via Chain:** @next/eslint-plugin-next → eslint-config-next → glob
-- **Impact:** Dev dependencies only (not production runtime)
-- **Risk:** Development environment command injection (CLI usage only)
-- **Fix Attempted:** 2025-11-18
-  - `npm audit fix` and `npm audit fix --force` both failed to resolve
-  - Updating eslint-config-next@16 requires eslint@9 (breaking change from v8)
-  - Would require major ESLint upgrade during critical migration phase
-- **Decision:**
-  - **Accepted Risk** - Defer fix to Phase 8 (post-migration)
-  - Low practical risk: dev-only, CLI-specific vulnerability
-  - Attack surface limited to -c/--cmd flag usage
-  - Not exploitable in production runtime
-- **Status:** 🟡 Deferred to Phase 8
-- **Priority:** P2 (Medium - will fix post-migration)
-
----
-
-## 🟡 Medium Issues
-
-### 2. **Unused Dev Dependencies**
-
-**Flagged by depcheck:**
-- `eslint`
-- `eslint-config-next`
-- `autoprefixer`
-- `postcss`
-- `@types/react-dom`
-
-**Analysis:**
-- **eslint, eslint-config-next:** May be unused if not running eslint
-- **autoprefixer, postcss:** Likely used by Tailwind CSS (keep)
-- **@types/react-dom:** Likely needed for TypeScript (keep)
-
-**Suggested Fix:**
-```bash
-# Only remove if truly unused:
-npm uninstall eslint eslint-config-next
-
-# Keep the others (used indirectly):
-# - autoprefixer (Tailwind)
-# - postcss (Tailwind)
-# - @types/react-dom (TypeScript)
-```
-
-**Status:** 🟡 Open
-**Priority:** P3 (Low - minor cleanup)
-
----
-
-## Recommendations
-
-1. **Immediate:** Run `npm audit fix` to update glob vulnerability
-2. **Phase 6.4:** Audit eslint usage, remove if not configured
-3. **Phase 8:** Review all dependencies after migration complete
-
----
-
-**Last npm audit:** 2025-11-18
-**Next check:** After dependency updates or before production deploy

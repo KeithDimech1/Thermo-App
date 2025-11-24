@@ -7,6 +7,7 @@ import { getDataFilesByDataset } from '@/lib/db/queries';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import DatasetTabs from '@/components/datasets/DatasetTabs';
 import SupplementaryFilesSection from '@/components/datasets/SupplementaryFilesSection';
+import PaperAnalysisSection from '@/components/datasets/PaperAnalysisSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -245,6 +246,11 @@ export default async function DatasetOverviewPage({ params }: PageProps) {
           <h2 className="text-lg font-bold text-blue-900 mb-3">Description</h2>
           <p className="text-gray-800 leading-relaxed">{dataset.description}</p>
         </div>
+      )}
+
+      {/* Paper Analysis Sections - Collapsible */}
+      {dataset.paperAnalysisSections && (
+        <PaperAnalysisSection sections={dataset.paperAnalysisSections} />
       )}
 
       {/* Study Area */}

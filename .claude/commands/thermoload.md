@@ -215,8 +215,75 @@ else:
     # Fallback to paper directory name
     dataset_name = paper_path.name.replace('-', ' ').title()
 
-# Generate description
+# Generate description (fallback if paper-analysis.md doesn't exist)
 description = f"Thermochronology data from {full_citation}" if full_citation else None
+
+# Extract paper analysis sections from paper-analysis.md
+paper_analysis_path = paper_path / 'paper-analysis.md'
+paper_summary = None
+paper_analysis_sections = None
+
+if paper_analysis_path.exists():
+    print('📄 Reading paper-analysis.md...')
+    with open(paper_analysis_path, 'r', encoding='utf-8') as f:
+        analysis_content = f.read()
+
+    # Extract Section 1: Executive Summary (for paper_summary field)
+    exec_match = re.search(
+        r'## <a id="executive-summary"></a>1\. Executive Summary\s*\n\n(.*?)(?=\n## <a id=|$)',
+        analysis_content,
+        re.DOTALL
+    )
+    if exec_match:
+        paper_summary = exec_match.group(1).strip()
+        print(f'   ✅ Extracted Executive Summary ({len(paper_summary)} chars)')
+
+    # Extract all 4 sections for paper_analysis_sections JSONB field
+    sections = {}
+
+    # Section 1: Executive Summary
+    if exec_match:
+        sections['executive_summary'] = paper_summary
+
+    # Section 2: Key Problem Addressed
+    problem_match = re.search(
+        r'## <a id="problem-addressed"></a>2\. Key Problem Addressed\s*\n\n(.*?)(?=\n## <a id=|$)',
+        analysis_content,
+        re.DOTALL
+    )
+    if problem_match:
+        sections['problem_addressed'] = problem_match.group(1).strip()
+        print(f'   ✅ Extracted Key Problem Addressed ({len(sections["problem_addressed"])} chars)')
+
+    # Section 3: Methods/Study Design
+    methods_match = re.search(
+        r'## <a id="methods"></a>3\. Methods/Study Design\s*\n\n(.*?)(?=\n## <a id=|$)',
+        analysis_content,
+        re.DOTALL
+    )
+    if methods_match:
+        sections['methods'] = methods_match.group(1).strip()
+        print(f'   ✅ Extracted Methods/Study Design ({len(sections["methods"])} chars)')
+
+    # Section 4: Results
+    results_match = re.search(
+        r'## <a id="results"></a>4\. Results\s*\n\n(.*?)(?=\n## <a id=|$)',
+        analysis_content,
+        re.DOTALL
+    )
+    if results_match:
+        sections['results'] = results_match.group(1).strip()
+        print(f'   ✅ Extracted Results ({len(sections["results"])} chars)')
+
+    # Store as JSONB
+    if sections:
+        paper_analysis_sections = Json(sections)
+        print(f'   ✅ Prepared {len(sections)} sections for database')
+
+    print()
+else:
+    print('⚠️  paper-analysis.md not found - skipping section extraction')
+    print()
 
 print(f'✅ Dataset Name: {dataset_name}')
 print(f'✅ Authors: {", ".join(authors)}')
@@ -240,6 +307,8 @@ print()
 - `age_range_min_ma`, `age_range_max_ma`
 - `laboratory`
 - `description`
+- `paper_summary` - String (Section 1: Executive Summary from paper-analysis.md)
+- `paper_analysis_sections` - psycopg2.extras.Json object with 4 sections
 
 ---
 
@@ -287,10 +356,12 @@ INSERT INTO datasets (
     age_range_max_ma,
     authors,
     laboratory,
+    paper_summary,
+    paper_analysis_sections,
     created_at
 ) VALUES (
     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-    %s, %s, %s, %s, %s, %s, %s, NOW()
+    %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW()
 )
 RETURNING id;
 """
@@ -312,7 +383,9 @@ cur.execute(insert_sql, (
     age_range_min_ma,
     age_range_max_ma,
     authors,
-    laboratory
+    laboratory,
+    paper_summary,
+    paper_analysis_sections
 ))
 
 dataset_id = cur.fetchone()[0]

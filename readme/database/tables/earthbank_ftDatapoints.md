@@ -173,3 +173,48 @@ SELECT centralAgeMa FROM earthbank_ftDatapoints; -- FAILS!
 - `nGrains` - Statistical adequacy
 - `dispersion` - Age scatter magnitude
 - `uPpm` / `uPpmStdDev` - Uranium distribution
+
+---
+
+## 🔍 Code Quality Issues
+
+**Last Check:** 2025-11-24 09:30:00
+**Found by:** `/bigtidycheck`
+
+### 🔴 Critical Issues
+
+1. **Schema Mismatch: Application code queries old snake_case table instead of new EarthBank table** → **ERROR-015**
+   - **Files:**
+     - `lib/db/queries.ts:179` - `SELECT * FROM ft_datapoints` (WRONG - empty table)
+     - `lib/types/thermo-data.ts:875` - Interface uses `ft_datapoints` property name
+   - **Issue:** getSampleDetail() queries `ft_datapoints` (old schema, 0 records) instead of `"earthbank_ftDatapoints"` (new schema with all data)
+   - **Impact:** BLOCKING - Sample detail pages return empty arrays for FT data, breaking UI
+   - **Root Cause:** IDEA-014 migration completed database schema but didn't update all application code
+   - **Suggested Fix:**
+     ```typescript
+     // OLD (queries empty table):
+     query<FTDatapoint>('SELECT * FROM ft_datapoints WHERE sample_id = $1', [sampleId])
+
+     // NEW (queries correct table with camelCase columns):
+     query<FTDatapoint>('SELECT * FROM "earthbank_ftDatapoints" WHERE "sampleID" = $1', [sampleId])
+     ```
+   - **Status:** 🔴 Open → Logged
+   - **Debug Log:** `build-data/errors/debug/ER-015-schema-mismatch-queries-use-old-tables.md`
+   - **Track:** Use `/debug-mode` to fix, `/resolve ERROR-015` when done
+
+### 🟡 Medium Issues
+
+1. **Schema Reference: table-counts API uses mixed old/new table names**
+   - **File:** `app/api/datasets/[id]/table-counts/route.ts:33-79`
+   - **Issue:** Query uses `ft_datapoints` variable name but queries new table structure with comments "Not in EarthBank schema"
+   - **Impact:** Confusing code, incorrect counts returned (shows 0 for all tables)
+   - **Suggested Fix:** Update query to use `"earthbank_ftDatapoints"` with proper quoting
+   - **Status:** 🟡 Open
+
+---
+
+**To resolve an issue:**
+1. Fix the code
+2. Run `/bigtidycheck` again to verify
+3. Update status to ✅ Fixed
+4. If logged as ERROR-XXX, run `/resolve ERROR-XXX`

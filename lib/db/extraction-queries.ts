@@ -278,3 +278,126 @@ export async function countSessionsByState(): Promise<Record<ExtractionState, nu
 
   return counts as Record<ExtractionState, number>;
 }
+
+/**
+ * Update token usage for an extraction session
+ * Increments totals and updates the stage-specific breakdown
+ */
+export async function updateExtractionTokens(
+  sessionId: string,
+  stage: 'analysis' | 'extraction' | 'fair_analysis',
+  inputTokens: number,
+  outputTokens: number
+): Promise<void> {
+  const sql = `
+    UPDATE extraction_sessions
+    SET
+      ai_tokens_input_total = ai_tokens_input_total + $2,
+      ai_tokens_output_total = ai_tokens_output_total + $3,
+      ai_usage_breakdown = jsonb_set(
+        jsonb_set(
+          jsonb_set(
+            ai_usage_breakdown,
+            '{${stage}, input}',
+            ((COALESCE((ai_usage_breakdown->'${stage}'->>'input')::int, 0) + $2)::text)::jsonb
+          ),
+          '{${stage}, output}',
+          ((COALESCE((ai_usage_breakdown->'${stage}'->>'output')::int, 0) + $3)::text)::jsonb
+        ),
+        '{${stage}, calls}',
+        ((COALESCE((ai_usage_breakdown->'${stage}'->>'calls')::int, 0) + 1)::text)::jsonb
+      ),
+      updated_at = NOW()
+    WHERE session_id = $1
+  `;
+
+  await query(sql, [sessionId, inputTokens, outputTokens]);
+}
+
+/**
+ * Get token usage for a session
+ */
+export async function getExtractionTokenUsage(sessionId: string) {
+  const sql = `
+    SELECT
+      ai_tokens_input_total,
+      ai_tokens_output_total,
+      ai_tokens_total,
+      ai_cost_usd,
+      ai_usage_breakdown,
+      ai_model
+    FROM extraction_sessions
+    WHERE session_id = $1
+  `;
+
+  return queryOne<{
+    ai_tokens_input_total: number;
+    ai_tokens_output_total: number;
+    ai_tokens_total: number;
+    ai_cost_usd: string;
+    ai_usage_breakdown: {
+      analysis: { input: number; output: number; calls: number };
+      extraction: { input: number; output: number; calls: number };
+      fair_analysis: { input: number; output: number; calls: number };
+    };
+    ai_model: string;
+  }>(sql, [sessionId]);
+}
+
+/**
+ * Get total AI costs per user
+ */
+export async function getUserAICosts(userId?: string) {
+  const sql = userId
+    ? `SELECT
+         user_id,
+         COUNT(*)::int as session_count,
+         SUM(ai_tokens_total)::bigint as total_tokens,
+         SUM(ai_cost_usd)::numeric as total_cost_usd,
+         AVG(ai_cost_usd)::numeric as avg_cost_per_paper
+       FROM extraction_sessions
+       WHERE user_id = $1 AND state = 'loaded'
+       GROUP BY user_id`
+    : `SELECT
+         user_id,
+         COUNT(*)::int as session_count,
+         SUM(ai_tokens_total)::bigint as total_tokens,
+         SUM(ai_cost_usd)::numeric as total_cost_usd,
+         AVG(ai_cost_usd)::numeric as avg_cost_per_paper
+       FROM extraction_sessions
+       WHERE state = 'loaded' AND user_id IS NOT NULL
+       GROUP BY user_id
+       ORDER BY total_cost_usd DESC`;
+
+  return userId ? queryOne(sql, [userId]) : query(sql);
+}
+
+/**
+ * Get AI cost analytics (for reporting/dashboard)
+ */
+export async function getAICostAnalytics() {
+  const sql = `
+    SELECT
+      COUNT(*)::int as total_sessions,
+      SUM(ai_tokens_input_total)::bigint as total_input_tokens,
+      SUM(ai_tokens_output_total)::bigint as total_output_tokens,
+      SUM(ai_tokens_total)::bigint as total_tokens,
+      SUM(ai_cost_usd)::numeric as total_cost_usd,
+      AVG(ai_cost_usd)::numeric as avg_cost_per_paper,
+      MIN(ai_cost_usd)::numeric as min_cost,
+      MAX(ai_cost_usd)::numeric as max_cost
+    FROM extraction_sessions
+    WHERE state = 'loaded' AND ai_cost_usd IS NOT NULL
+  `;
+
+  return queryOne<{
+    total_sessions: number;
+    total_input_tokens: number;
+    total_output_tokens: number;
+    total_tokens: number;
+    total_cost_usd: string;
+    avg_cost_per_paper: string;
+    min_cost: string;
+    max_cost: string;
+  }>(sql);
+}

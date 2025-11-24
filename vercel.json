@@ -1,8 +1,11 @@
 {
-  "version": 2,
-  "name": "thermo-app",
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs"
+  "functions": {
+    "app/api/extraction/upload/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    }
+  },
+  "limits": {
+    "maxRequestBodySize": "100mb"
+  }
 }

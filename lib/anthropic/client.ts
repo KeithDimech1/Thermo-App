@@ -122,3 +122,65 @@ export function estimateTokens(text: string): number {
 export function isAnthropicConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
+
+/**
+ * Token usage information from Anthropic API response
+ */
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+}
+
+/**
+ * Extract token usage from Anthropic API response
+ */
+export function extractTokenUsage(response: Anthropic.Message): TokenUsage {
+  const inputTokens = response.usage.input_tokens;
+  const outputTokens = response.usage.output_tokens;
+
+  // Pricing for Claude Sonnet 4.5 (update if model changes)
+  const inputCostPerMillion = 3.00;
+  const outputCostPerMillion = 15.00;
+
+  const cost =
+    (inputTokens / 1_000_000) * inputCostPerMillion +
+    (outputTokens / 1_000_000) * outputCostPerMillion;
+
+  return {
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+    total_tokens: inputTokens + outputTokens,
+    cost_usd: cost,
+  };
+}
+
+/**
+ * Calculate cost for given token counts
+ */
+export function calculateCost(inputTokens: number, outputTokens: number, model?: string): number {
+  // Pricing varies by model (as of 2025-11-24)
+  const pricing = {
+    'claude-sonnet-4-5-20250929': { input: 3.00, output: 15.00 },
+    'claude-sonnet-3-5-20240620': { input: 3.00, output: 15.00 },
+    'claude-haiku-3-5-20241022': { input: 0.80, output: 4.00 },
+  } as const;
+
+  type ModelKey = keyof typeof pricing;
+  const modelKey = (model || EXTRACTION_MODEL) as ModelKey;
+  const modelPricing = pricing[modelKey] || pricing['claude-sonnet-4-5-20250929'];
+
+  return (
+    (inputTokens / 1_000_000) * modelPricing.input +
+    (outputTokens / 1_000_000) * modelPricing.output
+  );
+}
+
+/**
+ * Format cost for display
+ */
+export function formatCost(usd: number): string {
+  if (usd < 0.01) return `$${(usd * 100).toFixed(3)}¢`;
+  return `$${usd.toFixed(4)}`;
+}

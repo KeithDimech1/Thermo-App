@@ -363,6 +363,35 @@ function parseMetadata(indexContent: string, dirName: string): ParsedMetadata {
 }
 
 async function createDatasetRecord(metadata: ParsedMetadata): Promise<number> {
+  // Check for duplicate DOI before creating record
+  if (metadata.doi) {
+    const existing = await query<{ id: number; dataset_name: string }>(`
+      SELECT id, dataset_name
+      FROM datasets
+      WHERE doi = $1
+    `, [metadata.doi]);
+
+    if (existing.length > 0) {
+      console.error();
+      console.error('━'.repeat(80));
+      console.error('❌ DUPLICATE DATASET DETECTED');
+      console.error('━'.repeat(80));
+      console.error();
+      console.error(`This paper has already been uploaded to the database:`);
+      console.error();
+      console.error(`   DOI: ${metadata.doi}`);
+      console.error(`   Existing Dataset: "${existing[0].dataset_name}" (ID: ${existing[0].id})`);
+      console.error(`   New Dataset: "${metadata.datasetName}"`);
+      console.error();
+      console.error(`To view existing dataset:`);
+      console.error(`   http://localhost:3000/datasets/${existing[0].id}`);
+      console.error();
+      console.error('━'.repeat(80));
+      console.error();
+      throw new Error(`Duplicate dataset: DOI ${metadata.doi} already exists (dataset ID: ${existing[0].id})`);
+    }
+  }
+
   const result = await query<{ id: number }>(`
     INSERT INTO datasets (
       dataset_name,

@@ -73,17 +73,49 @@ export default function AnalyzePage({ params }: PageProps) {
         const data = await response.json();
         setSession(data.session);
 
-        // If already analyzed, fetch results from session
+        // If already analyzed, fetch results from session and load table-index.json
         if (data.session.state === 'analyzed' && data.session.paper_metadata) {
-          setAnalysisResult({
-            success: true,
-            sessionId: data.session.session_id,
-            paper_metadata: data.session.paper_metadata,
-            tables_found: data.session.tables_found || 0,
-            figures_found: 0, // Not stored in session yet
-            tables: [], // Not stored in session yet
-            figures: [],
-          });
+          // Load table-index.json from Supabase Storage
+          try {
+            const tableIndexUrl = getPublicUrl(`${sessionId}/table-index.json`);
+            const tableIndexResponse = await fetch(tableIndexUrl);
+
+            if (tableIndexResponse.ok) {
+              const tableIndex = await tableIndexResponse.json();
+              setAnalysisResult({
+                success: true,
+                sessionId: data.session.session_id,
+                paper_metadata: data.session.paper_metadata,
+                tables_found: tableIndex.tables?.length || 0,
+                figures_found: tableIndex.figures?.length || 0,
+                tables: tableIndex.tables || [],
+                figures: tableIndex.figures || [],
+              });
+            } else {
+              // Fallback if table-index.json doesn't exist (shouldn't happen)
+              setAnalysisResult({
+                success: true,
+                sessionId: data.session.session_id,
+                paper_metadata: data.session.paper_metadata,
+                tables_found: data.session.tables_found || 0,
+                figures_found: 0,
+                tables: [],
+                figures: [],
+              });
+            }
+          } catch (err) {
+            console.error('Failed to load table-index.json:', err);
+            // Fallback to session data only
+            setAnalysisResult({
+              success: true,
+              sessionId: data.session.session_id,
+              paper_metadata: data.session.paper_metadata,
+              tables_found: data.session.tables_found || 0,
+              figures_found: 0,
+              tables: [],
+              figures: [],
+            });
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load session');

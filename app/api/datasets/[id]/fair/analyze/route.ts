@@ -20,6 +20,8 @@ import { FILE_TYPES } from '@/lib/constants/file-types';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { updateExtractionTokens } from '@/lib/db/extraction-queries';
+import { extractTokenUsage, formatCost } from '@/lib/anthropic/client';
 
 interface FairAnalysisResponse {
   success: boolean;
@@ -69,6 +71,12 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Check if this dataset came from an extraction session (for token tracking)
+    const extractionSession = await queryOne<{ session_id: string }>(
+      'SELECT session_id FROM extraction_sessions WHERE dataset_id = $1 LIMIT 1',
+      [datasetId]
+    );
 
     // Get data files for this dataset
     const dataFiles = await query<any>(
@@ -145,7 +153,8 @@ export async function POST(
       paperMetadata,
       dataFiles,
       csvContents,
-      kohnStandards
+      kohnStandards,
+      extractionSession
     );
 
     console.log('[ThermoFAIR] AI FAIR assessment complete:', {
@@ -381,7 +390,8 @@ async function performAIPoweredFAIRAnalysis(
   metadata: any,
   files: any[],
   csvContents: Array<{ filename: string; content: string; url: string }>,
-  kohnStandards: string
+  kohnStandards: string,
+  extractionSession: { session_id: string } | null
 ) {
   // Initialize Anthropic client
   const anthropic = new Anthropic({
@@ -464,6 +474,20 @@ ${kohnStandards.substring(0, 3000)}...
       }
     ]
   });
+
+  // Track token usage if this came from an extraction session
+  if (extractionSession) {
+    const tokenUsage = extractTokenUsage(message);
+    await updateExtractionTokens(
+      extractionSession.session_id,
+      'fair_analysis',
+      tokenUsage.input_tokens,
+      tokenUsage.output_tokens
+    );
+    console.log(
+      `[ThermoFAIR] Token usage - Input: ${tokenUsage.input_tokens}, Output: ${tokenUsage.output_tokens}, Cost: ${formatCost(tokenUsage.cost_usd)}`
+    );
+  }
 
   // Parse AI response
   const firstContent = message.content[0];

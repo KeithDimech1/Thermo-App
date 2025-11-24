@@ -10,8 +10,9 @@ import {
   getExtractionSession,
   updateExtractionState,
   markSessionFailed,
+  updateExtractionTokens,
 } from '@/lib/db/extraction-queries';
-import { createMessageWithContent } from '@/lib/anthropic/client';
+import { createMessageWithContent, extractTokenUsage, formatCost } from '@/lib/anthropic/client';
 import { downloadFile, uploadFile } from '@/lib/storage/supabase';
 import { parseCSV, arrayToCSV } from '@/lib/extraction/csv-utils';
 import type { TableInfo } from '@/lib/types/extraction-types';
@@ -186,6 +187,18 @@ Return ONLY the CSV data (no markdown code blocks, no explanations).`;
         maxTokens: 8000,
         temperature: 0.1, // Low temperature for accurate extraction
       }
+    );
+
+    // Track token usage for cost analysis (extraction stage - called once per table)
+    const tokenUsage = extractTokenUsage(response);
+    await updateExtractionTokens(
+      sessionId,
+      'extraction',
+      tokenUsage.input_tokens,
+      tokenUsage.output_tokens
+    );
+    console.log(
+      `[Extract] Table ${table.table_number} - Tokens: ${tokenUsage.total_tokens}, Cost: ${formatCost(tokenUsage.cost_usd)}`
     );
 
     // Extract text response

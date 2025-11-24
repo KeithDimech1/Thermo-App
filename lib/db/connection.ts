@@ -69,7 +69,7 @@ export function getPool(): Pool {
       // Connection pool settings (optimized for serverless + Supabase Transaction mode)
       max: 1,                       // Only 1 connection per function (serverless best practice)
       idleTimeoutMillis: 10000,     // Close idle clients after 10s (fast cleanup)
-      connectionTimeoutMillis: 10000, // Shorter timeout for Transaction mode
+      connectionTimeoutMillis: 30000, // 30s timeout for serverless cold starts
 
       // Serverless optimization
       allowExitOnIdle: true,        // Allow pool to close when idle (good for serverless)

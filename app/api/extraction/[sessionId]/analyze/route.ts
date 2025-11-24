@@ -14,9 +14,10 @@ import {
   updateExtractionState,
   updatePaperMetadata,
   markSessionFailed,
+  updateExtractionTokens,
 } from '@/lib/db/extraction-queries';
 import { extractPDFText, checkPDFJSAvailable } from '@/lib/utils/pdf-utils';
-import { createMessage, isAnthropicConfigured } from '@/lib/anthropic/client';
+import { createMessage, isAnthropicConfigured, extractTokenUsage, formatCost } from '@/lib/anthropic/client';
 // Screenshot generation moved to client-side (analyze page.tsx)
 // import { captureTableScreenshots, captureFigureScreenshots } from '@/lib/extraction/pdf-screenshot';
 import {
@@ -114,6 +115,18 @@ export async function POST(
         maxTokens: 4000,
         temperature: 0.1,
       }
+    );
+
+    // Track token usage for cost analysis
+    const tokenUsage = extractTokenUsage(response);
+    await updateExtractionTokens(
+      sessionId,
+      'analysis',
+      tokenUsage.input_tokens,
+      tokenUsage.output_tokens
+    );
+    console.log(
+      `[Analyze API] Token usage - Input: ${tokenUsage.input_tokens}, Output: ${tokenUsage.output_tokens}, Cost: ${formatCost(tokenUsage.cost_usd)}`
     );
 
     // Extract text content from response
@@ -265,6 +278,10 @@ export async function POST(
       analysisResult.tables.length,
       [] // Paper-agnostic - no data type classification
     );
+
+    // Step 8: Update state to 'analyzed' so UI knows we're done
+    await updateExtractionState(sessionId, 'analyzed');
+    console.log(`[Analyze API] State updated to analyzed`);
 
     console.log(`[Analyze API] Analysis complete for session: ${sessionId}`);
 

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -55,20 +56,59 @@ export default function UploadPage() {
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('pdf', file);
-
-      const response = await fetch('/api/extraction/upload', {
+      // Step 1: Prepare upload (get session ID)
+      const prepareResponse = await fetch('/api/extraction/prepare-upload', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Upload failed');
+      if (!prepareResponse.ok) {
+        const data = await prepareResponse.json();
+        throw new Error(data.error || 'Failed to prepare upload');
       }
 
-      const data = await response.json();
+      const { sessionId, uploadPath, bucket } = await prepareResponse.json();
+
+      // Step 2: Upload directly to Supabase Storage
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+      const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(uploadPath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Step 3: Confirm upload and create database session
+      const confirmResponse = await fetch('/api/extraction/confirm-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          filename: file.name,
+          fileSize: file.size,
+          uploadPath,
+        }),
+      });
+
+      if (!confirmResponse.ok) {
+        const data = await confirmResponse.json();
+        throw new Error(data.error || 'Failed to create session');
+      }
+
+      const data = await confirmResponse.json();
 
       // Redirect to analysis page
       router.push(`/extraction/${data.sessionId}/analyze`);

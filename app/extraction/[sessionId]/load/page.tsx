@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { ExtractionSession } from '@/lib/types/extraction-types';
+import { AICostSummary } from '@/components/extraction/AICostSummary';
 
 interface PageProps {
   params: Promise<{
@@ -319,6 +320,9 @@ export default function LoadPage({ params }: PageProps) {
                 ThermoFAIR will analyze the CSVs against Kohn 2024 standards, convert data to EarthBank templates, and provide a compliance score.
               </p>
             </div>
+
+            {/* AI Cost Summary */}
+            <AICostSummary sessionId={sessionId} />
 
             {/* Actions */}
             <div className="bg-white rounded-lg shadow-sm p-6">

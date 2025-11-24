@@ -342,7 +342,14 @@ print()
 
 ## Step 2: Create Dataset Database Record
 
-**Task:** Insert dataset record into database and get new dataset ID
+**Task:** Check for duplicate DOI, then insert dataset record into database and get new dataset ID
+
+**Duplicate Detection:**
+Before creating a new dataset, the system checks if a dataset with the same DOI already exists. If a duplicate is found:
+- The process stops immediately
+- An error message displays the existing dataset ID and name
+- A link to view the existing dataset is provided
+- No new dataset record is created
 
 **Process:**
 

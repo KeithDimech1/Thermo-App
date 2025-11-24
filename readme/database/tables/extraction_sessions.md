@@ -42,11 +42,19 @@ Tracks the state and progress of data extraction sessions from PDF papers. Each 
 | `completed_at` | timestamp | | Session completion timestamp |
 | `error_message` | text | | Error details if extraction failed |
 | `error_stage` | text | | Stage where error occurred |
+| `ai_tokens_input_total` | integer | DEFAULT 0 | Total input tokens across all AI calls |
+| `ai_tokens_output_total` | integer | DEFAULT 0 | Total output tokens across all AI calls |
+| `ai_tokens_total` | integer | GENERATED | Total tokens (input + output) - auto-calculated |
+| `ai_cost_usd` | numeric(10,6) | GENERATED | Total AI cost in USD - auto-calculated ($3/M input, $15/M output) |
+| `ai_usage_breakdown` | jsonb | DEFAULT {...} | Per-stage token breakdown (analysis, extraction, fair_analysis) |
+| `ai_model` | text | DEFAULT 'claude-sonnet-4-5-20250929' | AI model used for extraction |
 
 **Indexes:**
 - Primary key on `id` (UUID)
 - Unique constraint on `session_id`
 - B-tree indexes on: `session_id`, `state`, `created_at DESC`
+- B-tree index on: `ai_cost_usd DESC` (for cost queries)
+- B-tree index on: `user_id, ai_cost_usd` (for per-user cost tracking)
 
 ## Relationships
 
@@ -284,3 +292,146 @@ WHERE paper_metadata ? 'journal'
 GROUP BY paper_metadata->>'journal'
 ORDER BY paper_count DESC;
 ```
+
+---
+
+## AI Cost Tracking (Added 2025-11-24)
+
+**Purpose:** Track Anthropic API token usage and costs across the extraction workflow to enable:
+- Per-paper cost analysis
+- User-level cost tracking and budgeting
+- Workflow optimization (identify expensive extractions)
+- Model selection (Sonnet vs Haiku)
+- Cost forecasting
+
+**Schema Columns:**
+- `ai_tokens_input_total` - Cumulative input tokens
+- `ai_tokens_output_total` - Cumulative output tokens
+- `ai_tokens_total` - Auto-calculated sum (generated column)
+- `ai_cost_usd` - Auto-calculated cost using model pricing (generated column)
+- `ai_usage_breakdown` - JSONB with per-stage details
+- `ai_model` - Model used (defaults to Claude Sonnet 4.5)
+
+**Breakdown Structure:**
+```json
+{
+  "analysis": {
+    "input": 50000,
+    "output": 5000,
+    "calls": 1
+  },
+  "extraction": {
+    "input": 200000,
+    "output": 30000,
+    "calls": 5
+  },
+  "fair_analysis": {
+    "input": 30000,
+    "output": 3000,
+    "calls": 1
+  }
+}
+```
+
+**Pricing (Claude Sonnet 4.5):**
+- Input tokens: $3.00 per million
+- Output tokens: $15.00 per million
+
+**Cost Formula:**
+```sql
+ai_cost_usd = (ai_tokens_input_total / 1000000.0) * 3.00 + (ai_tokens_output_total / 1000000.0) * 15.00
+```
+
+**Typical Costs:**
+- Simple paper (1-2 tables): $0.30 - $0.60
+- Medium paper (3-5 tables): $0.80 - $1.50
+- Complex paper (6-10 tables): $2.00 - $4.00
+
+**Cost Analytics Queries:**
+
+```sql
+-- Total AI spending
+SELECT
+  SUM(ai_cost_usd) as total_spent,
+  COUNT(*) as papers_processed,
+  AVG(ai_cost_usd) as avg_cost_per_paper
+FROM extraction_sessions
+WHERE state = 'loaded';
+
+-- Most expensive papers
+SELECT
+  session_id,
+  paper_metadata->>'title' as title,
+  ai_tokens_total,
+  ai_cost_usd,
+  (ai_usage_breakdown->'extraction'->>'calls')::int as extraction_calls
+FROM extraction_sessions
+WHERE state = 'loaded'
+ORDER BY ai_cost_usd DESC
+LIMIT 10;
+
+-- Cost by stage breakdown
+SELECT
+  COUNT(*) as paper_count,
+  AVG((ai_usage_breakdown->'analysis'->'input')::int +
+      (ai_usage_breakdown->'analysis'->'output')::int) as avg_analysis_tokens,
+  AVG((ai_usage_breakdown->'extraction'->'input')::int +
+      (ai_usage_breakdown->'extraction'->'output')::int) as avg_extraction_tokens,
+  AVG((ai_usage_breakdown->'fair_analysis'->'input')::int +
+      (ai_usage_breakdown->'fair_analysis'->'output')::int) as avg_fair_tokens
+FROM extraction_sessions
+WHERE state = 'loaded';
+
+-- User-level costs (when user tracking enabled)
+SELECT
+  user_id,
+  COUNT(*) as papers_extracted,
+  SUM(ai_cost_usd) as total_cost,
+  AVG(ai_cost_usd) as avg_per_paper,
+  MAX(ai_cost_usd) as max_cost
+FROM extraction_sessions
+WHERE user_id IS NOT NULL AND state = 'loaded'
+GROUP BY user_id
+ORDER BY total_cost DESC;
+
+-- Monthly spending trend
+SELECT
+  DATE_TRUNC('month', created_at) as month,
+  COUNT(*) as papers,
+  SUM(ai_cost_usd) as total_cost,
+  AVG(ai_cost_usd) as avg_per_paper
+FROM extraction_sessions
+WHERE state = 'loaded'
+GROUP BY DATE_TRUNC('month', created_at)
+ORDER BY month DESC;
+
+-- Cost efficiency (FAIR score per dollar)
+SELECT
+  session_id,
+  paper_metadata->>'title' as title,
+  fair_score,
+  ai_cost_usd,
+  ROUND((fair_score::numeric / NULLIF(ai_cost_usd, 0)), 2) as fair_score_per_dollar
+FROM extraction_sessions
+WHERE state = 'loaded' AND fair_score IS NOT NULL
+ORDER BY fair_score_per_dollar DESC
+LIMIT 20;
+```
+
+**API Endpoints:**
+- `GET /api/extraction/[sessionId]/costs` - Retrieve cost breakdown for a session
+
+**UI Components:**
+- `<AICostSummary sessionId={sessionId} />` - Display costs in extraction workflow
+
+**Implementation Files:**
+- Migration: `scripts/db/migrations/add-ai-cost-tracking.sql`
+- Queries: `lib/db/extraction-queries.ts` (updateExtractionTokens, getExtractionTokenUsage, getUserAICosts)
+- Client helpers: `lib/anthropic/client.ts` (extractTokenUsage, calculateCost, formatCost)
+- API updates: All extraction routes track tokens automatically
+
+**Optimization Opportunities:**
+- Use Haiku for simple papers ($0.80/$4.00 per M tokens = ~70% cheaper)
+- Cache repeated extractions
+- Optimize prompts to reduce token usage
+- Batch process during off-peak hours (if pricing varies)

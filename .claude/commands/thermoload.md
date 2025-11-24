@@ -295,6 +295,32 @@ print(f'✅ Sample Count: {sample_count}')
 if age_range_min_ma and age_range_max_ma:
     print(f'✅ Age Range: {age_range_min_ma}-{age_range_max_ma} Ma')
 print()
+
+# Extract table and figure captions from paper-index.md
+print('📊 Extracting table and figure captions from paper-index.md...')
+table_captions = {}
+figure_captions = {}
+
+# Parse table captions from markdown table
+# Format: | **Table 1** | **2** | **Caption Text** | ... |
+table_pattern = r'\|\s*\*\*Table\s+(\d+)\*\*\s*\|\s*\*\*\d+\*\*\s*\|\s*\*\*(.+?)\*\*\s*\|'
+for match in re.finditer(table_pattern, index_content):
+    table_num = match.group(1)
+    caption = match.group(2).strip()
+    table_captions[f'table-{table_num}'] = caption
+    print(f'   ✅ Table {table_num}: {caption[:60]}{"..." if len(caption) > 60 else ""}')
+
+# Parse figure captions from markdown table
+# Format: | **Figure 1** | **3** | **Caption Text** | ... |
+figure_pattern = r'\|\s*\*\*Figure\s+(\d+)\*\*\s*\|\s*\*\*\d+\*\*\s*\|\s*\*\*(.+?)\*\*\s*\|'
+for match in re.finditer(figure_pattern, index_content):
+    fig_num = match.group(1)
+    caption = match.group(2).strip()
+    figure_captions[f'figure-{fig_num}'] = caption
+    print(f'   ✅ Figure {fig_num}: {caption[:60]}{"..." if len(caption) > 60 else ""}')
+
+print(f'   Total captions extracted: {len(table_captions)} tables, {len(figure_captions)} figures')
+print()
 ```
 
 **Output:**
@@ -309,6 +335,8 @@ print()
 - `description`
 - `paper_summary` - String (Section 1: Executive Summary from paper-analysis.md)
 - `paper_analysis_sections` - psycopg2.extras.Json object with 4 sections
+- `table_captions` - Dict[str, str] - Table captions keyed by "table-N"
+- `figure_captions` - Dict[str, str] - Figure captions keyed by "figure-N"
 
 ---
 
@@ -506,14 +534,21 @@ for img_file in table_images:
     shutil.copy2(img_file, img_dest)
 
     img_size = img_dest.stat().st_size
+
+    # Extract table number from filename (e.g., "table-1.png" -> "table-1")
+    table_key = img_file.stem.lower().replace('_cropped', '').replace('_extracted', '')
+    caption = table_captions.get(table_key, 'Table screenshot from paper')
+
     uploaded_files.append({
         'type': 'image/png',
         'source': img_file,
         'dest': img_dest,
         'size': img_size,
-        'description': 'Table screenshot'
+        'description': caption
     })
     print(f'   ✅ {img_file.name} ({img_size / 1024:.1f} KB)')
+    if table_key in table_captions:
+        print(f'      Caption: {caption[:80]}{"..." if len(caption) > 80 else ""}')
 
 print(f'   Total table images: {len(table_images)}')
 print()
@@ -530,14 +565,21 @@ for img_file in figure_images:
     shutil.copy2(img_file, img_dest)
 
     img_size = img_dest.stat().st_size
+
+    # Extract figure number from filename (e.g., "figure-1.png" -> "figure-1")
+    fig_key = img_file.stem.lower().replace('_cropped', '').replace('_extracted', '')
+    caption = figure_captions.get(fig_key, 'Figure from paper')
+
     uploaded_files.append({
         'type': 'image/png',
         'source': img_file,
         'dest': img_dest,
         'size': img_size,
-        'description': 'Figure'
+        'description': caption
     })
     print(f'   ✅ {img_file.name} ({img_size / 1024:.1f} KB)')
+    if fig_key in figure_captions:
+        print(f'      Caption: {caption[:80]}{"..." if len(caption) > 80 else ""}')
 
 print(f'   Total figures: {len(figure_images)}')
 print()

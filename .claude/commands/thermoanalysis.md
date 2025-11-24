@@ -13,12 +13,13 @@ Creates comprehensive, indexed analysis of thermochronology research papers with
 ## Purpose
 
 1. **Extract metadata** from research papers (authors, publication info, study location, methods)
-2. **Discover tables dynamically** from text (no hardcoded assumptions)
-3. **Extract figures** with captions from PDF
-4. **Download supplemental material** from OSF/Zenodo repositories
-5. **Generate indexed documentation** (paper-index.md, paper-analysis.md, figures.md)
-6. **Enable fast navigation** for Claude to find information without re-reading entire paper
-7. **Feed /thermoextract** with table locations and metadata for automated data extraction
+2. **Extract geographic information** from papers (coordinates, elevations, location maps)
+3. **Discover tables dynamically** from text (no hardcoded assumptions)
+4. **Extract figures** with captions from PDF, identifying location maps
+5. **Download supplemental material** from OSF/Zenodo repositories
+6. **Generate indexed documentation** (paper-index.md, paper-analysis.md, figures.md)
+7. **Enable fast navigation** for Claude to find information without re-reading entire paper
+8. **Feed /thermoextract** with table locations and metadata for automated data extraction
 
 ## Usage
 
@@ -72,8 +73,11 @@ Creates comprehensive, indexed analysis of thermochronology research papers with
 - **First pass:** Extracts figure captions from PDF text using regex
   - Pattern: `Figure X. Caption text` or `Fig. X. Caption text`
   - Keeps **full descriptions** (no truncation) for database import
+  - **Detects location maps** by scanning captions for keywords: "map", "location", "site", "study area", "shaded relief", "topographic", "satellite", "coordinates", "sample locations"
 - **Second pass:** Extracts images and matches to captions by page proximity
 - Generates `images/image-metadata.json` (structured JSON for database)
+  - **Flags location maps:** Adds `is_location_map: true` and `location_info` field
+  - **Extracts coordinate references** from captions
 - Generates `figures.md` (human-readable markdown with figure descriptions and previews)
 
 ### Step 6: Download OSF Supplemental Material
@@ -88,6 +92,11 @@ Creates comprehensive, indexed analysis of thermochronology research papers with
 Generates quick-reference guide with:
 - **Publication metadata:** Citation, authors, year, journal, DOI
 - **Study details:** Location, mineral, method, lab, sample count, age range
+- **Geographic information:**
+  - Coordinates (lat/long, UTM, easting/northing)
+  - Elevation ranges
+  - Regional location descriptions
+  - References to location map figures
 - **Document structure:** Navigation table with anchor links
 - **Data tables:** Table list with **exact page numbers** from `table-pages.json`
   - Format: `Table 1: Page 9`, `Table 2: Pages 10-11 (multi-page)`
@@ -210,6 +219,55 @@ build-data/learning/thermo-papers/AUTHOR(YEAR)-TITLE-JOURNAL/
 **Related Workflows:**
 - Feeds metadata to `/thermoextract` for automated data import
 - `/thermoextract` populates: `samples`, `ft_datapoints`, `ft_count_data`, `ft_track_length_data`, `he_whole_grain_data`
+
+## Geographic Information Extraction (NEW)
+
+When creating paper-index.md, extract and format geographic information as follows:
+
+**In the Study Details section, add:**
+
+```markdown
+## 📍 Geographic Information
+
+**Study Area:** [Regional description]
+
+**Coordinates:**
+- Latitude/Longitude: [e.g., 30-34°N, 100-105°E]
+- UTM/Easting/Northing: [if provided]
+- Elevation range: [e.g., 1,200-4,500m]
+
+**Location Map References:**
+- Figure X: [Brief description, e.g., "Regional map showing sample locations"]
+- Figure Y: [e.g., "Site map with GPS coordinates"]
+
+**Notes:**
+- [Any additional geographic context from the paper]
+```
+
+**In image-metadata.json, add these fields for each figure:**
+
+```json
+{
+  "filename": "page_3_img_0.png",
+  "figure_number": "Figure 1",
+  "description": "...",
+  "is_location_map": true,  // NEW FIELD
+  "location_info": {         // NEW FIELD
+    "map_type": "regional_map",  // Options: regional_map, site_map, sample_locations, topographic, satellite
+    "shows_coordinates": true,
+    "shows_sample_locations": true,
+    "coordinate_references": ["30-34°N", "100-105°E"],
+    "notes": "Shaded relief map with sample site markers"
+  }
+}
+```
+
+**Detection keywords for location maps:**
+- "map", "location", "site", "study area"
+- "shaded relief", "topographic", "satellite", "DEM"
+- "sample locations", "sample sites", "field area"
+- "coordinates", "GPS", "lat/long", "easting", "northing"
+- "index map", "regional map", "site map"
 
 ## Integration with /thermoextract
 

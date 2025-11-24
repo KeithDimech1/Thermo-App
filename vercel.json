@@ -3,9 +3,10 @@
     "app/api/extraction/upload/route.ts": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "app/api/extraction/[sessionId]/analyze/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
     }
-  },
-  "limits": {
-    "maxRequestBodySize": "100mb"
   }
 }

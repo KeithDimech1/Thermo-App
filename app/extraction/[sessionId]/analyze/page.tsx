@@ -161,6 +161,12 @@ export default function AnalyzePage({ params }: PageProps) {
         addLog(`📸 Generating screenshots for ${result.tables.length} tables...`);
         await generateTableScreenshots(result.tables);
       }
+
+      // Generate screenshots for figures
+      if (result.figures && result.figures.length > 0) {
+        addLog(`📸 Generating screenshots for ${result.figures.length} figures...`);
+        await generateFigureScreenshots(result.figures);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Analysis failed');
       addLog(`❌ Error: ${err instanceof Error ? err.message : 'Analysis failed'}`);
@@ -261,6 +267,103 @@ export default function AnalyzePage({ params }: PageProps) {
     } catch (err) {
       console.error('Screenshot generation failed:', err);
       setError(`Screenshot generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setGeneratingScreenshots(false);
+    }
+  };
+
+  // Generate screenshots of figure pages using PDF.js in the browser
+  const generateFigureScreenshots = async (figures: Array<{ figure_number: number | string; caption: string; page_number?: number }>) => {
+    setGeneratingScreenshots(true);
+    setScreenshotProgress({ current: 0, total: figures.length });
+    setError(null);
+
+    try {
+      addLog('⬇️ Downloading PDF...');
+
+      // Download PDF via authenticated API endpoint
+      const pdfResponse = await fetch(`/api/extraction/${sessionId}/pdf`);
+      if (!pdfResponse.ok) {
+        const errorData = await pdfResponse.json();
+        throw new Error(errorData.details || 'Failed to download PDF');
+      }
+
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      addLog(`✓ PDF loaded (${(pdfBuffer.byteLength / 1024).toFixed(0)} KB)`);
+
+      // Load PDF using PDF.js
+      const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+      const pdf = await loadingTask.promise;
+
+      // Process each figure
+      for (let i = 0; i < figures.length; i++) {
+        const figure = figures[i];
+        if (!figure || !figure.page_number) {
+          console.warn(`Figure ${figure?.figure_number || i} has no page number, skipping screenshot`);
+          continue;
+        }
+
+        setScreenshotProgress({ current: i + 1, total: figures.length });
+        addLog(`📸 Rendering figure ${figure.figure_number} (page ${figure.page_number})...`);
+
+        // Get page
+        const page = await pdf.getPage(figure.page_number);
+        const viewport = page.getViewport({ scale: 2.0 });
+
+        // Create canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+          throw new Error('Failed to get canvas context');
+        }
+
+        // Render PDF page to canvas
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+          canvas: canvas,
+        }).promise;
+
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          }, 'image/png');
+        });
+
+        // Upload via authenticated API endpoint
+        const uploadResponse = await fetch(
+          `/api/extraction/${sessionId}/upload-screenshot?figure=${figure.figure_number}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'image/png',
+            },
+            body: blob,
+          }
+        );
+
+        if (!uploadResponse.ok) {
+          const errorData = await uploadResponse.json();
+          console.error(`Failed to upload screenshot for figure ${figure.figure_number}:`, errorData);
+          throw new Error(errorData.details || 'Upload failed');
+        }
+
+        addLog(`✓ Uploaded figure ${figure.figure_number} screenshot`);
+      }
+
+      addLog(`✅ All figure screenshots generated successfully`);
+      setScreenshotsGenerated(true);
+    } catch (err) {
+      console.error('Figure screenshot generation failed:', err);
+      setError(`Figure screenshot generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setGeneratingScreenshots(false);
     }

@@ -107,9 +107,10 @@ export async function POST(
     const imageBuffer = Buffer.from(base64Data, 'base64');
     console.log('[Crop API] Image buffer created:', imageBuffer.length, 'bytes');
 
-    // Generate new filename with detected type
+    // Replace extension with detected type to reflect actual content
+    // Pairing logic strips all extensions, so this won't break matching
     const baseName = originalFileName.replace(/\.(png|jpg|jpeg|tiff)$/i, '');
-    const croppedFileName = `${baseName}_cropped.${detectedType}`;
+    const croppedFileName = `${baseName}.${detectedType === 'jpeg' ? 'jpg' : detectedType}`;
 
     // Upload to Supabase Storage
     console.log('[Crop API] Uploading to Supabase:', croppedFileName);
@@ -121,15 +122,21 @@ export async function POST(
     );
     console.log('[Crop API] Upload complete:', croppedImageUrl);
 
-    // Update data_files record with new path
+    // Determine file_type for database (use standard MIME types)
+    const fileType = `image/${detectedType}`;
+    const mimeType = fileType;
+
+    // Update data_files record with new path, filename, type, and size
     await query(
       `UPDATE data_files
        SET file_path = $1,
            file_name = $2,
-           file_size_bytes = $3,
+           file_type = $3,
+           mime_type = $4,
+           file_size_bytes = $5,
            updated_at = NOW()
-       WHERE id = $4`,
-      [croppedImageUrl, croppedFileName, imageBuffer.length, fileId]
+       WHERE id = $6`,
+      [croppedImageUrl, croppedFileName, fileType, mimeType, imageBuffer.length, fileId]
     );
 
     console.log(`[Crop] Cropped image uploaded: ${croppedFileName} (${imageBuffer.length} bytes)`);

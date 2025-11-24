@@ -48,8 +48,9 @@ function pairTablesWithCsvs(csvFiles: DataFile[], tableImages: DataFile[]): Tabl
   // Extract table number/name from filename (e.g., "table-1.csv" -> "table-1")
   const getTableKey = (filename: string): string => {
     return filename.toLowerCase()
-      .replace(/\.(csv|png)$/i, '')
-      .replace(/_extracted$/i, '');
+      .replace(/\.(csv|png|jpg|jpeg|tiff?)$/i, '') // Strip all supported extensions
+      .replace(/_extracted$/i, '')
+      .replace(/_cropped$/i, ''); // Also strip _cropped suffix
   };
 
   // First pass: match CSVs with images by filename
@@ -102,7 +103,7 @@ export default async function DatasetTablesPage({ params }: PageProps) {
 
   const csvFiles = allFiles.filter(f => f.file_type === FILE_TYPES.CSV);
   const tableImages = allFiles.filter(f =>
-    f.file_type === FILE_TYPES.IMAGE_PNG &&
+    (f.file_type === FILE_TYPES.IMAGE_PNG || f.file_type === FILE_TYPES.IMAGE_JPG) &&
     f.file_path.includes('/tables/')
   );
 

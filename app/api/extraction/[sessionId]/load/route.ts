@@ -235,6 +235,25 @@ export async function POST(
     try {
       const tableImages = await listFiles('extractions', `${sessionId}/images/tables`);
 
+      // Load table-index.json to get captions
+      let tableCaptions: Map<string, string> = new Map();
+      try {
+        const tableIndexBuffer = await downloadFile('extractions', `${sessionId}/table-index.json`);
+        const tableIndex = JSON.parse(tableIndexBuffer.toString('utf-8'));
+
+        if (tableIndex.tables && Array.isArray(tableIndex.tables)) {
+          for (const table of tableIndex.tables) {
+            const tableNum = String(table.table_number);
+            if (table.caption) {
+              tableCaptions.set(tableNum, table.caption);
+            }
+          }
+          console.log(`[Load] Loaded ${tableCaptions.size} table captions from table-index.json`);
+        }
+      } catch (indexErr) {
+        console.log('[Load] Could not load table-index.json (will use default descriptions)');
+      }
+
       for (const imgFile of tableImages) {
         const imgBuffer = await downloadFile('extractions', `${sessionId}/images/tables/${imgFile.name}`);
         const imgUrl = await uploadFile(
@@ -244,6 +263,15 @@ export async function POST(
           getFileTypeFromExtension(imgFile.name)
         );
 
+        // Extract table number from filename (e.g., "table-1.png" -> "1")
+        const tableNumMatch = imgFile.name.match(/table-?(\d+|[A-Z]\d+)/i);
+        const tableNum = tableNumMatch?.[1];
+
+        // Look up caption from table-index.json
+        const caption = tableNum && tableCaptions.has(String(tableNum))
+          ? tableCaptions.get(String(tableNum))!
+          : 'Table screenshot from paper';
+
         uploadedFiles.push({
           file_name: imgFile.name,
           file_path: imgUrl,
@@ -251,7 +279,7 @@ export async function POST(
           mime_type: getFileTypeFromExtension(imgFile.name),
           file_size_bytes: imgBuffer.length,
           display_name: imgFile.name.replace(/\.(png|jpg|jpeg|tiff)$/i, ''),
-          description: 'Table screenshot from paper'
+          description: caption
         });
       }
     } catch (err) {
